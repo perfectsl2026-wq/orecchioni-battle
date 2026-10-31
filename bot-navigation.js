@@ -1,5 +1,5 @@
-import {blocked,onWorldChange,BOUNDS,MAPS,ACTIVE_MAP,groundHeight} from './shared.js?v=38.2';
-import {accelerate,BOT_BRAKING} from './agent-motion.js?v=38.2';
+import {blocked,onWorldChange,BOUNDS,MAPS,ACTIVE_MAP,groundHeight} from './shared.js?v=38.3';
+import {accelerate,BOT_BRAKING} from './agent-motion.js?v=38.3';
 
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const copy=p=>({x:p.x,z:p.z});

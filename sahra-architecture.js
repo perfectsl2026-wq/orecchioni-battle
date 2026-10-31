@@ -1,10 +1,10 @@
 import * as T from './vendor/three.module.js';
-import {groundHeight,blocked} from './shared.js?v=38.2';
-import {box,cyl,bevel,label} from './graphics.js?v=38.2';
-import {metricBlock as block} from './caldera-architecture.js?v=38.2';
-import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=38.2';
-import {sahraInterior} from './sahra-layout.js?v=38.2';
-import {vehicleGreenhouse} from './vehicles.js?v=38.2';
+import {groundHeight,blocked} from './shared.js?v=38.3';
+import {box,cyl,bevel,label} from './graphics.js?v=38.3';
+import {metricBlock as block} from './caldera-architecture.js?v=38.3';
+import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=38.3';
+import {sahraInterior} from './sahra-layout.js?v=38.3';
+import {vehicleGreenhouse} from './vehicles.js?v=38.3';
 let awningMat=null;
 function awning(){
  if(awningMat)return awningMat;

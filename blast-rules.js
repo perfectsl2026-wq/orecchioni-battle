@@ -3,9 +3,9 @@
 // incendiary leaves a fire patch that burns whoever stands in it for 7 s. A smoke
 // cloud put down on a fire extinguishes it, as in CS. Damage is applied by the host
 // through the callback, so kills and assists go through the usual path.
-import {groundHeight,wallDistance} from './shared.js?v=38.2';
-import {eyeHeight} from './player-feel.js?v=38.2';
-import {ACTIVE as SMOKES} from './smoke-rules.js?v=38.2';
+import {groundHeight,wallDistance} from './shared.js?v=38.3';
+import {eyeHeight} from './player-feel.js?v=38.3';
+import {ACTIVE as SMOKES} from './smoke-rules.js?v=38.3';
 export const HE={radius:6,max:98,fuseMs:1600,armor:.6};
 export const FIRE={ms:7000,radius:3.3,dps:14,fuseMs:1400,tickMs:250};
 export const WEAPON_HE=6,WEAPON_FIRE=7;

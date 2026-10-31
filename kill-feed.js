@@ -1,5 +1,5 @@
-import {KILL_FEED_MS} from './kill-events.js?v=38.2';
-import {WEAPONS} from './shared.js?v=38.2';
+import {KILL_FEED_MS} from './kill-events.js?v=38.3';
+import {WEAPONS} from './shared.js?v=38.3';
 const shapes=[
  'M4 8h30v5H23v5h-7v-5H4z M28 13h7v2h-7z',
  'M3 10h31V8h7v6H22v4h-6v-5H3z M7 10V7h2v3',

@@ -1,18 +1,18 @@
-import {sahraSiteDetails} from './sahra-sites.js?v=38.2';
-import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=38.2';
-import {sahraStairAt} from './sahra-terrain.js?v=38.2';
+import {sahraSiteDetails} from './sahra-sites.js?v=38.3';
+import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=38.3';
+import {sahraStairAt} from './sahra-terrain.js?v=38.3';
 import * as T from './vendor/three.module.js';
-import {WALLS,MAPS,groundHeight,wallDistance} from './shared.js?v=38.2';
-import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=38.2';
-import {metricBlock as block} from './caldera-architecture.js?v=38.2';
-import {createAtmosphere} from './atmosphere.js?v=38.2';
-import {readableAlbedo,layeredWear,groundDrift,toneAlbedo} from './surface-detail.js?v=38.2';
-import {decorateFacade,decalMaterial,driftField} from './decals.js?v=38.2';
-import {trimMaterials} from './trim-kit.js?v=38.2';
-import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=38.2';
-import {sahraSiteProps} from './site-props.js?v=38.2';
-import {sahraInterior,sahraWalkable} from './sahra-layout.js?v=38.2';
-import {StreetProps,roofClutter,facadeCondenser} from './street-props.js?v=38.2';
+import {WALLS,MAPS,groundHeight,wallDistance} from './shared.js?v=38.3';
+import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=38.3';
+import {metricBlock as block} from './caldera-architecture.js?v=38.3';
+import {createAtmosphere} from './atmosphere.js?v=38.3';
+import {readableAlbedo,layeredWear,groundDrift,toneAlbedo} from './surface-detail.js?v=38.3';
+import {decorateFacade,decalMaterial,driftField} from './decals.js?v=38.3';
+import {trimMaterials} from './trim-kit.js?v=38.3';
+import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=38.3';
+import {sahraSiteProps} from './site-props.js?v=38.3';
+import {sahraInterior,sahraWalkable} from './sahra-layout.js?v=38.3';
+import {StreetProps,roofClutter,facadeCondenser} from './street-props.js?v=38.3';
 export function createSahra(scene,renderer){
  const root=new T.Group();root.name='SAHRA / 13 desert district';scene.add(root);const {pending,texture,surface,layer}=materialLibrary();
  // V28.1 material library: tiling photographed CC0 bases plus a worn substrate layer (see QA-TEXTURE-V28-1.md).

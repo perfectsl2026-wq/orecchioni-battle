@@ -3,7 +3,7 @@
 // A full-screen veil, drawn with the world (so the weapon stays visible), greys the
 // view while the camera is inside a cloud.
 import * as T from './vendor/three.module.js';
-import {SMOKE,smokeRadius,insideSmoke} from './smoke-rules.js?v=38.2';
+import {SMOKE,smokeRadius,insideSmoke} from './smoke-rules.js?v=38.3';
 export function puffTexture(){
  // Built from pixels rather than a 2D canvas: radial falloff broken up by value noise.
  const n=64,data=new Uint8Array(n*n*4),h=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);};

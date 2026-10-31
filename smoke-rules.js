@@ -2,7 +2,7 @@
 // blocks sight for 15 s: bots and the radar treat it as opaque, bullets still pass,
 // as in CS. Clouds live in the networked state; ACTIVE mirrors the current ones for
 // the cheap line-of-sight tests used every tick.
-import {groundHeight} from './shared.js?v=38.2';
+import {groundHeight} from './shared.js?v=38.3';
 export const SMOKE={ms:15000,radius:3.7,growMs:1100,fadeMs:1800,fuseMs:1700};
 export const ACTIVE=[];
 export function smokeRadius(s,now){const age=now-s.born,left=s.until-now;if(age<0||left<=0)return 0;

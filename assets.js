@@ -1,11 +1,11 @@
-import {inspectionPose,reloadPose} from './weapon-inspection.js?v=38.2';
-import {readableAlbedo} from './surface-detail.js?v=38.2';
-import {prepareKits} from './weapon-kits.js?v=38.2';
-import {createKnife} from './knife.js?v=38.2';
-import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear} from './operator-kits.js?v=38.2';
-import {footPlants} from './agent-locomotion.js?v=38.2';
+import {inspectionPose,reloadPose} from './weapon-inspection.js?v=38.3';
+import {readableAlbedo} from './surface-detail.js?v=38.3';
+import {prepareKits} from './weapon-kits.js?v=38.3';
+import {createKnife} from './knife.js?v=38.3';
+import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear} from './operator-kits.js?v=38.3';
+import {footPlants} from './agent-locomotion.js?v=38.3';
 import * as THREE from './vendor/three.module.js';
-import {locomotionWeights,gaitDirection} from './agent-motion.js?v=38.2';
+import {locomotionWeights,gaitDirection} from './agent-motion.js?v=38.3';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {clone as cloneSkeleton} from './vendor/addons/utils/SkeletonUtils.js';

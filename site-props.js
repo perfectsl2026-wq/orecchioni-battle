@@ -1,8 +1,8 @@
 import * as T from './vendor/three.module.js';
-import {box,cyl,cable,label} from './graphics.js?v=38.2';
-import {metricBlock as block} from './caldera-architecture.js?v=38.2';
-import {cosmetic} from './trim-kit.js?v=38.2';
-import {MAPS} from './shared.js?v=38.2';
+import {box,cyl,cable,label} from './graphics.js?v=38.3';
+import {metricBlock as block} from './caldera-architecture.js?v=38.3';
+import {cosmetic} from './trim-kit.js?v=38.3';
+import {MAPS} from './shared.js?v=38.3';
 // Hero props after the Riot practice: a small dedicated set per site that names the
 // place at a glance (minaret and hotel for A, kasbah market for B, telemetry for the
 // Caldera site). Everything sits on unreachable roofs, outside the boundary, above

@@ -1,7 +1,7 @@
 // Weapons on the ground. A primary drops where its owner dies or presses G; anyone
 // without a primary picks it up by walking over it, anyone with one swaps by holding
 // E on it. Drops live in the networked state and vanish when the round resets.
-import {WEAPONS,groundHeight} from './shared.js?v=38.2';
+import {WEAPONS,groundHeight} from './shared.js?v=38.3';
 export const PICKUP={reach:1.15,swapReach:1.6};
 export function dropWeapon(state,p,now,{weapon=p.primary,ammo}={}){
  if(!Number.isInteger(weapon)||weapon<1||weapon>4)return null;

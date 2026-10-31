@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {box,mesh,bevel} from './graphics.js?v=38.2';
+import {box,mesh,bevel} from './graphics.js?v=38.3';
 
 // Shared metric primitives (originally the Caldera kit; the retired V28 station
 // builders are archived in archivio/v28-2). Blocks carry face-local wear UVs.

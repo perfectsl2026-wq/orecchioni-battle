@@ -1,14 +1,14 @@
-import {refineForge} from './arena-refinement.js?v=38.2';
+import {refineForge} from './arena-refinement.js?v=38.3';
 import * as T from './vendor/three.module.js';
-import {WALLS,ARCHES} from './shared.js?v=38.2';
-import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=38.2';
-import {metricBlock as block} from './caldera-architecture.js?v=38.2';
-import {arched} from './district-builder.js?v=38.2';
-import {createAtmosphere} from './atmosphere.js?v=38.2';
-import {readableAlbedo} from './surface-detail.js?v=38.2';
-import {placeArchitecture} from './architecture-assets.js?v=38.2';
-import {StreetProps,roofClutter,reskin} from './street-props.js?v=38.2';
-import {MAPS} from './shared.js?v=38.2';
+import {WALLS,ARCHES} from './shared.js?v=38.3';
+import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=38.3';
+import {metricBlock as block} from './caldera-architecture.js?v=38.3';
+import {arched} from './district-builder.js?v=38.3';
+import {createAtmosphere} from './atmosphere.js?v=38.3';
+import {readableAlbedo} from './surface-detail.js?v=38.3';
+import {placeArchitecture} from './architecture-assets.js?v=38.3';
+import {StreetProps,roofClutter,reskin} from './street-props.js?v=38.3';
+import {MAPS} from './shared.js?v=38.3';
 const loader=new T.TextureLoader();
 export function createForge(scene,renderer,{capture=true}={}){
  const root=new T.Group();root.name='FORGE / Alpine Hydroelectric Station';scene.add(root);const pending=[];
