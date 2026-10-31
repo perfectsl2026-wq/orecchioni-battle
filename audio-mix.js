@@ -1,0 +1,1 @@
+export function mixShot(listener,yaw,source,muffled=false){const dx=source[0]-listener.x,dz=source[2]-listener.z,distance=Math.hypot(dx,dz);return {volume:.16/(1+(distance/9)**2)*(muffled?.6:1),pan:Math.max(-.95,Math.min(.95,(dx*Math.cos(yaw)-dz*Math.sin(yaw))/Math.max(1,distance))),muffled};}

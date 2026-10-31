@@ -1,0 +1,121 @@
+{
+  "author": "ORECCHIONI BATTLE / original kit",
+  "blender": "5.2.1 LTS",
+  "assets": [
+    {
+      "id": "nexus-cargo",
+      "envelope": [
+        2.5,
+        2.05,
+        1.8
+      ],
+      "triangles": 12332,
+      "bytes": 351284,
+      "source": "original Blender 5.2 kit",
+      "bounds_blender": [
+        [
+          -1.3030000925064087,
+          -0.9529999494552612,
+          0.0
+        ],
+        [
+          1.3030000925064087,
+          0.9529999494552612,
+          2.063000202178955
+        ]
+      ]
+    },
+    {
+      "id": "caldera-cargo",
+      "envelope": [
+        2.5,
+        2.05,
+        1.8
+      ],
+      "triangles": 12332,
+      "bytes": 352260,
+      "source": "original Blender 5.2 kit",
+      "bounds_blender": [
+        [
+          -1.3030000925064087,
+          -0.9529999494552612,
+          0.0
+        ],
+        [
+          1.3030000925064087,
+          0.9529999494552612,
+          2.063000202178955
+        ]
+      ]
+    },
+    {
+      "id": "nexus-induction",
+      "envelope": [
+        3.6,
+        1.25,
+        5.2
+      ],
+      "triangles": 9712,
+      "bytes": 276380,
+      "source": "original Blender 5.2 kit",
+      "bounds_blender": [
+        [
+          -1.8570001125335693,
+          -2.6569998264312744,
+          0.0
+        ],
+        [
+          1.8570001125335693,
+          2.6569998264312744,
+          1.2660000324249268
+        ]
+      ]
+    },
+    {
+      "id": "caldera-spectrometer",
+      "envelope": [
+        4.4,
+        1.15,
+        4.4
+      ],
+      "triangles": 13284,
+      "bytes": 416452,
+      "source": "original Blender 5.2 kit",
+      "bounds_blender": [
+        [
+          -2.256999969482422,
+          -2.256999969482422,
+          0.0
+        ],
+        [
+          2.256999969482422,
+          2.256999969482422,
+          1.184999942779541
+        ]
+      ]
+    },
+    {
+      "id": "nexus-airlock",
+      "envelope": [
+        1.9,
+        2.85,
+        0.22
+      ],
+      "triangles": 1620,
+      "bytes": 46552,
+      "source": "original Blender 5.2 kit",
+      "bounds_blender": [
+        [
+          -0.949999988079071,
+          -0.10100000351667404,
+          0.0
+        ],
+        [
+          0.949999988079071,
+          0.05000000074505806,
+          2.8499999046325684
+        ]
+      ]
+    }
+  ]
+}
