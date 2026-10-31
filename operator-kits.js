@@ -9,7 +9,7 @@ import * as T from './vendor/three.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
-import {PAINTS} from './weapon-finish.js?v=38.1';
+import {PAINTS} from './weapon-finish.js?v=38.2';
 export const KITS=[
  {id:'assalto',name:'ASSALTO',tag:'LINEA',toggles:{visor:'Visore notturno',mask:'Maschera facciale',pack:'Zaino d’assalto'},desc:'Casco balistico con occhiali e cuffia, maschera facciale a scelta, visore notturno a quattro tubi. L’operatore che entra per primo.'},
  {id:'ricognizione',name:'RICOGNIZIONE',tag:'LEGGERO',toggles:{visor:'Occhiali',mask:'Shemagh sul volto',pack:'Zaino leggero'},desc:'Berretto e cuffia radio, shemagh al collo, binocolo al petto. Sagoma bassa, passo lungo.'},

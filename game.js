@@ -1,60 +1,60 @@
-import {WeaponInspection} from './weapon-inspection.js?v=38.1';
-import {objectiveEnabled,flashEnabled,updateObjective,throwFlash,updateFlashes,flashOpacity,botObjectiveOrder,botSmokeTarget,botHeTarget,BOMB} from './objective-rules.js?v=38.1';
-import {UtilityPresentation} from './utility-presentation.js?v=38.1';
-import {applyMapTheme} from './visual-theme.js?v=38.1';
-import {InputChannel,cleanInput} from './network-input.js?v=38.1';
-import {NETWORK_PROTOCOL,ROOM_PREFIX,NetworkSession,sendPacket,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=38.1';
-import {FrameMeter} from './frame-meter.js?v=38.1';
-import {FramePacing} from './frame-pacing.js?v=38.1';
-import {displayName,warmVariantMaterials} from './weapon-variants.js?v=38.1';
-import {Career} from './profile.js?v=38.1';
-import {applyFinish,cleanLoadout} from './weapon-finish.js?v=38.1';
-import {missingBots,replaceableBot,nextBotName} from './roster.js?v=38.1';
-import {sizeRenderer,filterTextures} from './render-quality.js?v=38.1';
-import {recordKill,KillLedger} from './kill-events.js?v=38.1';
-import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=38.1';
-import {viewMotion} from './view-motion.js?v=38.1';
-import {PostFX,supportsPostFX} from './postfx.js?v=38.1';
-import {realizeWorld,realizeEnvironment} from './realism.js?v=38.1';
-import {AudioEngine} from './audio-engine.js?v=38.1';
-import {ViewKick} from './view-kick.js?v=38.1';
-import {footSurface} from './surfaces.js?v=38.1';
+import {WeaponInspection} from './weapon-inspection.js?v=38.2';
+import {objectiveEnabled,flashEnabled,updateObjective,throwFlash,updateFlashes,flashOpacity,botObjectiveOrder,botSmokeTarget,botHeTarget,BOMB} from './objective-rules.js?v=38.2';
+import {UtilityPresentation} from './utility-presentation.js?v=38.2';
+import {applyMapTheme} from './visual-theme.js?v=38.2';
+import {InputChannel,cleanInput} from './network-input.js?v=38.2';
+import {NETWORK_PROTOCOL,ROOM_PREFIX,NetworkSession,sendPacket,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=38.2';
+import {FrameMeter} from './frame-meter.js?v=38.2';
+import {FramePacing} from './frame-pacing.js?v=38.2';
+import {displayName,warmVariantMaterials} from './weapon-variants.js?v=38.2';
+import {Career} from './profile.js?v=38.2';
+import {applyFinish,cleanLoadout} from './weapon-finish.js?v=38.2';
+import {missingBots,replaceableBot,nextBotName} from './roster.js?v=38.2';
+import {sizeRenderer,filterTextures} from './render-quality.js?v=38.2';
+import {recordKill,KillLedger} from './kill-events.js?v=38.2';
+import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=38.2';
+import {viewMotion} from './view-motion.js?v=38.2';
+import {PostFX,supportsPostFX} from './postfx.js?v=38.2';
+import {realizeWorld,realizeEnvironment} from './realism.js?v=38.2';
+import {AudioEngine} from './audio-engine.js?v=38.2';
+import {ViewKick} from './view-kick.js?v=38.2';
+import {footSurface} from './surfaces.js?v=38.2';
 const frameMeter=new FrameMeter();let metricsAt=0;const firstPersonMotion={};let viewOffsets={};
 // V33 frame pacing: the render scale settles where this device holds its display rate; the
 // settled step is remembered so the next session starts there instead of stuttering down to it.
 let pacingStart=0;try{pacingStart=Math.max(0,(Number(localStorage.getItem('ob-render-step'))||0)-1);}catch{}
 const pacing=new FramePacing({start:pacingStart});
 import * as THREE from './vendor/three.module.js';
-import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=38.1';
-import {Armory} from './armory.js?v=38.1';
-import {preloadArchitecture} from './architecture-assets.js?v=38.1';
-import {preloadAssets,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug} from './assets.js?v=38.1';
-import {cleanOperator,botOperator} from './operator-kits.js?v=38.1';
-import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=38.1';
-import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=38.1';
-import {CombatFX,createFlashLights,dressMuzzleFlash} from './combatfx.js?v=38.1';
-import {BASE_FOV,scopeFov,mouseGain,ControlsPanel} from './controls.js?v=38.1';
-import {presentAgent} from './agent-motion.js?v=38.1';
-import {mixShot} from './audio-mix.js?v=38.1';
-import {SimulationClock} from './simulation-clock.js?v=38.1';
-import {SnapshotBuffer} from './snapshots.js?v=38.1';
-import {resetCombat,stepMovement,stepBotMovement,shotParameters,traceShot,applyHit,applyBlast,sprayOffset,CAMERA_RECOIL,recoilAt,accuracyFor,traceMelee,equipWeapon,canAttack} from './combat-rules.js?v=38.1';
-import {createMatch,updateMatch,canAct,isRoundMode,mapAllowsMode,defaultMode,teamName,modeRules,matchRules,isRespawnMode,allowedWeapons,weaponAllowed} from './match-rules.js?v=38.1';
-import {addKillFeed,weaponIcon,weaponName} from './kill-feed.js?v=38.1';
-import {Radar,spottedEnemies} from './radar.js?v=38.1';
-import {CrosshairEditor} from './crosshair.js?v=38.1';
-import {ECONOMY,economyOn,ownsWeapon,canBuyNow,buyWindowOpen,buyWindowLeft,inBuyZone,buy as buyItem,sell as sellItem,applyCarry,give} from './economy.js?v=38.1';
-import {throwUtility,updateFires,WEAPON_HE,WEAPON_FIRE} from './blast-rules.js?v=38.1';
-import {dropWeapon,updatePickups,dropNear} from './pickups.js?v=38.1';
-import {syncSmokes,throwSmoke,insideSmoke,smokeBlocks} from './smoke-rules.js?v=38.1';
-import {BuyMenu} from './buy-menu.js?v=38.1';
-import {SmokeFX,BlastFX,FireFX} from './smoke-fx.js?v=38.1';
-import {recordPositions,rewoundPlayers,clearHistory} from './lag-compensation.js?v=38.1';
-import {createSkylife} from './skylife.js?v=38.1';
-import {buildProbe} from './surface-probe.js?v=38.1';
-import {scoreboardHTML,rosterHTML} from './scoreboard.js?v=38.1';
-import {DeathPresentation} from './death-presentation.js?v=38.1';
-import {prefersTouch,requestMouseLock,TouchControls} from './touch-controls.js?v=38.1';
+import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=38.2';
+import {Armory} from './armory.js?v=38.2';
+import {preloadArchitecture} from './architecture-assets.js?v=38.2';
+import {preloadAssets,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug} from './assets.js?v=38.2';
+import {cleanOperator,botOperator} from './operator-kits.js?v=38.2';
+import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=38.2';
+import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=38.2';
+import {CombatFX,createFlashLights,dressMuzzleFlash} from './combatfx.js?v=38.2';
+import {BASE_FOV,scopeFov,mouseGain,ControlsPanel} from './controls.js?v=38.2';
+import {presentAgent} from './agent-motion.js?v=38.2';
+import {mixShot} from './audio-mix.js?v=38.2';
+import {SimulationClock} from './simulation-clock.js?v=38.2';
+import {SnapshotBuffer} from './snapshots.js?v=38.2';
+import {resetCombat,stepMovement,stepBotMovement,shotParameters,traceShot,applyHit,applyBlast,sprayOffset,CAMERA_RECOIL,recoilAt,accuracyFor,traceMelee,equipWeapon,canAttack} from './combat-rules.js?v=38.2';
+import {createMatch,updateMatch,canAct,isRoundMode,mapAllowsMode,defaultMode,teamName,modeRules,matchRules,isRespawnMode,allowedWeapons,weaponAllowed} from './match-rules.js?v=38.2';
+import {addKillFeed,weaponIcon,weaponName} from './kill-feed.js?v=38.2';
+import {Radar,spottedEnemies} from './radar.js?v=38.2';
+import {CrosshairEditor} from './crosshair.js?v=38.2';
+import {ECONOMY,economyOn,ownsWeapon,canBuyNow,buyWindowOpen,buyWindowLeft,inBuyZone,buy as buyItem,sell as sellItem,applyCarry,give} from './economy.js?v=38.2';
+import {throwUtility,updateFires,WEAPON_HE,WEAPON_FIRE} from './blast-rules.js?v=38.2';
+import {dropWeapon,updatePickups,dropNear} from './pickups.js?v=38.2';
+import {syncSmokes,throwSmoke,insideSmoke,smokeBlocks} from './smoke-rules.js?v=38.2';
+import {BuyMenu} from './buy-menu.js?v=38.2';
+import {SmokeFX,BlastFX,FireFX} from './smoke-fx.js?v=38.2';
+import {recordPositions,rewoundPlayers,clearHistory} from './lag-compensation.js?v=38.2';
+import {createSkylife} from './skylife.js?v=38.2';
+import {buildProbe} from './surface-probe.js?v=38.2';
+import {scoreboardHTML,rosterHTML} from './scoreboard.js?v=38.2';
+import {DeathPresentation} from './death-presentation.js?v=38.2';
+import {prefersTouch,requestMouseLock,TouchControls} from './touch-controls.js?v=38.2';
 const $=s=>document.getElementById(s),canvas=$('game'),career=new Career(),sfx=new AudioEngine(),qaMode=new URLSearchParams(location.search).get('qa')==='1';
 const mobileDevice=prefersTouch({coarse:matchMedia('(pointer:coarse)').matches,anyCoarse:matchMedia('(any-pointer:coarse)').matches,maxTouchPoints:navigator.maxTouchPoints||0})||new URLSearchParams(location.search).get('touch')==='1';
 document.documentElement.classList.toggle('touch-mode',mobileDevice);
@@ -95,7 +95,7 @@ async function loadMap(mapId){
  // loading card instead of freezing the lobby on its last frame.
  if(fresh){$('loading').classList.remove('leaving');$('loading').hidden=false;$('loading-message').textContent='Costruzione di '+MAPS[key].title+'…';$('assetprogress').removeAttribute('value');$('retryload').hidden=true;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(run!==mapLoadEpoch)return false;}
  if(!mapScenes.has(key)){
-  const world=new THREE.Scene();const build=key==='forge'?(await import('./forge.js?v=38.1')).createForge:key==='caldera'?(await import('./caldera.js?v=38.1')).createCaldera:(await import('./sahra.js?v=38.1')).createSahra;
+  const world=new THREE.Scene();const build=key==='forge'?(await import('./forge.js?v=38.2')).createForge:key==='caldera'?(await import('./caldera.js?v=38.2')).createCaldera:(await import('./sahra.js?v=38.2')).createSahra;
   if(run!==mapLoadEpoch)return false;configureMap(key);const root=build(world,renderer);realizeWorld(world,key,{lamps:!mobileDevice});createSkylife(world,key);if(mobileDevice)world.traverse(o=>{if(o.isLight&&o.shadow)o.shadow.mapSize.set(1024,1024);});
   mapScenes.set(key,{scene:world,root,ready:Promise.resolve(root.userData.ready).then(()=>{const t0=performance.now();mapScenes.get(key).probe=buildProbe(root);if(qaMode)console.log('surface probe',key,Math.round(performance.now()-t0)+' ms');})});
  }
@@ -462,7 +462,7 @@ try{$('name').value=localStorage.getItem('breach-name')||'Operatore';}catch{$('n
 $('resume').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touch.enabled)touch.setEnabled(true);});
 $('resume').onclick=()=>{if(state.ended&&host){$('board').hidden=true;notice('');lastDamageHP=100;scopeAmount=0;aim=false;mouseDown=false;resetBots();state.score={blue:0,orange:0};state.killEvents=[];kills.clear();clock.reset(Date.now());state.started=clock.time;state.now=clock.time;snapshots.clear();state.ended=false;resultHandled=null;matchStartXP=career.data.xp;state.phase='waiting';state.round=0;deaths.clear();lastDeath=null;$('feed').replaceChildren();$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';state.history=[];for(const p of Object.values(state.players)){p.kills=p.deaths=p.assists=p.dealt=p.hs=0;if(!p.loading)spawn(p)}}enterField()};$('leave').onclick=cleanup;
 $('copy').onclick=async()=>{const url=location.origin+location.pathname+'?room='+room+'&map='+ACTIVE_MAP+(touch.enabled?'&touch=1':'');try{await navigator.clipboard.writeText(url);$('copy').textContent='LINK COPIATO ✓';setTimeout(()=>$('copy').textContent='COPIA INVITO ↗',2200)}catch{prompt('Copia questo invito:',url)}};
-document.addEventListener('pointerlockchange',()=>{if(armory.active||controls.active||buyMenu.active){ready=false;clearActions();if(armory.active||buyMenu.active)$('pause').hidden=true;return;}if(touch.enabled)return;ready=document.pointerLockElement===canvas;if(ready)awaitingPointerLock=false;if(playing){if(state.ended){$('pause').hidden=true;$('board').hidden=false;return;}$('pause').hidden=ready;if(!ready){awaitingPointerLock=false;clearActions();if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('pausetext').textContent=state.preview?'Visita libera in pausa. H nasconde l’HUD durante la visita.':training?'Allenamento in pausa.':'La partita online continua mentre sei in pausa.';$('resume').textContent='TORNA IN CAMPO ↗';}}}});document.addEventListener('pointerlockerror',()=>{if(!armory.active)mouseFallback();});
+document.addEventListener('pointerlockchange',()=>{if(armory.active||controls.active||buyMenu.active){ready=false;awaitingPointerLock=false;clearActions();if(armory.active||buyMenu.active)$('pause').hidden=true;if(document.pointerLockElement)document.exitPointerLock();return;}if(touch.enabled)return;ready=document.pointerLockElement===canvas;if(ready)awaitingPointerLock=false;if(playing){if(state.ended){$('pause').hidden=true;$('board').hidden=false;return;}$('pause').hidden=ready;if(!ready){awaitingPointerLock=false;clearActions();if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('pausetext').textContent=state.preview?'Visita libera in pausa. H nasconde l’HUD durante la visita.':training?'Allenamento in pausa.':'La partita online continua mentre sei in pausa.';$('resume').textContent='TORNA IN CAMPO ↗';}}}});document.addEventListener('pointerlockerror',()=>{if(!armory.active)mouseFallback();});
 window.addEventListener('mousemove',e=>{if(touch.enabled||!ready||controls.active||(fallbackMouse&&!aim))return;const gain=mouseGain(controls.value,camera.fov,aim);yaw-=e.movementX*gain;pitch=Math.max(-1.45,Math.min(1.45,pitch-e.movementY*gain));});window.addEventListener('keydown',e=>{if(!playing||controls.active||armory.active)return;if(state.preview&&ready&&e.code==='KeyH'&&!e.repeat){document.documentElement.classList.toggle('clean-view');return;}if(['Tab','Space','ArrowUp','ArrowDown','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyB'){if(!e.repeat)openBuy();return}if(e.code==='Escape'&&(fallbackMouse||touch.enabled)){if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';}ready=false;$('pause').hidden=false;clearActions();}if(e.code==='Tab')$('board').hidden=false;if(ready&&e.code==='KeyR')reloadRequested=true;if(ready&&e.code==='KeyC'&&!e.repeat&&selected===4){scopeZoom=scopeZoom===4?8:4;}if(ready&&e.code==='KeyQ'&&!e.repeat)selectWeapon(weaponSwitch.previous);if(ready&&e.code==='KeyV'&&!e.repeat)selectWeapon(selected===5?weaponSwitch.previous:5);if(ready&&e.code==='KeyG'&&selected===5&&!e.repeat)secondaryPulse=true;if(ready&&e.code==='KeyF'&&!e.repeat)requestInspection();if(ready&&e.code==='KeyX'&&!e.repeat)utilityPulse=true;if(ready&&e.code==='KeyZ'&&!e.repeat)smokePulse=true;if(ready&&e.code==='KeyG'&&selected!==5&&!e.repeat)hePulse=true;if(ready&&e.code==='KeyH'&&!state.preview&&!e.repeat)firePulse=true;if(ready&&e.code==='KeyT'&&!e.repeat)dropPulse=true;if(ready&&/^Digit[1-6]$/.test(e.code))selectWeapon(Number(e.code.at(-1))-1);if(ready&&canAct(state)&&state.players[id]?.hp>0&&e.code==='Space'&&!e.repeat)jumpRequestUntil=matchNow()+JUMP.bufferMs});window.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab'&&!state.ended)$('board').hidden=true});window.addEventListener('blur',()=>{if(qaMode)return;if(playing&&ready)pauseGame();else clearActions();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing&&!qaMode)pauseGame();});window.addEventListener('mousedown',e=>{if(touch.enabled||!ready||e.target!==canvas)return;if(e.button===0){mouseDown=true;shotPulse=true;inspection.cancel();const me=state.players[id];if(me&&me.hp>0&&selected!==5&&!me.reload&&me.ammo?.[selected]===0&&canAct(state))sfx.dry();}if(e.button===2){if(selected===5&&!fallbackMouse)secondaryPulse=true;else aim=controls.value.toggleAim?!aim:true;}});window.addEventListener('mouseup',e=>{if(touch.enabled)return;if(e.button===0)mouseDown=false;if(e.button===2&&!controls.value.toggleAim)aim=false});window.addEventListener('contextmenu',e=>e.preventDefault());window.addEventListener('wheel',e=>{if(ready&&!e.ctrlKey&&Math.abs(e.deltaY)>.01){const list=allowedWeapons(state.mode),next=weaponSwitch.wheel(e.deltaY,performance.now(),list.length);if(next!==null)cycleWeapon(e.deltaY);}},{passive:true});
 function requestInspection(){const p=state.players[id],now=matchNow();inspection.request(performance.now(),ready&&p?.hp>0&&!aim&&!p.reload&&!mouseDown&&weaponSwitch.phase==='ready'&&now>=(p.equipUntil||0)&&canAct(state),selected);}
 function syncWeapon(p){if(selected!==p.weapon){selected=p.weapon;weaponSwitch.reset(selected);scopeAmount=0;aim=false;}}
@@ -489,10 +489,12 @@ $('prematchcustom').disabled=false;$('prematchcustom').onclick=()=>{$('openarmor
 $('openarmory').onclick=()=>{awaitingPointerLock=false;ready=false;clearActions();touch.setActive(false);document.exitPointerLock?.();$('menu').hidden=$('hud').hidden=$('pause').hidden=true;armory.open(selected);};
 const reducedMotion=matchMedia('(prefers-reduced-motion:reduce)');
 // Buy phase: the host applies purchases for itself directly; guests send requests it validates.
-const buyMenu=new BuyMenu({onBuy:requestBuy,onSell:requestSell,onReady:requestReady,canEquip:i=>playing&&weaponAllowed(state.mode,i)&&ownsWeapon(state,state.players[id],i)&&state.players[id]?.hp>0,onEquip:i=>selectWeapon(i),heldWeapon:()=>selected,utilityOn:()=>!!MAPS[state.map]?.utility,nameOf:i=>displayName(i,career.data.finishes[i]),onOpen:()=>{ready=false;clearActions();document.exitPointerLock?.();},
- onClose:reason=>{if(!playing||state.ended||controls.active||armory.active)return;if(reason==='timeout'&&!touch.enabled&&!fallbackMouse){$('pausetitle').textContent='ROUND INIZIATO';$('pausetext').textContent='Il tempo per gli acquisti è finito. Torna in campo.';$('resume').textContent='TORNA IN CAMPO ↗';$('pause').hidden=false;return;}enterField();}});
+const buyMenu=new BuyMenu({onBuy:requestBuy,onSell:requestSell,onReady:requestReady,canEquip:i=>playing&&weaponAllowed(state.mode,i)&&ownsWeapon(state,state.players[id],i)&&state.players[id]?.hp>0,onEquip:i=>selectWeapon(i),heldWeapon:()=>selected,utilityOn:()=>!!MAPS[state.map]?.utility,nameOf:i=>displayName(i,career.data.finishes[i]),onOpen:()=>{ready=false;clearActions();$('pause').hidden=true;document.exitPointerLock?.();},
+ // With a locked mouse the way back needs a key press: when the window ends the menu stays open as ARSENALE, and B or Esc returns to the field.
+ stayOnExpiry:()=>!touch.enabled&&!fallbackMouse,
+ onClose:()=>{if(!playing||state.ended||controls.active||armory.active)return;enterField();}});
 // B: the shop while the window is open and you are alive; otherwise the ARSENALE view (finishes stay in the lobby's Officina).
-function openBuy(){if(!playing||buyMenu.active||armory.active)return;const me=state.players[id];if(!me)return;buyMenu.open(!(canBuyNow(state,me,matchNow())&&me.hp>0));}
+function openBuy(){if(!playing||state.ended||buyMenu.active||armory.active)return;const me=state.players[id];if(!me)return;const now=matchNow();buyMenu.open(!(canBuyNow(state,me,now)&&me.hp>0),state,me,now,teamName(me.team));}
 function requestBuy(item){if(host){const p=state.players[id];if(p&&buyItem(state,p,item,clock.time))sfx.buy?.();}else if(upstream?.open)sendPacket(upstream,{type:'buy',item});}
 function requestSell(item){if(host){const p=state.players[id];if(p&&sellItem(state,p,item,clock.time))sfx.buy?.();}else if(upstream?.open)sendPacket(upstream,{type:'sell',item});}
 function requestReady(){if(host){const p=state.players[id];if(p)p.buyReady=state.round;}else if(upstream?.open)sendPacket(upstream,{type:'buyready'});buyMenu.close();}

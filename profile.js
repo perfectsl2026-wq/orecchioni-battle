@@ -1,5 +1,5 @@
-import {cleanLoadout,cleanFinish,PATTERNS} from './weapon-finish.js?v=38.1';
-import {cleanOperator} from './operator-kits.js?v=38.1';
+import {cleanLoadout,cleanFinish,PATTERNS} from './weapon-finish.js?v=38.2';
+import {cleanOperator} from './operator-kits.js?v=38.2';
 const number=(v,max=1e8)=>Number.isFinite(v)?Math.max(0,Math.min(max,Math.floor(v))):0;
 export class Career{
  constructor(storage){if(!arguments.length)try{storage=globalThis.localStorage;}catch{}this.storage=storage;this.persisted=!!storage;let v;try{v=JSON.parse(storage?.getItem('ob-career-v1')||'null');}catch{}

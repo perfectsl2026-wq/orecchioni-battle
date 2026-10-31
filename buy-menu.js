@@ -7,9 +7,9 @@
 // V33: outside a buy window (deathmatch, free visit, closed window) B opens the same
 // panel as ARSENALE: every weapon, grenade and gear with its numbers, nothing for
 // sale; in modes where every weapon is issued, a click takes it in hand.
-import {CATEGORIES,buyIssue,sellIssue,priceFor,canBuyNow,buyWindowLeft,sideOf,grenadeCount,ECONOMY,economyOn} from './economy.js?v=38.1';
-import {weaponIcon} from './kill-feed.js?v=38.1';
-import {WEAPONS} from './shared.js?v=38.1';
+import {CATEGORIES,buyIssue,sellIssue,priceFor,canBuyNow,buyWindowLeft,sideOf,grenadeCount,ECONOMY,economyOn} from './economy.js?v=38.2';
+import {weaponIcon} from './kill-feed.js?v=38.2';
+import {WEAPONS} from './shared.js?v=38.2';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ICONS={
  vest:'<svg viewBox="0 0 52 25" class="weapon-icon" aria-hidden="true"><path fill="currentColor" d="M18 2h5l3 3 3-3h5l6 5-3 6-3-1v11H18V12l-3 1-3-6z"/></svg>',
@@ -25,8 +25,8 @@ const REASONS={owned:'IN DOTAZIONE',full:'AL MASSIMO',slots:'4 GRANATE AL MASSIM
 export const weaponFacts=index=>{const w=WEAPONS[index];return w.melee?'FENDENTE 35 · STOCCATA 65 · ALLE SPALLE 140':'DANNO '+w.damage+' · '+Math.round(60/w.rate)+' COLPI/MIN · '+w.mag+' COLPI · '+w.range+' M';};
 const bars=index=>{const w=WEAPONS[index];if(w.melee)return '';const v=[['DANNO',w.damage/100],['CADENZA',(60/w.rate)/850],['CARICATORE',w.mag/30]];return '<span class="buy-bars">'+v.map(([k,x])=>'<i title="'+k+'" style="--v:'+Math.min(100,Math.round(x*100))+'%"></i>').join('')+'</span>';};
 export class BuyMenu{
- constructor({onBuy,onSell,onReady,onOpen,onClose,canEquip=()=>false,onEquip=()=>{},heldWeapon=()=>-1,utilityOn=()=>true,nameOf=i=>WEAPONS[i].name}){
-  this.el=document.getElementById('buymenu');this.active=false;this.view=false;this.category=2;Object.assign(this,{onBuy,onSell,onReady,onOpen,onClose,canEquip,onEquip,heldWeapon,utilityOn,nameOf});
+ constructor({onBuy,onSell,onReady,onOpen,onClose,stayOnExpiry=()=>false,canEquip=()=>false,onEquip=()=>{},heldWeapon=()=>-1,utilityOn=()=>true,nameOf=i=>WEAPONS[i].name}){
+  this.el=document.getElementById('buymenu');this.active=false;this.view=false;this.category=2;Object.assign(this,{onBuy,onSell,onReady,onOpen,onClose,stayOnExpiry,canEquip,onEquip,heldWeapon,utilityOn,nameOf});
   const cats=document.getElementById('buycats');
   CATEGORIES.forEach((c,n)=>{const b=document.createElement('button');b.type='button';b.dataset.category=n;b.innerHTML='<kbd>'+(n+1)+'</kbd><b>'+esc(c.label)+'</b><small></small>';b.onclick=()=>this.show(n);cats.append(b);});
   this.grid=document.getElementById('buygrid');this.footerText=this.el.querySelector('footer>span').textContent;
@@ -43,16 +43,19 @@ export class BuyMenu{
   if(this.view){if(item.kind==='weapon'&&this.canEquip(item.weapon)){this.onEquip(item.weapon);this.close('equip');}return;}
   if(!buyIssue(this.state,this.player,item,this.now))this.onBuy(item.id);else if(!sellIssue(this.state,this.player,item,this.now))this.onSell(item.id);}
  show(n){this.gridSig=null;this.category=n;this.el.classList.toggle('in-category',n>=0);for(const b of document.getElementById('buycats').children)b.setAttribute('aria-current',String(Number(b.dataset.category)===n));this.render(this.state,this.player,this.now,this.teamName);}
- open(view=false){if(this.active)return;this.active=true;this.gridSig=null;this.view=view;this.el.classList.toggle('view',view);this.el.hidden=false;
+ // V38.2: opening takes the live match, so the first render cannot judge the buy window on
+ // what the previous opening left behind (an old round, a dead player) and close at once.
+ setView(view,footer='1–5 CATEGORIA · 1–4 PRENDI IN MANO · 0 INDIETRO · B O ESC CHIUDE'){this.view=view;this.gridSig=null;this.el.classList.toggle('view',view);
   document.getElementById('buytitle').textContent=view?'ARSENALE':'ACQUISTI';document.getElementById('buyready').hidden=view;document.getElementById('buyteam').hidden=view;
-  this.el.querySelector('footer>span').textContent=view?'1–5 CATEGORIA · 1–4 PRENDI IN MANO · 0 INDIETRO · B O ESC CHIUDE':this.footerText;
+  this.el.querySelector('footer>span').textContent=view?footer:this.footerText;}
+ open(view=false,state=this.state,player=this.player,now=this.now,teamName=this.teamName){if(this.active)return;this.active=true;Object.assign(this,{state,player,now,teamName});this.setView(view);this.el.hidden=false;
   this.show(2);this.onOpen?.();}
  close(reason='user'){if(!this.active)return;this.active=false;this.el.hidden=true;this.el.classList.remove('view');this.onClose?.(reason);}
  toggle(view=false){if(this.active)this.close();else this.open(view);}
  render(state,p,now,teamName){
   if(!this.active||!p)return;this.state=state;this.player=p;this.now=now;this.teamName=teamName;
   if(this.view)return this.renderView(state,p);
-  if(!canBuyNow(state,p,now)||p.hp<=0){this.close('timeout');return;}
+  if(!canBuyNow(state,p,now)||p.hp<=0){if(!state.ended&&this.stayOnExpiry()){this.setView(true,'ACQUISTI CHIUSI · 1–4 PRENDI IN MANO · B O ESC TORNA IN CAMPO');this.show(this.category);}else this.close('timeout');return;}
   const side=sideOf(state,p);
   document.getElementById('buymoney').textContent=(p.money||0).toLocaleString('it-IT');
   document.getElementById('buytime').textContent=Math.max(0,Math.ceil(buyWindowLeft(state,now)/1000));

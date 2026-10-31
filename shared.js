@@ -1,9 +1,9 @@
-import {SAHRA} from './sahra-layout.js?v=38.1';
-import {CALDERA} from './caldera-layout.js?v=38.1';
+import {SAHRA} from './sahra-layout.js?v=38.2';
+import {CALDERA} from './caldera-layout.js?v=38.2';
 export const WEAPONS=[{name:'P226',label:'PISTOLA',mag:12,damage:28,rate:.23,reload:1.25,spread:.007,range:90,auto:false,color:0x303e42},{name:'MP5',label:'MITRA',mag:30,damage:19,rate:.075,reload:1.7,spread:.026,range:65,auto:true,color:0x253436},{name:'AK-47',label:'ASSALTO',mag:30,damage:34,rate:.115,reload:2.2,spread:.014,range:120,auto:true,color:0x7c5235},{name:'M4A1',label:'ASSALTO',mag:30,damage:27,rate:.09,reload:1.95,spread:.009,range:120,auto:true,color:0x334444},{name:'M24',label:'PRECISIONE',mag:5,damage:115,rate:1.2,reload:2.8,spread:.018,aimSpread:.00025,range:180,auto:false,color:0x53614c},{name:'K-07',label:'COLTELLO',mag:0,damage:35,rate:.42,reload:0,range:1.85,auto:true,melee:true,color:0x7c9492}];
 // x,z,width,depth,height,material. All walls are shared by rendering, collision and hitscan.
 export const MAX_PLAYERS=10;
-export {teamFor as chooseTeam} from './roster.js?v=38.1';
+export {teamFor as chooseTeam} from './roster.js?v=38.2';
 export const MAPS={sahra:SAHRA,caldera:CALDERA};
 // FORGE / 11: compact symmetric warm-up arena for deathmatch.
 const FORGE_ARCHES=[{x:-8,z:0,width:5,spring:2,rise:1.4,height:4.4,depth:1.2},{x:8,z:0,width:5,spring:2,rise:1.4,height:4.4,depth:1.2}];

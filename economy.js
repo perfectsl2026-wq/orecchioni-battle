@@ -3,7 +3,7 @@
 // up to four grenades. Survivors keep what they hold; the fallen lose primary,
 // armour and utility. Always on in the 5v5 competitive mode, optional in Wingman,
 // never in deathmatch. Values are this game's own; the structure follows the genre.
-import {WEAPONS,MAPS} from './shared.js?v=38.1';
+import {WEAPONS,MAPS} from './shared.js?v=38.2';
 export const ECONOMY={start:800,max:9000,buyMs:12000,liveBuyMs:20000,zone:14,win:3250,objectiveWin:3500,loss:[1400,1900,2400,2900,3400],plantedLoss:800,plant:300,grenadeSlots:4,
  kill:[300,600,300,300,100,1500,300,300]};
 // side: 'attack' | 'defense' limits an item to that side of the round, as rifles in CS.

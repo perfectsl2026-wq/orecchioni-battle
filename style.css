@@ -554,6 +554,6 @@ html.show-hitmarker #hit{display:block}#hit.head{--hit:#ffd27a}#hit.kill{--hit:#
 .operator-toggles label{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:1px;color:#cfd8d3;min-height:30px;margin:0;text-transform:none}
 .operator-toggles input{width:16px;height:16px;accent-color:var(--accent,#e4c38d);margin:0}
 .touch-mode .operator-toggles label{min-height:44px}
-/* V38.1: on phones in landscape the camera island sits over the left edge; the lobby brand, the Officina header and the weapon title move inside the safe area. */
+/* V38.2: on phones in landscape the camera island sits over the left edge; the lobby brand, the Officina header and the weapon title move inside the safe area. */
 .touch-mode header{margin-left:max(4.5vw,calc(env(safe-area-inset-left) + 12px))}.touch-mode .armoryhead{margin-left:max(4vw,calc(env(safe-area-inset-left) + 12px))}.touch-mode .armoryinfo{left:max(6vw,calc(env(safe-area-inset-left) + 16px))}
 .touch-mode #buymenu{padding-left:calc(env(safe-area-inset-left) + 6px);padding-right:calc(env(safe-area-inset-right) + 6px);box-sizing:border-box}

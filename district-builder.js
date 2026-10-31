@@ -1,9 +1,9 @@
 import * as T from './vendor/three.module.js';
-import {blocked,groundHeight} from './shared.js?v=38.1';
-import {box} from './graphics.js?v=38.1';
-import {metricBlock as block} from './caldera-architecture.js?v=38.1';
-import {cosmetic} from './trim-kit.js?v=38.1';
-import {readableAlbedo,weatherMaterial} from './surface-detail.js?v=38.1';
+import {blocked,groundHeight} from './shared.js?v=38.2';
+import {box} from './graphics.js?v=38.2';
+import {metricBlock as block} from './caldera-architecture.js?v=38.2';
+import {cosmetic} from './trim-kit.js?v=38.2';
+import {readableAlbedo,weatherMaterial} from './surface-detail.js?v=38.2';
 // Shared builder for route-graph districts (Sahra, Caldera). A map supplies its
 // walkable rectangles, height field and solids; a style supplies materials and the
 // architecture for each solid kind. Everything drawn here follows the shared solids.

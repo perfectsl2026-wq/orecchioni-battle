@@ -1,4 +1,4 @@
-import {vehicleSolids} from './vehicles.js?v=38.1';
+import {vehicleSolids} from './vehicles.js?v=38.2';
 // CALDERA / 07, original Wingman station (V29): one bomb site, two lanes and a
 // narrow mid portal. T land on the jetty (south), CT hold the station base (north).
 // West lane: a covered warehouse onto the sea quay. East lane: the cliff belvedere,

@@ -1,7 +1,7 @@
-import {resetObjective,objectiveResult,objectiveEnabled,attackFor} from './objective-rules.js?v=38.1';
-import {MAPS} from './shared.js?v=38.1';
-import {teamCapacity} from './roster.js?v=38.1';
-import {ECONOMY,economyOn,carryRound,payRound,botBuy} from './economy.js?v=38.1';
+import {resetObjective,objectiveResult,objectiveEnabled,attackFor} from './objective-rules.js?v=38.2';
+import {MAPS} from './shared.js?v=38.2';
+import {teamCapacity} from './roster.js?v=38.2';
+import {ECONOMY,economyOn,carryRound,payRound,botBuy} from './economy.js?v=38.2';
 // V29 modes: bomb rounds (Competitivo on Sahra, Wingman on Caldera, with per-map
 // defaults) and team deathmatch with instant respawn for warm-up.
 export const MATCH_MODES={demolition:{label:'COMPETITIVO',target:7,roundMs:120000,freezeMs:4000,resultMs:4500},deathmatch:{label:'DEATHMATCH',target:30,durationMs:480000}};
