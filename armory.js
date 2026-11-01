@@ -1,12 +1,12 @@
-import {MAP_THEMES} from './visual-theme.js?v=39.0';
-import {KITS} from './weapon-kits.js?v=39.0';
-import {GUN_RULES} from './combat-rules.js?v=39.0';
-import {applyFinish,cleanFinish,PAINTS,TRIMS,PATTERNS} from './weapon-finish.js?v=39.0';
-import {VARIANTS,variantFor,cleanBuild} from './weapon-variants.js?v=39.0';
+import {MAP_THEMES} from './visual-theme.js?v=40.0';
+import {KITS} from './weapon-kits.js?v=40.0';
+import {GUN_RULES} from './combat-rules.js?v=40.0';
+import {applyFinish,cleanFinish,PAINTS,TRIMS,PATTERNS} from './weapon-finish.js?v=40.0';
+import {VARIANTS,variantFor,cleanBuild} from './weapon-variants.js?v=40.0';
 import * as THREE from './vendor/three.module.js';
-import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator} from './assets.js?v=39.0';
-import {KITS as OPERATOR_KITS,kitFor,cleanOperator} from './operator-kits.js?v=39.0';
-import {WEAPONS,groundHeight} from './shared.js?v=39.0';
+import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator} from './assets.js?v=40.0';
+import {KITS as OPERATOR_KITS,kitFor,cleanOperator} from './operator-kits.js?v=40.0';
+import {WEAPONS,groundHeight} from './shared.js?v=40.0';
 const $=id=>document.getElementById(id);
 export const studioScale=(radius,width,height,fov=34)=>Math.min(1,width/Math.max(1,height))*Math.tan(fov*Math.PI/360)*2.65*.86/Math.max(.01,radius);
 export class Armory{

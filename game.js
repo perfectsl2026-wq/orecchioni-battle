@@ -1,60 +1,61 @@
-import {WeaponInspection} from './weapon-inspection.js?v=39.0';
-import {objectiveEnabled,flashEnabled,updateObjective,throwFlash,updateFlashes,flashOpacity,botObjectiveOrder,botSmokeTarget,botHeTarget,BOMB} from './objective-rules.js?v=39.0';
-import {UtilityPresentation} from './utility-presentation.js?v=39.0';
-import {applyMapTheme} from './visual-theme.js?v=39.0';
-import {InputChannel,cleanInput} from './network-input.js?v=39.0';
-import {NETWORK_PROTOCOL,ROOM_PREFIX,NetworkSession,sendPacket,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=39.0';
-import {FrameMeter} from './frame-meter.js?v=39.0';
-import {FramePacing} from './frame-pacing.js?v=39.0';
-import {displayName,warmVariantMaterials} from './weapon-variants.js?v=39.0';
-import {Career} from './profile.js?v=39.0';
-import {applyFinish,cleanLoadout} from './weapon-finish.js?v=39.0';
-import {missingBots,replaceableBot,nextBotName} from './roster.js?v=39.0';
-import {sizeRenderer,filterTextures} from './render-quality.js?v=39.0';
-import {recordKill,KillLedger} from './kill-events.js?v=39.0';
-import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=39.0';
-import {viewMotion} from './view-motion.js?v=39.0';
-import {PostFX,supportsPostFX} from './postfx.js?v=39.0';
-import {realizeWorld,realizeEnvironment} from './realism.js?v=39.0';
-import {AudioEngine} from './audio-engine.js?v=39.0';
-import {ViewKick} from './view-kick.js?v=39.0';
-import {footSurface} from './surfaces.js?v=39.0';
+import {WeaponInspection} from './weapon-inspection.js?v=40.0';
+import {objectiveEnabled,flashEnabled,updateObjective,throwFlash,updateFlashes,flashOpacity,botObjectiveOrder,botSmokeTarget,botHeTarget,BOMB} from './objective-rules.js?v=40.0';
+import {UtilityPresentation} from './utility-presentation.js?v=40.0';
+import {applyMapTheme} from './visual-theme.js?v=40.0';
+import {InputChannel,cleanInput} from './network-input.js?v=40.0';
+import {NETWORK_PROTOCOL,ROOM_PREFIX,NetworkSession,sendPacket,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=40.0';
+import {FrameMeter} from './frame-meter.js?v=40.0';
+import {FramePacing} from './frame-pacing.js?v=40.0';
+import {displayName,warmVariantMaterials} from './weapon-variants.js?v=40.0';
+import {Career} from './profile.js?v=40.0';
+import {applyFinish,cleanLoadout} from './weapon-finish.js?v=40.0';
+import {missingBots,replaceableBot,nextBotName} from './roster.js?v=40.0';
+import {sizeRenderer,filterTextures} from './render-quality.js?v=40.0';
+import {recordKill,KillLedger} from './kill-events.js?v=40.0';
+import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=40.0';
+import {viewMotion} from './view-motion.js?v=40.0';
+import {PostFX,supportsPostFX} from './postfx.js?v=40.0';
+import {realizeWorld,realizeEnvironment} from './realism.js?v=40.0';
+import {AudioEngine} from './audio-engine.js?v=40.0';
+import {ViewKick} from './view-kick.js?v=40.0';
+import {footSurface} from './surfaces.js?v=40.0';
 const frameMeter=new FrameMeter();let metricsAt=0;const firstPersonMotion={};let viewOffsets={};
 // V33 frame pacing: the render scale settles where this device holds its display rate; the
 // settled step is remembered so the next session starts there instead of stuttering down to it.
 let pacingStart=0;try{pacingStart=Math.max(0,(Number(localStorage.getItem('ob-render-step'))||0)-1);}catch{}
 const pacing=new FramePacing({start:pacingStart});
 import * as THREE from './vendor/three.module.js';
-import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=39.0';
-import {Armory} from './armory.js?v=39.0';
-import {preloadArchitecture} from './architecture-assets.js?v=39.0';
-import {preloadAssets,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug} from './assets.js?v=39.0';
-import {cleanOperator,botOperator} from './operator-kits.js?v=39.0';
-import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=39.0';
-import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=39.0';
-import {CombatFX,createFlashLights,dressMuzzleFlash} from './combatfx.js?v=39.0';
-import {BASE_FOV,scopeFov,mouseGain,ControlsPanel} from './controls.js?v=39.0';
-import {presentAgent} from './agent-motion.js?v=39.0';
-import {mixShot} from './audio-mix.js?v=39.0';
-import {SimulationClock} from './simulation-clock.js?v=39.0';
-import {SnapshotBuffer} from './snapshots.js?v=39.0';
-import {resetCombat,stepMovement,stepBotMovement,shotParameters,traceShot,applyHit,applyBlast,sprayOffset,CAMERA_RECOIL,recoilAt,accuracyFor,traceMelee,equipWeapon,canAttack} from './combat-rules.js?v=39.0';
-import {createMatch,updateMatch,canAct,isRoundMode,mapAllowsMode,defaultMode,teamName,modeRules,matchRules,isRespawnMode,allowedWeapons,weaponAllowed} from './match-rules.js?v=39.0';
-import {addKillFeed,weaponIcon,weaponName} from './kill-feed.js?v=39.0';
-import {Radar,spottedEnemies} from './radar.js?v=39.0';
-import {CrosshairEditor} from './crosshair.js?v=39.0';
-import {ECONOMY,economyOn,ownsWeapon,canBuyNow,buyWindowOpen,buyWindowLeft,inBuyZone,buy as buyItem,sell as sellItem,applyCarry,give} from './economy.js?v=39.0';
-import {throwUtility,updateFires,WEAPON_HE,WEAPON_FIRE} from './blast-rules.js?v=39.0';
-import {dropWeapon,updatePickups,dropNear} from './pickups.js?v=39.0';
-import {syncSmokes,throwSmoke,insideSmoke,smokeBlocks} from './smoke-rules.js?v=39.0';
-import {BuyMenu} from './buy-menu.js?v=39.0';
-import {SmokeFX,BlastFX,FireFX} from './smoke-fx.js?v=39.0';
-import {recordPositions,rewoundPlayers,clearHistory} from './lag-compensation.js?v=39.0';
-import {createSkylife} from './skylife.js?v=39.0';
-import {buildProbe} from './surface-probe.js?v=39.0';
-import {scoreboardHTML,rosterHTML} from './scoreboard.js?v=39.0';
-import {DeathPresentation} from './death-presentation.js?v=39.0';
-import {prefersTouch,requestMouseLock,TouchControls} from './touch-controls.js?v=39.0';
+import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=40.0';
+import {Armory} from './armory.js?v=40.0';
+import {preloadArchitecture} from './architecture-assets.js?v=40.0';
+import {preloadAssets,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug} from './assets.js?v=40.0';
+import {cleanOperator,botOperator} from './operator-kits.js?v=40.0';
+import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=40.0';
+import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=40.0';
+import {CombatFX,createFlashLights,dressMuzzleFlash} from './combatfx.js?v=40.0';
+import {BASE_FOV,scopeFov,mouseGain,ControlsPanel} from './controls.js?v=40.0';
+import {presentAgent} from './agent-motion.js?v=40.0';
+import {mixShot} from './audio-mix.js?v=40.0';
+import {SimulationClock} from './simulation-clock.js?v=40.0';
+import {SnapshotBuffer} from './snapshots.js?v=40.0';
+import {resetCombat,stepMovement,stepBotMovement,shotParameters,traceShot,applyHit,applyBlast,sprayOffset,CAMERA_RECOIL,recoilAt,accuracyFor,traceMelee,equipWeapon,canAttack} from './combat-rules.js?v=40.0';
+import {createMatch,updateMatch,canAct,isRoundMode,mapAllowsMode,defaultMode,teamName,modeRules,matchRules,isRespawnMode,allowedWeapons,weaponAllowed} from './match-rules.js?v=40.0';
+import {addKillFeed,weaponIcon,weaponName} from './kill-feed.js?v=40.0';
+import {Radar,spottedEnemies} from './radar.js?v=40.0';
+import {CrosshairEditor} from './crosshair.js?v=40.0';
+import {ECONOMY,economyOn,ownsWeapon,canBuyNow,buyWindowOpen,buyWindowLeft,inBuyZone,buy as buyItem,sell as sellItem,applyCarry,give} from './economy.js?v=40.0';
+import {throwUtility,updateFires,WEAPON_HE,WEAPON_FIRE} from './blast-rules.js?v=40.0';
+import {dropWeapon,updatePickups,dropNear} from './pickups.js?v=40.0';
+import {syncSmokes,throwSmoke,insideSmoke,smokeBlocks} from './smoke-rules.js?v=40.0';
+import {BuyMenu} from './buy-menu.js?v=40.0';
+import {SmokeFX,BlastFX,FireFX} from './smoke-fx.js?v=40.0';
+import {recordPositions,rewoundPlayers,clearHistory} from './lag-compensation.js?v=40.0';
+import {createSkylife} from './skylife.js?v=40.0';
+import {streetClock} from './street-props.js?v=40.0';
+import {buildProbe} from './surface-probe.js?v=40.0';
+import {scoreboardHTML,rosterHTML} from './scoreboard.js?v=40.0';
+import {DeathPresentation} from './death-presentation.js?v=40.0';
+import {prefersTouch,requestMouseLock,TouchControls} from './touch-controls.js?v=40.0';
 const $=s=>document.getElementById(s),canvas=$('game'),career=new Career(),sfx=new AudioEngine(),qaMode=new URLSearchParams(location.search).get('qa')==='1';
 const mobileDevice=prefersTouch({coarse:matchMedia('(pointer:coarse)').matches,anyCoarse:matchMedia('(any-pointer:coarse)').matches,maxTouchPoints:navigator.maxTouchPoints||0})||new URLSearchParams(location.search).get('touch')==='1';
 document.documentElement.classList.toggle('touch-mode',mobileDevice);
@@ -89,13 +90,13 @@ function warmArena(){const culled=[];mapScene.traverse(o=>{if(o.frustumCulled){o
 async function loadMap(mapId){
  const key=Object.hasOwn(MAPS,mapId)?mapId:'sahra',run=++mapLoadEpoch;mapSelect.disabled=true;
  try{
- $('create').disabled=$('join').disabled=$('practice').disabled=$('explore').disabled=true;status('Caricamento '+MAPS[key].title+'…');configureMap(key);camera.far=key==='sahra'?450:200;camera.updateProjectionMatrix();resetBots();
+ $('create').disabled=$('join').disabled=$('practice').disabled=$('explore').disabled=true;status('Caricamento '+MAPS[key].title+'…');configureMap(key);camera.far=key==='sahra'?450:key==='caldera'?340:200;camera.updateProjectionMatrix();resetBots();
  const fresh=!mapScenes.has(key)&&startupReady;
  // A first visit builds the whole district synchronously (up to ~3.5 s): say so on the
  // loading card instead of freezing the lobby on its last frame.
  if(fresh){$('loading').classList.remove('leaving');$('loading').hidden=false;$('loading-message').textContent='Costruzione di '+MAPS[key].title+'…';$('assetprogress').removeAttribute('value');$('retryload').hidden=true;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(run!==mapLoadEpoch)return false;}
  if(!mapScenes.has(key)){
-  const world=new THREE.Scene();const build=key==='forge'?(await import('./forge.js?v=39.0')).createForge:key==='caldera'?(await import('./caldera.js?v=39.0')).createCaldera:(await import('./sahra.js?v=39.0')).createSahra;
+  const world=new THREE.Scene();const build=key==='forge'?(await import('./forge.js?v=40.0')).createForge:key==='caldera'?(await import('./caldera.js?v=40.0')).createCaldera:(await import('./sahra.js?v=40.0')).createSahra;
   if(run!==mapLoadEpoch)return false;configureMap(key);const root=build(world,renderer);realizeWorld(world,key,{lamps:!mobileDevice});createSkylife(world,key);if(mobileDevice)world.traverse(o=>{if(o.isLight&&o.shadow)o.shadow.mapSize.set(1024,1024);});
   mapScenes.set(key,{scene:world,root,ready:Promise.resolve(root.userData.ready).then(()=>{const t0=performance.now();mapScenes.get(key).probe=buildProbe(root);if(qaMode)console.log('surface probe',key,Math.round(performance.now()-t0)+' ms');})});
  }
@@ -671,7 +672,7 @@ function frame(t){
    // Street-level hero shot with a slow sideways dolly; the look point stays fixed so the landmark holds frame.
    const [px,py,pz]=shot.position,[lx,ly,lz]=shot.look,dx=lx-px,dz=lz-pz,len=Math.hypot(dx,dz)||1,sway=Math.sin(a*8)*.7;camera.position.set(px-dz/len*sway,py+Math.sin(a*5)*.08,pz+dx/len*sway);camera.lookAt(lx,ly,lz);}else{camera.position.set(6.4+Math.sin(a)*.35,3.1,16.9);camera.lookAt(-5,4,-5);}
  }
- effects.update(dt);deaths.update(playing?matchNow():0);listenerAudio(t);const sky=mapScene?.userData.atmosphere?.material.uniforms.time;if(sky)sky.value=t/1000;mapScene?.userData.skylife?.update(t/1000);mapScene?.userData.motes?.update(camera,t/1000,renderer.getDrawingBufferSize(drawSize).y);
+ effects.update(dt);deaths.update(playing?matchNow():0);listenerAudio(t);const sky=mapScene?.userData.atmosphere?.material.uniforms.time;if(sky)sky.value=t/1000;streetClock.value=t/1000;mapScene?.userData.skylife?.update(t/1000);mapScene?.userData.motes?.update(camera,t/1000,renderer.getDrawingBufferSize(drawSize).y);
  if(armory.active){armory.render(innerWidth,innerHeight,dt);return;}
  renderer.autoClear=true;if(postfx?.enabled)postfx.render(scene,camera,dt);else renderer.render(scene,camera);
  if(playing&&gun.visible){renderer.autoClear=false;renderer.clearDepth();renderer.render(handsScene,handsCamera);}

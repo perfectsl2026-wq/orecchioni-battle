@@ -1,14 +1,15 @@
-import {refineForge} from './arena-refinement.js?v=39.0';
+import {refineForge} from './arena-refinement.js?v=40.0';
 import * as T from './vendor/three.module.js';
-import {WALLS,ARCHES} from './shared.js?v=39.0';
-import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=39.0';
-import {metricBlock as block} from './caldera-architecture.js?v=39.0';
-import {arched} from './district-builder.js?v=39.0';
-import {createAtmosphere} from './atmosphere.js?v=39.0';
-import {readableAlbedo} from './surface-detail.js?v=39.0';
-import {placeArchitecture} from './architecture-assets.js?v=39.0';
-import {StreetProps,roofClutter,reskin,coverSkin,forgeWallDress} from './street-props.js?v=39.0';
-import {MAPS} from './shared.js?v=39.0';
+import {WALLS,ARCHES} from './shared.js?v=40.0';
+import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=40.0';
+import {metricBlock as block} from './caldera-architecture.js?v=40.0';
+import {arched} from './district-builder.js?v=40.0';
+import {createAtmosphere} from './atmosphere.js?v=40.0';
+import {readableAlbedo} from './surface-detail.js?v=40.0';
+import {placeArchitecture} from './architecture-assets.js?v=40.0';
+import {StreetProps,roofClutter,reskin,coverSkin,forgeWallDress} from './street-props.js?v=40.0';
+import {forgeDress,manholes,FORGE_PYLONS} from './detail-dress.js?v=40.0';
+import {MAPS} from './shared.js?v=40.0';
 const loader=new T.TextureLoader();
 // Painted steel wainscot in bays, with a flashing on top and a dark kick plate: the walls read at human scale.
 function forgeCladding(root,p){
@@ -16,6 +17,14 @@ function forgeCladding(root,p){
   for(let u=-15;u<=15;u+=6){block(root,p.cladding,u,1.2,side*(19.5-.025),5.9,2.4,.05,3);box(root,p.steel,u,2.43,side*(19.5-.03),5.9,.06,.06);box(root,p.dark,u,.09,side*(19.5-.03),5.9,.18,.06);}
   for(let u=-14.5;u<=14.5;u+=5.8){block(root,p.cladding,side*(17.5-.025),1.2,u,.05,2.4,5.7,3);box(root,p.steel,side*(17.5-.03),2.43,u,.06,.06,5.7);box(root,p.dark,side*(17.5-.03),.09,u,.06,.18,5.7);}
  }
+}
+const terrainAt=(x,z)=>{const r=Math.hypot(x,z),ridge=Math.abs(Math.sin(x*.063+z*.041)+Math.sin(x*.027-z*.085)*.65);return r<29?-.35:Math.min(1,(r-29)/22)*(8+ridge*13)-.35;};
+// Conductors between the pylons, sagging; thin lines are enough at 80 m.
+function powerLine(root){
+ const m=new T.LineBasicMaterial({color:0x2c3336});m.userData.nonBallistic=true;const pts=[];
+ for(let i=0;i<FORGE_PYLONS.length-1;i++){const [ax,az]=FORGE_PYLONS[i],[bx,bz]=FORGE_PYLONS[i+1],len=Math.hypot(bx-ax,bz-az),nx=-(bz-az)/len,nz=(bx-ax)/len;
+  for(const [off,lift] of [[-6.6,37],[6.6,37],[-5,31],[5,31],[-6.6,25],[6.6,25]])for(let k=0;k<16;k++){for(const t of [k/16,(k+1)/16]){const ya=terrainAt(ax,az)+lift,yb=terrainAt(bx,bz)+lift;pts.push(ax+(bx-ax)*t+nx*off,ya+(yb-ya)*t-4*4*t*(1-t)*1.1,az+(bz-az)*t+nz*off);}}}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pts,3));const lines=new T.LineSegments(g,m);lines.frustumCulled=false;root.add(lines);
 }
 export function createForge(scene,renderer,{capture=true}={}){
  const root=new T.Group();root.name='FORGE / Alpine Hydroelectric Station';scene.add(root);const pending=[];
@@ -75,6 +84,6 @@ export function createForge(scene,renderer,{capture=true}={}){
  refineForge(root,p);root.userData.materials=p;root.userData.portalCount=ARCHES.length;mergeStatic(root);
  // V38 street dressing on the turbine-hall roofs; the service trailers are drawn by the vehicle re-skin above.
  // Corrugated service cladding along the perimeter, flush within 5 cm of the wall.
- forgeCladding(root,p);forgeWallDress(sp);roofClutter(sp,MAPS.forge,{walkable:(x,z)=>Math.abs(x)<17&&Math.abs(z)<19,maxHeight:8,minArea:30,seed:11});pending.push(sp.build(root));
+ forgeCladding(root,p);forgeWallDress(sp);forgeDress(sp,{terrainAt});powerLine(root);roofClutter(sp,MAPS.forge,{walkable:(x,z)=>Math.abs(x)<17&&Math.abs(z)<19,maxHeight:8,minArea:30,seed:11,recipes:['impianto','generatore','barili','parabole','impianto','cisterne']});pending.push(sp.build(root));
  root.userData.ready=Promise.all(pending).then(()=>{if(!capture||!renderer)return;const cube=new T.WebGLCubeRenderTarget(256,{type:T.HalfFloatType}),cam=new T.CubeCamera(.1,160,cube);cam.position.set(0,3.4,0);scene.add(cam);cam.update(renderer,scene);scene.remove(cam);const pm=new T.PMREMGenerator(renderer),env=pm.fromCubemap(cube.texture);scene.environment=env.texture;scene.environmentIntensity=.7;cube.dispose();pm.dispose();atmosphere.environment.dispose();root.userData.environment=env;});return root;
 }

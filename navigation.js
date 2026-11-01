@@ -1,10 +1,10 @@
-import {smokeBlocks} from './smoke-rules.js?v=39.0';
-import {FIRE} from './blast-rules.js?v=39.0';
-import {GUN_RULES} from './combat-rules.js?v=39.0';
-import {eyeHeight,STANCE} from './player-feel.js?v=39.0';
-import {turnToward,BOT_RUN_SPEED} from './agent-motion.js?v=39.0';
-import {blocked,wallDistance,raySphere,WEAPONS,WALLS,ACTIVE_MAP} from './shared.js?v=39.0';
-import {BotNavigator,planRoute,routeLength,walkClear,NAV_AREAS} from './bot-navigation.js?v=39.0';
+import {smokeBlocks} from './smoke-rules.js?v=40.0';
+import {FIRE} from './blast-rules.js?v=40.0';
+import {GUN_RULES} from './combat-rules.js?v=40.0';
+import {eyeHeight,STANCE} from './player-feel.js?v=40.0';
+import {turnToward,BOT_RUN_SPEED} from './agent-motion.js?v=40.0';
+import {blocked,wallDistance,raySphere,WEAPONS,WALLS,ACTIVE_MAP} from './shared.js?v=40.0';
+import {BotNavigator,planRoute,routeLength,walkClear,NAV_AREAS} from './bot-navigation.js?v=40.0';
 export {planRoute,walkClear};
 export const BOT_LEVELS={
  recruit:{label:'RECLUTA',reaction:[750,1100],turn:2.8,error:.025,burst:[2,3],pause:[650,1000]},

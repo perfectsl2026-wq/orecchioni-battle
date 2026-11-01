@@ -1,10 +1,10 @@
 import * as T from './vendor/three.module.js';
-import {groundHeight,blocked} from './shared.js?v=39.0';
-import {box,cyl,bevel,label} from './graphics.js?v=39.0';
-import {metricBlock as block} from './caldera-architecture.js?v=39.0';
-import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=39.0';
-import {sahraInterior} from './sahra-layout.js?v=39.0';
-import {vehicleGreenhouse} from './vehicles.js?v=39.0';
+import {groundHeight,blocked} from './shared.js?v=40.0';
+import {box,cyl,bevel,label} from './graphics.js?v=40.0';
+import {metricBlock as block} from './caldera-architecture.js?v=40.0';
+import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=40.0';
+import {sahraInterior} from './sahra-layout.js?v=40.0';
+import {vehicleGreenhouse} from './vehicles.js?v=40.0';
 let awningMat=null;
 function awning(){
  if(awningMat)return awningMat;
@@ -91,7 +91,7 @@ export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
   if(h>9.5&&serial%2===0)window(face,p,u,6.8,1,1.45,p.wood);
  }
  // Flush closed shop fronts sit on the actual sloping street datum.
- if(!hotel&&width>=5&&serial%3===0){const y=groundHeight(x+Math.sin(angle)*.1,z+Math.cos(angle)*.1);box(face,p.dark,0,y+1.2,.05,1.55,2.4,.025);block(face,p.doorPaint||p.wood,0,y+1.2,.075,1.4,2.36,.03,1.2);for(const side of [-1,1])box(face,p.wornStone,side*.82,y+1.28,.06,.12,2.56,.07);box(face,p.trim,0,y+2.62,.07,1.85,.17,.08);}
+ if(!hotel&&width>=5&&serial%3===0){const y=groundHeight(x+Math.sin(angle)*.1,z+Math.cos(angle)*.1);if(p.facadeDoor){p.facadeDoor(x,y,z,angle);return face;}box(face,p.dark,0,y+1.2,.05,1.55,2.4,.025);block(face,p.doorPaint||p.wood,0,y+1.2,.075,1.4,2.36,.03,1.2);for(const side of [-1,1])box(face,p.wornStone,side*.82,y+1.28,.06,.12,2.56,.07);box(face,p.trim,0,y+2.62,.07,1.85,.17,.08);}
  return face;
 }
 function archShape(w,h){const r=w/2,spring=h-r,s=new T.Shape();s.moveTo(-r,0);s.lineTo(r,0);s.lineTo(r,spring);s.absarc(0,spring,r,0,Math.PI,false);s.lineTo(-r,0);return s;}
@@ -356,7 +356,8 @@ export function desertCar(root,p,x,y,z,w,d){
  if(live.lightbar){box(g,m.bar,0,top+.07,zt+.22,cw-.4,.08,.16);cyl(g,m.rack,cw/2-.12,top+.55,zr-.15,.008,1.1,'y',.008,5);}
  return g;
 }
-export function desertSkyline(root,p){
+export function desertSkyline(root,p,grove=false){
+ if(grove)return;
  // Palms stand inside solid blocks and rise above the roofline; like wires they
  // are cosmetic for ballistics, so the trunk shares the leaves' flag.
  const leaf=new T.MeshStandardMaterial({color:0x657756,roughness:1,side:T.DoubleSide}),trunk=cosmetic(p.rust),ring=cosmetic(p.wornWood);leaf.userData.nonBallistic=true;

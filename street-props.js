@@ -11,7 +11,7 @@ import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
-import {MAPS} from './shared.js?v=39.0';
+import {MAPS} from './shared.js?v=40.0';
 const DIR='./assets/models/';
 // Parts: a file, optionally a box (model units) that keeps only the triangles whose
 // centroid lies inside it (packs of several objects), and a yaw so the part's front
@@ -33,9 +33,39 @@ export const PARTS={
  compensato:{file:'v39/compensato'},
  container:{file:'v39/container'},
  container_b:{file:'v39/container_b'},
- palma:{file:'v39/palma'},
+ palma:{file:'v39/palma',leaves:'palm'},
  quadro:{file:'v39/quadro'},
- plafoniera:{file:'v39/plafoniera',front:Math.PI}
+ plafoniera:{file:'v39/plafoniera',front:Math.PI,shadow:false},
+ // V40: rot is applied to the model before it is re-centred; wind names a vertex motion.
+ porta:{file:'v40/porta',front:Math.PI/2},
+ lanterna:{file:'v40/lanterna',glow:0xffb765,solidAlpha:true},
+ tappeto:{file:'v40/tappeto',rot:[Math.PI/2,0,0],shadow:false},
+ tappeto_b:{file:'v40/tappeto_b',rot:[Math.PI/2,0,0],shadow:false},
+ bucato:{file:'v40/bucato',wind:'cloth'},
+ parabola:{file:'v40/parabola'},
+ cisterna:{file:'v40/cisterna',box:[[-7.4,-7,-74],[-5.45,-5,-70]]},
+ tombino:{file:'v40/tombino',shadow:false},
+ sacchi:{file:'v40/sacchi'},
+ vaso_piccolo:{file:'v40/vasi',box:[[-26,-1,8],[0,36,34]],shadow:false},
+ vaso_alto:{file:'v40/vasi',box:[[0,-1,-83],[36,68,-48]],shadow:false},
+ palma_lontana:{file:'v40/palma_lontana',shadow:false},
+ nave:{file:'v40/nave',shadow:false},
+ gru:{file:'v40/gru',shadow:false},
+ faro:{file:'v40/faro',shadow:false},
+ boa:{file:'v40/boa',shadow:false,wind:'bob'},
+ salvagente:{file:'v40/salvagente',rot:[Math.PI/2,0,0],shadow:false},
+ turbina:{file:'v40/turbina',shadow:false,wind:'rotor'},
+ solare:{file:'v40/solare'},
+ scoglio:{file:'v40/roccia',box:[[2.2,-.2,-3.5],[5.9,3.2,-1.6]],shadow:false},
+ isola:{file:'v40/roccia',box:[[-2.4,-.2,-4],[2.4,2.2,-1.2]],shadow:false},
+ molo:{file:'v40/roccia',box:[[-2.4,-.2,-4],[2.4,2.2,-1.2]],shadow:false},
+ traliccio:{file:'v40/traliccio',shadow:false},
+ abete:{file:'v40/abete',shadow:false},
+ valvola:{file:'v40/valvola',matte:.35,front:Math.PI/2,shadow:false},
+ estintore:{file:'v40/estintore',shadow:false},
+ telecamera:{file:'v40/telecamera',shadow:false},
+ scala:{file:'v40/scala',shadow:false},
+ condotto:{file:'v40/condotto',matte:.25,box:[[20,420,-385],[515,595,-205]],shadow:false}
 };
 const FILES=[...new Set(Object.values(PARTS).map(p=>p.file))];
 const scenes=new Map(),parts=new Map();
@@ -43,15 +73,28 @@ function bake(scene){scene.updateMatrixWorld(true);const list=[];scene.traverse(
 function inside(geo,box){const pos=geo.attributes.position,keep=[],c=new T.Vector3(),v=new T.Vector3();
  for(let t=0;t<pos.count;t+=3){c.set(0,0,0);for(let k=0;k<3;k++)c.add(v.fromBufferAttribute(pos,t+k));c.multiplyScalar(1/3);if(c.x>=box[0][0]&&c.x<=box[1][0]&&c.y>=box[0][1]&&c.y<=box[1][1]&&c.z>=box[0][2]&&c.z<=box[1][2])keep.push(t);}
  if(!keep.length)return null;const out=new T.BufferGeometry();for(const n of Object.keys(geo.attributes)){const a=geo.attributes[n],arr=new a.array.constructor(keep.length*3*a.itemSize);let k=0;for(const t of keep)for(let v=0;v<3;v++)for(let c=0;c<a.itemSize;c++)arr[k++]=a.array[(t+v)*a.itemSize+c];out.setAttribute(n,new T.BufferAttribute(arr,a.itemSize,a.normalized));}return out;}
+// Wind in the vertex shader, on one shared clock: no per-frame JavaScript per object.
+export const streetClock={value:0};
+const WIND={
+ palm:'float wH=smoothstep(2.4,7.,position.y);transformed.x+=wH*sin(uStreetClock*1.1+wP+position.y*.6)*.08;transformed.z+=wH*cos(uStreetClock*.8+wP+position.x*.8)*.06;',
+ cloth:'float wH=smoothstep(8.6,3.6,position.y);transformed.x+=wH*sin(uStreetClock*1.7+wP+position.z*.7)*.34;',
+ bob:'transformed.y+=sin(uStreetClock*.9+wP)*.05;transformed.xz+=vec2(sin(uStreetClock*.7+wP),cos(uStreetClock*.6+wP))*.03*position.y;',
+ rotor:'if(position.z>.2||position.y>13.6){float wA=uStreetClock*1.05+wP;vec2 wQ=position.xy-vec2(0.,14.81);transformed.xy=vec2(wQ.x*cos(wA)-wQ.y*sin(wA),wQ.x*sin(wA)+wQ.y*cos(wA))+vec2(0.,14.81);}'
+};
+function windMotion(material,kind,leavesOnly=false){
+ if(leavesOnly&&!(material.alphaTest>0))return;
+ material.onBeforeCompile=shader=>{shader.uniforms.uStreetClock=streetClock;shader.vertexShader='uniform float uStreetClock;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n#ifdef USE_INSTANCING\nfloat wP=instanceMatrix[3].x*.7+instanceMatrix[3].z*.5;'+WIND[kind]+'\n#endif');};
+ material.customProgramCacheKey=()=>'street-wind-'+kind;
+}
 function buildPart(id){
  const spec=PARTS[id],baked=scenes.get(spec.file);if(!baked)return null;
- const byMat=new Map();for(const {geometry,material} of baked){const g=spec.box?inside(geometry,spec.box):geometry.clone();if(!g)continue;if(!byMat.has(material))byMat.set(material,[]);byMat.get(material).push(g);}
+ const byMat=new Map();for(const {geometry,material} of baked){const g=spec.box?inside(geometry,spec.box):geometry.clone();if(!g)continue;if(spec.rot)g.applyMatrix4(new T.Matrix4().makeRotationFromEuler(new T.Euler(...spec.rot)));if(!byMat.has(material))byMat.set(material,[]);byMat.get(material).push(g);}
  const pieces=[];const bounds=new T.Box3();
  for(const [material,geos] of byMat){const merged=geos.length>1?mergeGeometries(geos,false):geos[0];if(!merged)continue;merged.computeBoundingBox();bounds.union(merged.boundingBox);pieces.push({material,geometry:merged});}
  if(!pieces.length)return null;
  const centre=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3());
  const m=new T.Matrix4().makeRotationY(spec.front||0).multiply(new T.Matrix4().makeTranslation(-centre.x,-bounds.min.y,-centre.z));
- for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;}
+ for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;if(spec.matte){p.material.metalness=spec.matte;p.material.metalnessMap=null;p.material.roughness=Math.max(.55,p.material.roughness);}if(spec.leaves)windMotion(p.material,spec.leaves,true);if(spec.solidAlpha){p.material.transparent=false;p.material.alphaTest=.35;}if(spec.glow){p.material.emissive.set(spec.glow);p.material.emissiveMap=p.material.map;p.material.emissiveIntensity=1.5;}if(spec.wind)windMotion(p.material,spec.wind);}
  const part={pieces,size:(spec.front&&Math.abs(Math.sin(spec.front))>.5)?new T.Vector3(size.z,size.y,size.x):size};parts.set(id,part);return part;
 }
 // Only the files a map uses are downloaded: a palm has no business on Forge's first load.
@@ -62,8 +105,11 @@ export async function loadStreetProps(files=FILES){
  for(const id of Object.keys(PARTS))if(!parts.has(id)&&scenes.has(PARTS[id].file))buildPart(id);
  // Dark core inside a photographed crate: slatted models are not watertight and the box behind them must still stop a sightline.
  if(!parts.has('nucleo')){const core=new T.BoxGeometry(1,1,1);core.translate(0,.5,0);parts.set('nucleo',{pieces:[{geometry:core,material:new T.MeshStandardMaterial({color:0x1c1712,roughness:.95})}],size:new T.Vector3(1,1,1)});}
+ if(!parts.has('nucleo_compensato')){const core=new T.BoxGeometry(1,1,1);core.translate(0,.5,0);parts.set('nucleo_compensato',{pieces:[{geometry:core,material:new T.MeshStandardMaterial({map:plyEdge(),roughness:.9})}],size:new T.Vector3(1,1,1)});}
  return parts.size;
 }
+// The plywood model has no end faces: its core shows the sheet edges, made of stripes so it also builds in Node.
+function plyEdge(){const h=96,data=new Uint8Array(4*4*h);for(let y=0;y<h;y++){const seam=y%6===0,tone=(seam?.42:.78+hash(y,3.1)*.2);for(let x=0;x<4;x++){const i=(y*4+x)*4;data[i]=196*tone;data[i+1]=158*tone;data[i+2]=108*tone;data[i+3]=255;}}const t=new T.DataTexture(data,4,h);t.colorSpace=T.SRGBColorSpace;t.magFilter=T.LinearFilter;t.minFilter=T.LinearFilter;t.needsUpdate=true;return t;}
 export const partSize=id=>parts.get(id)?.size||null;
 // ---- placement -----------------------------------------------------------------------
 const hash=(x,z)=>{const s=Math.sin(x*127.1+z*311.7)*43758.5453;return s-Math.floor(s);};
@@ -76,13 +122,14 @@ export class StreetProps{
   await loadStreetProps([...new Set(this.items.map(it=>PARTS[it.part]?.file).filter(Boolean))]);if(this.built)return 0;this.built=true;
   // Re-skins are the rendered solid itself: their materials stay ballistic (the render
   // suites check every sightline against the collision box); clutter is cosmetic.
-  const byPart=new Map(),fellBack=new Set();for(const it of this.items){if(!parts.has(it.part)){if(it.fallback&&!fellBack.has(it.fallback)){fellBack.add(it.fallback);it.fallback();}continue;}const key=it.part+(it.tag==='reskin'?'#solid':'');if(!byPart.has(key))byPart.set(key,[]);byPart.get(key).push(it);}
+  const byPart=new Map(),fellBack=new Set();for(const it of this.items){if(!parts.has(it.part)){if(it.fallback&&!fellBack.has(it.fallback)){fellBack.add(it.fallback);it.fallback();}continue;}// Instances are grouped by 36 m cells: a group is drawn whole, so one crate in view must not pull in the whole map.
+   const key=it.part+(it.tag==='reskin'?'#solid':'')+'|'+(it.tag==='far'?'':Math.floor(it.x/36)+','+Math.floor(it.z/36));if(!byPart.has(key))byPart.set(key,[]);byPart.get(key).push(it);}
   let draws=0;const m=new T.Matrix4(),q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3();
   for(const [key,list] of byPart){
-   const id=key.split('#')[0],solid=key.endsWith('#solid'),part=parts.get(id);
+   const [head]=key.split('|'),id=head.split('#')[0],solid=head.endsWith('#solid'),part=parts.get(id);
    const matrices=list.map(it=>{s.setScalar(it.scale);if(it.fit){const swap=Math.abs(Math.sin(it.yaw))>.5,fw=swap?it.fit.d:it.fit.w,fd=swap?it.fit.w:it.fit.d;s.set(fw/part.size.x,it.fit.h/part.size.y,fd/part.size.z);}
     return m.compose(p.set(it.x,it.y,it.z),q.setFromAxisAngle(T.Object3D.DEFAULT_UP,it.yaw),s).clone();});
-   for(const piece of part.pieces){if(solid&&!piece.solidMaterial){piece.solidMaterial=piece.material.clone();piece.solidMaterial.userData={...piece.material.userData,nonBallistic:false};}const mesh=new T.InstancedMesh(piece.geometry,solid?piece.solidMaterial:piece.material,matrices.length);matrices.forEach((mat,i)=>mesh.setMatrixAt(i,mat));mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();mesh.castShadow=true;mesh.receiveShadow=true;mesh.name='Arredo / '+id;mesh.userData.streetProp=id;root.add(mesh);draws++;}
+   for(const piece of part.pieces){if(solid&&!piece.solidMaterial){piece.solidMaterial=piece.material.clone();piece.solidMaterial.userData={...piece.material.userData,nonBallistic:false};}const mesh=new T.InstancedMesh(piece.geometry,solid?piece.solidMaterial:piece.material,matrices.length);matrices.forEach((mat,i)=>mesh.setMatrixAt(i,mat));mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();mesh.castShadow=PARTS[id]?.shadow!==false;mesh.receiveShadow=true;mesh.name='Arredo / '+id;mesh.userData.streetProp=id;root.add(mesh);draws++;}
   }
   return draws;
  }
@@ -95,13 +142,16 @@ const RECIPES={
  pallet(sp,x,y,z,yaw,r){sp.add('pallet',{x,y,z,yaw,scale:.56,tag:'roof'});sp.add('cassa',{x:x+Math.cos(yaw)*.16,y:y+.14,z:z-Math.sin(yaw)*.16,yaw:yaw+.3+r,scale:.2,tag:'roof'});},
  sacchi(sp,x,y,z,yaw,r){const c=Math.cos(yaw),s=Math.sin(yaw);for(let i=0;i<4;i++){const u=(i-1.5)*.5;sp.add('sacco',{x:x+c*u,y,z:z-s*u,yaw:yaw+Math.PI/2+(hash(u,r)-.5)*.3,scale:1,tag:'roof'});}sp.add('sacco',{x:x+c*.25,y:y+.24,z:z-s*.25,yaw:yaw+Math.PI/2+.1,scale:1,tag:'roof'});},
  impianto(sp,x,y,z,yaw){sp.add('impianto',{x,y,z,yaw:yaw+Math.PI/2,scale:.01,tag:'roof'});},
+ cisterne(sp,x,y,z,yaw,r){const c=Math.cos(yaw),s=Math.sin(yaw);sp.add('cisterna',{x:x+c*.7,y,z:z-s*.7,yaw:r*6,scale:1.35,tag:'roof'});if(r>.4)sp.add('cisterna',{x:x-c*.7,y,z:z+s*.7,yaw:r*3,scale:1.1,tag:'roof'});},
+ parabole(sp,x,y,z,yaw,r){const c=Math.cos(yaw),s=Math.sin(yaw);sp.add('parabola',{x:x+c*.5,y,z:z-s*.5,yaw:yaw+r,scale:.0042,tag:'roof'});if(r>.5)sp.add('parabola',{x:x-c*.8,y,z:z+s*.8,yaw:yaw-r,scale:.0034,tag:'roof'});},
+ solari(sp,x,y,z,yaw){const c=Math.cos(yaw),s=Math.sin(yaw);for(const u of [-1.25,1.25])sp.add('solare',{x:x+c*u,y,z:z-s*u,yaw:yaw+Math.PI,scale:.0125,tag:'roof'});},
  generatore(sp,x,y,z,yaw,r){sp.add('generatore',{x,y,z,yaw:yaw+Math.PI/2+(r-.5)*.4,scale:.001,tag:'roof'});}
 };
-const RECIPE_KEYS=Object.keys(RECIPES);
+const ALL_RECIPES=Object.keys(RECIPES);
 // Roof clutter: for every solid block beside a walkable space, one cluster a metre in
 // from the parapet on the side that faces the street, chosen and offset by hash so the
 // skyline varies; nothing on roofs higher than `maxHeight` (too far to read).
-export function roofClutter(sp,map,{walkable,maxHeight=10,inset=1.05,cap=()=>0,chance=.62,seed=0,minArea=30}={}){
+export function roofClutter(sp,map,{walkable,maxHeight=10,inset=1.05,cap=()=>0,chance=.62,seed=0,minArea=30,recipes=ALL_RECIPES}={}){
  let placed=0;
  for(const w of map.walls){
   const [x,z,wd,dp,h,kind,base,role]=w;if(kind!==0||role||h>maxHeight||wd*dp<minArea||Math.min(wd,dp)<3)continue;
@@ -111,7 +161,7 @@ export function roofClutter(sp,map,{walkable,maxHeight=10,inset=1.05,cap=()=>0,c
    const half=nx?wd/2:dp/2,along=nx?dp:wd;const ex=x+nx*(half+1.6),ez=z+nz*(half+1.6);if(!walkable(ex,ez))continue;
    const t=(hash(x*5+nx,z*5+nz+seed)-.5)*Math.max(0,along-4);
    const px=x+nx*(half-inset)+(nx?0:t),pz=z+nz*(half-inset)+(nz?0:t),yaw=Math.atan2(nx,nz);
-   const r=hash(x*11+seed,z*13);const recipe=RECIPE_KEYS[Math.floor(r*RECIPE_KEYS.length)%RECIPE_KEYS.length];
+   const r=hash(x*11+seed,z*13);const recipe=recipes[Math.floor(r*recipes.length)%recipes.length];
    RECIPES[recipe](sp,px,h+cap(w),pz,yaw,r);placed++;break;
   }
  }
@@ -145,14 +195,14 @@ export function reskin(sp,mapId,x,z,w,d,top,base=0){
 // hits and movement do not change. Crates split into cells of about 1.25 m (a single 2.4 m
 // crate reads as a toy), timber stacks into plywood pallets, metal pods into containers.
 // grow: slatted crates stop short of their corners, so the model overlaps the box by a hair and the box never stops a shot in thin air.
-function fillBox(sp,part,{x,z,w,d,base,nx=1,ny=1,nz=1,h,yaw=0,core=0,grow=0,fallback}){
+function fillBox(sp,part,{x,z,w,d,base,nx=1,ny=1,nz=1,h,yaw=0,core=0,coreId='nucleo',grow=0,fallback}){
  const sx=w/nx,sy=h/ny,sz=d/nz;
- for(let i=0;i<nx;i++)for(let k=0;k<nz;k++)for(let j=0;j<ny;j++){const px=x-w/2+sx*(i+.5),pz=z-d/2+sz*(k+.5),id=typeof part==='function'?part(px,pz,j):part,turn=hash(px*3.1,pz*1.7+j)>.5?Math.PI:0;sp.add(id,{x:px,y:base+sy*j,z:pz,yaw:yaw+turn,fit:{w:sx+grow,d:sz+grow,h:sy},tag:'reskin',fallback});if(core)sp.add('nucleo',{x:px,y:base+sy*j,z:pz,fit:{w:sx-core,d:sz-core,h:sy-core/2},tag:'reskin'});}
+ for(let i=0;i<nx;i++)for(let k=0;k<nz;k++)for(let j=0;j<ny;j++){const px=x-w/2+sx*(i+.5),pz=z-d/2+sz*(k+.5),id=typeof part==='function'?part(px,pz,j):part,turn=hash(px*3.1,pz*1.7+j)>.5?Math.PI:0;sp.add(id,{x:px,y:base+sy*j,z:pz,yaw:yaw+turn,fit:{w:sx+grow,d:sz+grow,h:sy},tag:'reskin',fallback});if(core)sp.add(coreId,{x:px,y:base+sy*j,z:pz,fit:{w:sx-core,d:sz-core,h:sy-core/2},tag:'reskin'});}
 }
 export function coverSkin(sp,kind,{x,z,w,d,top,base,fallback}){
  const h=top-base;
  if(kind==='pod'){const long=Math.max(w,d)/Math.min(w,d)>1.15;fillBox(sp,hash(x,z)>.45?'container_b':'container',{x,z,w,d,h,base,yaw:long&&w>d?Math.PI/2:0,fallback});return;}
- if(kind==='timber'){const layers=Math.max(1,Math.round(h/.62));fillBox(sp,'compensato',{x,z,w,d,h,base,ny:layers,yaw:d>=w?Math.PI/2:0,core:.1,fallback});return;}
+ if(kind==='timber'){const layers=Math.max(1,Math.round(h/.62));fillBox(sp,'compensato',{x,z,w,d,h,base,ny:layers,yaw:d>=w?Math.PI/2:0,core:.1,coreId:'nucleo_compensato',fallback});return;}
  const nx=Math.max(1,Math.round(w/1.25)),nz=Math.max(1,Math.round(d/1.25)),cell=Math.max(w/nx,d/nz);
  if(h/cell>1.25){fillBox(sp,'cassa_alta',{x,z,w,d,h,base,nx,nz,core:.12,grow:.1,fallback});return;}
  fillBox(sp,(px,pz)=>hash(px*1.3,pz*2.1)>.5?'cassa_larga':'cassa_piccola',{x,z,w,d,h,base,nx,nz,core:.12,grow:.1,fallback});

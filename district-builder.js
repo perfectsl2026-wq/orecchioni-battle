@@ -1,9 +1,9 @@
 import * as T from './vendor/three.module.js';
-import {blocked,groundHeight} from './shared.js?v=39.0';
-import {box} from './graphics.js?v=39.0';
-import {metricBlock as block} from './caldera-architecture.js?v=39.0';
-import {cosmetic} from './trim-kit.js?v=39.0';
-import {readableAlbedo,weatherMaterial} from './surface-detail.js?v=39.0';
+import {blocked,groundHeight} from './shared.js?v=40.0';
+import {box} from './graphics.js?v=40.0';
+import {metricBlock as block} from './caldera-architecture.js?v=40.0';
+import {cosmetic} from './trim-kit.js?v=40.0';
+import {readableAlbedo,weatherMaterial} from './surface-detail.js?v=40.0';
 // Shared builder for route-graph districts (Sahra, Caldera). A map supplies its
 // walkable rectangles, height field and solids; a style supplies materials and the
 // architecture for each solid kind. Everything drawn here follows the shared solids.
@@ -81,12 +81,12 @@ export function portals(root,p,arches,{material,vault,trim}){
 }
 // Rendered ballistic slabs (roofs, canopies). Under covered interiors: cosmetic
 // beams across each slab and one warm practical under its centre.
-export function slabs(root,p,boxes,{interiorAt,beam,light,slab='stone'}){
+export function slabs(root,p,boxes,{interiorAt,beam,light,slab='stone',hang=null}){
  const lightMat=new T.MeshStandardMaterial({color:light?.color??0xffe7b3,emissive:light?.emissive??0xffdf9a,emissiveIntensity:light?.intensity??.55,roughness:.75}),beamMat=cosmetic(beam);lightMat.userData.nonBallistic=true;
  for(const b of boxes.filter(b=>b.render!==false))block(root,p[b.material]||p[slab],b.x,b.y,b.z,b.w,b.h,b.d,2.2);
  for(const b of boxes.filter(b=>b.material===slab&&interiorAt(b.x,b.z))){
   const under=b.y-b.h/2,alongX=b.w>=b.d;
   for(let u=-(alongX?b.w:b.d)/2+1.2;u<(alongX?b.w:b.d)/2-.6;u+=2.4)box(root,beamMat,b.x+(alongX?u:0),under-.09,b.z+(alongX?0:u),alongX?.2:b.w,.18,alongX?b.d:.2);
-  box(root,lightMat,b.x,under-.24,b.z,.6,.11,.24);
+  if(hang)hang(b.x,under-.18,b.z);else box(root,lightMat,b.x,under-.24,b.z,.6,.11,.24);
  }
 }

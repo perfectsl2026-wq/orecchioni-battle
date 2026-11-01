@@ -1,7 +1,7 @@
 import * as T from './vendor/three.module.js';
-import {groundHeight,MAPS} from './shared.js?v=39.0';
-import {box,label} from './graphics.js?v=39.0';
-import {cosmetic} from './trim-kit.js?v=39.0';
+import {groundHeight,MAPS} from './shared.js?v=40.0';
+import {box,label} from './graphics.js?v=40.0';
+import {cosmetic} from './trim-kit.js?v=40.0';
 // Flush surface inlays: the same terrain continues below the plant area.
 // No fake ledges, decorative hitboxes or luminous gameplay clutter.
 export function sahraSiteDetails(root,p,sites){

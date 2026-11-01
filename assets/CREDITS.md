@@ -202,3 +202,36 @@ CC Attribution 4.0 models from Sketchfab, placed by `dist/street-props.js`.
 
 Modifications: polygon reduction (crates, palm), texture downscale and WebP re-encoding, one container of the pack kept with its lettering painted out and a recoloured teal variant, parts cut out of packs by bounding box, per-axis stretch to the collision boxes, meshes merged per material.
 
+
+## V40 — lived-in detail on all three maps
+
+CC Attribution 4.0 models from Sketchfab, placed by `dist/detail-dress.js` and `dist/street-props.js`.
+
+- **porta intagliata (Sahra)** — *Old wooden Door*, Ellie3D (Ellie3D): https://sketchfab.com/3d-models/old-wooden-door-1cec090cd02142b094802d242e03ee7c
+- **lanterna del souk** — *Lowpoly moroccan lantern*, n-malmberg (n-malmberg): https://sketchfab.com/3d-models/lowpoly-moroccan-lantern-e9f56aaea13546ad8b889d5ccc47edd8
+- **tappeto** — *Persian Rug*, Nicholas Record (nrecord): https://sketchfab.com/3d-models/persian-rug-fe13eecfc9b8405dab1fe76c5dd28a4c
+- **tappeto a riquadri** — *Persian Qashqai Rug*, mfb64 (mfb64): https://sketchfab.com/3d-models/persian-qashqai-rug-fa968bf5d57a4265bedb233293870dc2
+- **bucato tra i palazzi** — *Laundry Clothesline*, Khoa Nguyen (ngdkh): https://sketchfab.com/3d-models/laundry-clothesline-6f13cc3c463f43888fb5db634cc603aa
+- **parabola sui tetti** — *Rusty House Satellite Dish*, TomasKiniulis (TomasKiniulis): https://sketchfab.com/3d-models/rusty-house-satellite-dish-929f056abe02416da19d7b1aa805d235
+- **cisterna sui tetti** — *Overhead Water tank*, Nodeaxis Interactive (ar.jethin): https://sketchfab.com/3d-models/overhead-water-tank-1745c92e50b441c6bf6588e11cdba538
+- **tombino** — *Manhole Cover*, Albn (luvarv): https://sketchfab.com/3d-models/manhole-cover-c35106a9f8ef4c31a79665e0cb04bd72
+- **sacchi della spazzatura** — *Garbage bags*, DJMaesen (bumstrum): https://sketchfab.com/3d-models/garbage-bags-9e769751ac3a4b6a893a5719349b78ca
+- **vasi sui davanzali** — *Assorted Old Pots*, Kigha (Kigha): https://sketchfab.com/3d-models/assorted-old-pots-7795c6a5fa144bfcb1c33041c71eab00
+- **nave portacontainer (Caldera)** — *Container Ship*, LavaWave (lavawave): https://sketchfab.com/3d-models/container-ship-4f7cf10593824061bfe2e36ffd823cde
+- **gru portuale (Caldera)** — *Port crane "Sokol"*, Vitaliy Kovalchuk (Domender): https://sketchfab.com/3d-models/port-crane-sokol-4964eaa7634e47c9bac4c2a74fa91c20
+- **faro (Caldera)** — *Phare de Ouistreham LOWPOLY*, Vlasov Daniil (dan741vlasov): https://sketchfab.com/3d-models/phare-de-ouistreham-lowpoly-f4c4bc0bdfe14e35bc08e6221a35802e
+- **boa (Caldera)** — *Port Mesh Buoy2*, john.simmons.hypertext (john.simmons.hypertext): https://sketchfab.com/3d-models/port-mesh-buoy2-6da81c3d87bd4d1da56503d371ef5b15
+- **salvagente (Caldera)** — *Stylized Low Poly Lifebuoy (Game Ready)*, Muyaya Concept (muyayaconcept): https://sketchfab.com/3d-models/stylized-low-poly-lifebuoy-game-ready-1cbc373d57e9471ab04f9e53949911d1
+- **turbina eolica (Caldera)** — *Wind Turbine*, Shivansh Singh (ShivanshSingh): https://sketchfab.com/3d-models/wind-turbine-285032402a8543ae8bf3e3c4d8c9f98a
+- **pannello solare** — *Solar Panel*, rivetech (rivetech): https://sketchfab.com/3d-models/solar-panel-83483a66f8974d7e8f2e7bbde518d606
+- **scogli e molo (Caldera)** — *Rockface Collection 3*, That's Cool Jack (thats_cool_jack): https://sketchfab.com/3d-models/rockface-collection-3-b8dc2f079fa3418b8ac1031490f8c0eb
+- **traliccio (Forge)** — *400Kv Transmission Tower Low Poly Model*, manh21 (manh21): https://sketchfab.com/3d-models/400kv-transmission-tower-low-poly-model-675553d3b2004d72b68c04a5d147d0bd
+- **abete (Forge)** — *Pine Tree [Game-ready]*, Wenedi (^-^)/ (Wenedi): https://sketchfab.com/3d-models/pine-tree-game-ready-dc3fbd9205cf4027a4455d1f415e0478
+- **valvola (Forge)** — *Iron Valve Wheel*, Luke.G (LukeCG): https://sketchfab.com/3d-models/iron-valve-wheel-8ec3518543b74d229725783e7d725c11
+- **estintore** — *Neglected Fire Extinguisher*, JJ Chalupnik (jjchalupnik): https://sketchfab.com/3d-models/neglected-fire-extinguisher-5809f034270947ecb32b597ed9e80afd
+- **telecamera di sorveglianza** — *CCTV Camera*, Smoggybeard (Smoggybeard): https://sketchfab.com/3d-models/cctv-camera-e69d5eb37ffb4f188e4d3c84a5d79cdc
+- **scala a parete** — *Ladder*, FrodoUndead (FrodoUndead): https://sketchfab.com/3d-models/ladder-92bab3b15803415e93505f63498f7c4d
+- **condotto di ventilazione (Forge)** — *Ventilation*, Bluenoseddonkey (Bluenoseddonkey): https://sketchfab.com/3d-models/ventilation-c082be85a9b14d8991def67324939ec5
+- **tested, not shipped** — *Pigeon*, FourthGreen (FourthGreen): https://sketchfab.com/3d-models/pigeon-5884a0f5200c44ceaa7d0399bea577f9
+
+Modifications: polygon reduction, rig baked to static geometry (door), texture downscale and WebP re-encoding, parts cut out of packs by bounding box, per-axis stretch, wind motion in the vertex shader, emissive added to the lantern, metalness reduced on the duct and valve.

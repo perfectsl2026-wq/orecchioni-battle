@@ -1,5 +1,5 @@
 import * as THREE from './vendor/three.module.js';
-import {WALLS} from './shared.js?v=39.0';
+import {WALLS} from './shared.js?v=40.0';
 
 // Legacy procedural fallback and geometry helpers. Current asset credits are in assets/CREDITS.md.
 let seed=1707;

@@ -1,8 +1,8 @@
-import {MAPS,wallDistance,groundHeight} from './shared.js?v=39.0';
-import {eyeHeight} from './player-feel.js?v=39.0';
-import {bloom} from './smoke-rules.js?v=39.0';
-import {detonate} from './blast-rules.js?v=39.0';
-import {ECONOMY,economyOn,give} from './economy.js?v=39.0';
+import {MAPS,wallDistance,groundHeight} from './shared.js?v=40.0';
+import {eyeHeight} from './player-feel.js?v=40.0';
+import {bloom} from './smoke-rules.js?v=40.0';
+import {detonate} from './blast-rules.js?v=40.0';
+import {ECONOMY,economyOn,give} from './economy.js?v=40.0';
 export const BOMB={plantMs:3000,defuseMs:5000,fuseMs:40000,reach:2.5};
 export const objectiveEnabled=s=>!!MAPS[s.map]?.sites?.length&&s.mode==='demolition'&&!s.preview;
 export const flashEnabled=s=>!!MAPS[s.map]?.utility;
