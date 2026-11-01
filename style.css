@@ -255,7 +255,7 @@ html.show-hitmarker #hit{display:block}#hit.head{--hit:#ffd27a}#hit.kill{--hit:#
 .plan rect{fill:currentColor;opacity:.42}.plan rect.solid{fill:#0a1820;opacity:1}.plan .site{fill:var(--card-accent);opacity:.9}
 #menu button[aria-pressed=true] .plan{color:#f2eee6}#menu button[aria-pressed=true] .plan rect{opacity:.6}
 #menu .arena-note{margin:0;color:#8fa6ac;font-size:11px;letter-spacing:.4px}
-.playlists{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin:2px 0 12px}
+.playlists{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;margin:2px 0 12px}
 .playlists button{display:grid;gap:3px;text-align:left;padding:10px 9px 9px;background:#0b1a22aa;border:1px solid #98b5bf30;border-top:2px solid transparent;color:#cfdcde;transition:border-color .15s,background .15s}
 .playlists button b{font:800 15px/1 'Barlow Condensed','Bahnschrift',Arial,sans-serif;letter-spacing:1.2px}
 .playlists button small{font-size:8px;letter-spacing:1.1px;color:#93abb2}

@@ -3,7 +3,7 @@
 // up to four grenades. Survivors keep what they hold; the fallen lose primary,
 // armour and utility. Always on in the 5v5 competitive mode, optional in Wingman,
 // never in deathmatch. Values are this game's own; the structure follows the genre.
-import {WEAPONS,MAPS} from './shared.js?v=40.0';
+import {WEAPONS,MAPS} from './shared.js?v=41.0';
 export const ECONOMY={start:800,max:9000,buyMs:12000,liveBuyMs:20000,zone:14,win:3250,objectiveWin:3500,loss:[1400,1900,2400,2900,3400],plantedLoss:800,plant:300,grenadeSlots:4,
  kill:[300,600,300,300,100,1500,300,300]};
 // side: 'attack' | 'defense' limits an item to that side of the round, as rifles in CS.
@@ -17,7 +17,20 @@ export const CATEGORIES=[
 export const SHOP=CATEGORIES.flatMap(c=>c.items.map(i=>({...i,category:c.id})));
 export const itemById=id=>SHOP.find(i=>i.id===id);
 export const economyOn=state=>!!state?.economy&&state.mode==='demolition'&&!state.preview;
-export const ownsWeapon=(state,p,index)=>!economyOn(state)||index===0||index===5||p?.primary===index;
+// V41 CORSA ALLE ARMI: everyone climbs the same ladder, two kills a step, one knife kill to win.
+// Being knifed costs a step. Only the weapon in hand changes: hits and damage are the usual ones.
+export const CORSA_LADDER=[3,2,1,4,0,5];
+export const CORSA_KILLS=2;
+export const corsaWeapon=p=>CORSA_LADDER[Math.min(p?.tier||0,CORSA_LADDER.length-1)];
+export const corsaNeeded=p=>(p?.tier||0)>=CORSA_LADDER.length-1?1:CORSA_KILLS;
+export function corsaKill(state,killer,victim,weapon){
+ if(weapon===5&&(victim.tier||0)>0&&(killer.tier||0)<CORSA_LADDER.length-1){victim.tier--;victim.tierKills=0;}
+ killer.tierKills=(killer.tierKills||0)+1;if(killer.tierKills<corsaNeeded(killer))return false;
+ killer.tierKills=0;killer.tier=(killer.tier||0)+1;
+ if(killer.tier>=CORSA_LADDER.length){killer.tier=CORSA_LADDER.length-1;state.corsaWinner={id:killer.id,name:killer.name,team:killer.team};state.score[killer.team]=Math.max(state.score.blue,state.score.orange)+1;state.ended=true;}
+ return true;
+}
+export const ownsWeapon=(state,p,index)=>state?.mode==='corsa'?index===corsaWeapon(p):!economyOn(state)||index===0||index===5||p?.primary===index;
 export const sideOf=(state,p)=>p?.team===state.attackTeam?'attack':'defense';
 // Buy zone: within ECONOMY.zone metres of the side's own spawn line.
 export function inBuyZone(state,p){

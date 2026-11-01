@@ -9,15 +9,18 @@ import * as T from './vendor/three.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
-import {PAINTS} from './weapon-finish.js?v=40.0';
+import {PAINTS} from './weapon-finish.js?v=41.0';
 export const KITS=[
  {id:'assalto',name:'ASSALTO',tag:'LINEA',toggles:{visor:'Visore notturno',mask:'Maschera facciale',pack:'Zaino d’assalto'},desc:'Casco balistico con occhiali e cuffia, maschera facciale a scelta, visore notturno a quattro tubi. L’operatore che entra per primo.'},
- {id:'ricognizione',name:'RICOGNIZIONE',tag:'LEGGERO',toggles:{visor:'Occhiali',mask:'Shemagh sul volto',pack:'Zaino leggero'},desc:'Berretto e cuffia radio, shemagh al collo, binocolo al petto. Sagoma bassa, passo lungo.'},
- {id:'sfondamento',name:'SFONDAMENTO',tag:'PESANTE',toggles:{visor:null,mask:'Maschera antigas',pack:'Zaino largo'},desc:'Casco con cuffie integrate, mezza maschera balistica o antigas, zaino largo. Il muro che avanza.'},
- {id:'tiratore',name:'TIRATORE',tag:'OMBRA',toggles:{visor:'Telemetro',mask:'Maschera teschio',pack:'Zaino leggero'},desc:'Passamontagna, telemetro e mantella sulla schiena; a scelta la maschera teschio con occhiali. Visto solo dopo.'}
+ {id:'ricognizione',name:'RICOGNIZIONE',tag:'LEGGERO',toggles:{visor:'Occhiali',mask:'Shemagh sul volto',pack:'Zaino leggero'},desc:'Berretto e cuffia radio, binocolo al petto; a scelta lo shemagh che avvolge la testa. Sagoma bassa, passo lungo.'},
+ {id:'sfondamento',name:'SFONDAMENTO',tag:'PESANTE',toggles:{visor:null,mask:'Respiratore a doppio filtro',pack:'Zaino largo'},desc:'Casco con cuffie integrate, maschera balistica o respiratore a doppio filtro, zaino largo. Il muro che avanza.'},
+ {id:'tiratore',name:'TIRATORE',tag:'OMBRA',toggles:{visor:'Occhiali da tiro',mask:'Maschera teschio',pack:'Zaino leggero'},desc:'Passamontagna a coste e occhiali da tiro; a scelta il cappuccio con il teschio. Visto solo dopo.'}
 ];
 export const DEFAULT_OPERATOR={kit:'assalto',accent:'graphite',visor:0,mask:0,pack:0};
 export const kitFor=id=>KITS.find(k=>k.id===id)||null;
+// Masks and hoods were modelled on a smaller head: the base head shrinks under them, so nothing
+// pokes through; gear parented to the head bone is compensated in dressOperator.
+export function headScale(operator){const o=cleanOperator(operator);return o.kit==='tiratore'?.84:o.kit==='sfondamento'?.86:o.kit==='ricognizione'&&o.mask?.86:1;}
 export function cleanOperator(v){
  const kit=kitFor(v?.kit)?v.kit:'assalto';
  return {kit,accent:Object.hasOwn(PAINTS,v?.accent)?v.accent:'graphite',visor:v?.visor?1:0,mask:v?.mask?1:0,pack:v?.pack?1:0};
@@ -52,25 +55,28 @@ export function operatorLook(team,accent){
 // `own` pieces are centred on their own bounds (packs of several objects); the others on
 // the whole model's bounds, so pieces of one model keep their authored alignment.
 export const GEAR_FILES={
- casco_a:'./assets/models/v37/casco_a.glb',casco_b:'./assets/models/v37/casco_b.glb',casco_c:'./assets/models/v37/casco_c.glb',
+ casco_a:'./assets/models/v37/casco_a.glb',casco_b:'./assets/models/v37/casco_b.glb',
  pacco_teste:'./assets/models/v37/pacco_teste.glb',nvg:'./assets/models/v37/nvg.glb',zaino_a:'./assets/models/v37/zaino_a.glb',zaino_b:'./assets/models/v37/zaino_b.glb',
- antigas:'./assets/models/v37/antigas.glb',passamontagna:'./assets/models/v37/passamontagna.glb',cuffie:'./assets/models/v37/cuffie.glb'
+ passamontagna:'./assets/models/v37/passamontagna.glb',cuffie:'./assets/models/v37/cuffie.glb',
+ occhiali:'./assets/models/v41/occhiali.glb',binocolo:'./assets/models/v41/binocolo.glb'
 };
 export const PIECES={
  casco_a:{model:'casco_a',only:/Helmet_Base|Glasses/,fit:{scale:.0062,rotation:[0,Math.PI,0],position:[0,.01,-.01]}},
  maschera_a:{model:'casco_a',only:/Mask/,fit:{scale:.0062,rotation:[0,Math.PI,0],position:[0,.01,-.01]}},
- casco_b:{model:'casco_b',fit:{scale:.3,rotation:[0,Math.PI,0],position:[0,.02,-.01]}},
- casco_c:{model:'casco_c',fit:{scale:.036,rotation:[0,Math.PI,0],position:[0,.04,0]}},
+ casco_b:{model:'casco_b',fit:{scale:.3,rotation:[0,Math.PI/2,0],position:[0,.02,-.01]}},
  nvg:{model:'nvg',fit:{scale:.75,rotation:[0,Math.PI,0],position:[0,.035,-.175]}},
  zaino_a:{model:'zaino_a',fit:{scale:.55,rotation:[0,0,0],position:[0,.02,.27]}},
  zaino_b:{model:'zaino_b',fit:{scale:.7,rotation:[0,0,0],position:[0,0,.18]}},
  zaino_c:{model:'zaino_b',fit:{scale:.55,rotation:[0,0,0],position:[0,.02,.17]}},
- antigas:{model:'antigas',fit:{scale:.15,rotation:[0,Math.PI,0],position:[0,-.06,-.12]}},
- passamontagna:{model:'passamontagna',fit:{scale:.13,rotation:[0,Math.PI,0],position:[0,-.02,0]}},
+ antigas:{model:'pacco_teste',only:/GasMask/,own:true,fit:{scale:1.1,rotation:[0,Math.PI,0],position:[0,.0,-.045]}},
+ occhiali:{model:'occhiali',fit:{scale:.078,rotation:[0,0,0],position:[0,.012,-.128]}},
+ occhiali_tiro:{model:'occhiali',fit:{scale:.068,rotation:[0,0,0],position:[0,.0,-.112]}},
+ binocolo:{model:'binocolo',fit:{scale:.00013,rotation:[0,Math.PI,0],position:[0,.08,-.2]}},
+ passamontagna:{model:'passamontagna',fit:{scale:.13,rotation:[0,Math.PI,0],position:[0,-.038,-.002]}},
  cuffie:{model:'cuffie',fit:{scale:.27,rotation:[0,Math.PI,0],position:[0,0,0]}},
- shemagh:{model:'pacco_teste',only:/Shemagh/,own:true,fit:{scale:1.05,rotation:[0,Math.PI,0],position:[0,-.1,-.01]}},
- teschio:{model:'pacco_teste',only:/GoustMask/,own:true,fit:{scale:1,rotation:[0,Math.PI,0],position:[0,-.02,0]}},
- mezza_maschera:{model:'pacco_teste',only:/Mask_ballistic/,own:true,fit:{scale:.92,rotation:[0,Math.PI,0],position:[0,-.11,-.03]}}
+ shemagh:{model:'pacco_teste',only:/Shemagh/,own:true,fit:{scale:1.18,rotation:[0,Math.PI,0],position:[0,-.075,-.01]}},
+ teschio:{model:'pacco_teste',only:/GoustMask/,own:true,fit:{scale:1.2,rotation:[0,Math.PI,0],position:[0,-.05,-.01]}},
+ mezza_maschera:{model:'pacco_teste',only:/Mask_ballistic/,own:true,fit:{scale:.94,rotation:[0,Math.PI,0],position:[0,-.012,-.035]}}
 };
 const gearScenes=new Map(),gearBounds=new Map();
 export const gearReady=()=>gearScenes.size===Object.keys(GEAR_FILES).length;
@@ -92,12 +98,19 @@ function mergeByMaterial(scene){
   const mesh=new T.Mesh(merged,mat);mesh.name=list[0].name;scene.add(mesh);for(const o of list)o.removeFromParent();}
  scene.updateMatrixWorld(true);
 }
+// Colour corrections of the bought-in textures: a charcoal knit instead of pure black, a field-drab pack instead of white, dark lenses instead of purple.
+const LOOK_FIX={
+ passamontagna(m){m.map=null;m.color.set(0x34393a);m.roughness=1;m.metalness=0;m.side=T.DoubleSide;},
+ zaino_a(m){m.color.set(0x8a8468);},
+ occhiali(m){if(m.name==='Default'){m.color.set(0x3c423c);m.roughness=.7;}else{m.color.set(0x1a2226);m.opacity=.82;m.roughness=.12;m.metalness=.5;}},
+ pacco_teste(m){if(/EquipAtlas|GoustMaskMain/.test(m.name))m.side=T.DoubleSide;if(m.name==='Glass'){m.color.set(0x11161a);m.roughness=.18;m.metalness=.4;}if(m.name==='GasMaskWindow'){m.color.set(0x3d5358);m.roughness=.1;m.metalness=.75;m.envMapIntensity=1.6;}}
+};
 export async function preloadOperatorGear(){
  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
  await Promise.all(Object.entries(GEAR_FILES).map(async([id,file])=>{
   if(gearScenes.has(id))return;
   try{const g=await loader.loadAsync(file);const scene=g.scene;bakeSkins(scene);if(!Object.values(PIECES).some(p=>p.model===id&&p.only))mergeByMaterial(scene);
-   scene.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){m.userData.teamLook=true;m.userData.operatorGear=true;m.side=T.FrontSide;}o.geometry.computeBoundingBox();});
+   scene.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){m.userData.teamLook=true;m.userData.operatorGear=true;m.side=T.FrontSide;LOOK_FIX[id]?.(m,o);}o.geometry.computeBoundingBox();});
    gearScenes.set(id,scene);gearBounds.set(id,new T.Box3().setFromObject(scene));gearGeneration++;}
   catch(e){console.error('Equipaggiamento non caricato',file,e);}
  }));
@@ -163,21 +176,20 @@ const KIT_PARTS={
  ricognizione(P,L,o,side){
   P.model('head','cuffie');
   if(o.mask)P.model('head','shemagh');
-  if(o.visor)P.box('head',L.lens,0,.005,-.118,.15,.03,.02);
-  tags(P,L);P.box('chest',L.metal,0,.1,-.19,.09,.05,.06);P.cyl('chest',L.metal,-.12*side,.3,.0,.004,.3);
+  if(o.visor)P.model('head','occhiali');
+  tags(P,L);P.model('chest','binocolo');
   if(o.pack)P.model('chest','zaino_c');
   P.torus('shoulderL',L.accent,0,-.1,0,.058,.013,[Math.PI/2,0,0]);
  },
  sfondamento(P,L,o,side){
   P.model('head','casco_b');P.model('head',o.mask?'antigas':'mezza_maschera');
-  P.box('head',L.accent,0,.15,0,.024,.014,.2);
   tags(P,L);P.box('chest',L.accent,0,.1,-.19,.1,.04,.02);
   if(o.pack)P.model('chest','zaino_a');
   for(const a of ['shoulderL','shoulderR'])P.torus(a,L.accent,0,-.1,0,.058,.012,[Math.PI/2,0,0]);
  },
  tiratore(P,L,o,side){
   P.model('head',o.mask?'teschio':'passamontagna');
-  if(o.visor)P.box('head',L.metal,-.05*side,.0,-.125,.03,.03,.05);
+  if(o.visor&&!o.mask)P.model('head','occhiali_tiro');
   tags(P,L);P.box('chest',L.base,.13*side,-.03,-.17,.07,.1,.05);P.box('chest',L.accent,0,.08,-.18,.07,.03,.01);
   if(o.pack)P.model('chest','zaino_c');
  }

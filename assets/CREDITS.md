@@ -235,3 +235,13 @@ CC Attribution 4.0 models from Sketchfab, placed by `dist/detail-dress.js` and `
 - **tested, not shipped** — *Pigeon*, FourthGreen (FourthGreen): https://sketchfab.com/3d-models/pigeon-5884a0f5200c44ceaa7d0399bea577f9
 
 Modifications: polygon reduction, rig baked to static geometry (door), texture downscale and WebP re-encoding, parts cut out of packs by bounding box, per-axis stretch, wind motion in the vertex shader, emissive added to the lantern, metalness reduced on the duct and valve.
+
+
+## V41 — operators
+
+CC Attribution 4.0 models from Sketchfab.
+
+- **occhiali protettivi (Ricognizione, Tiratore)** — *UKRAINIAN TACTICAL GLASS*, Idmenthal (idmental.id): https://sketchfab.com/3d-models/ukrainian-tactical-glass-047e8c85814d46b6a16fd7915fc137d7
+- **binocolo (Ricognizione)** — *Binoculars*, Eprdox (eprdox): https://sketchfab.com/3d-models/binoculars-67a883953785434aac3bc9f5aa1db760
+
+Modifications: polygon reduction (binoculars), texture downscale and WebP re-encoding, recoloured frame and lens. The gas mask and skull hood now come from the head gear pack already credited above; the GP-5 gas mask and the third helmet are no longer shipped.

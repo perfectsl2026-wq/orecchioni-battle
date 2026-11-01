@@ -11,7 +11,7 @@ import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
-import {MAPS} from './shared.js?v=40.0';
+import {MAPS} from './shared.js?v=41.0';
 const DIR='./assets/models/';
 // Parts: a file, optionally a box (model units) that keeps only the triangles whose
 // centroid lies inside it (packs of several objects), and a yaw so the part's front

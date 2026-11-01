@@ -1,18 +1,18 @@
 import * as T from './vendor/three.module.js';
-import {WALLS,MAPS,groundHeight} from './shared.js?v=40.0';
-import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=40.0';
-import {metricBlock as block,beam,ring,panel} from './caldera-architecture.js?v=40.0';
-import {createAtmosphere} from './atmosphere.js?v=40.0';
-import {layeredWear,toneAlbedo} from './surface-detail.js?v=40.0';
-import {decorateFacade,decalMaterial} from './decals.js?v=40.0';
-import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=40.0';
-import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=40.0';
-import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=40.0';
-import {siteMarkings} from './site-markings.js?v=40.0';
-import {calderaSiteProps} from './site-props.js?v=40.0';
-import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=40.0';
-import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin,reskin,calderaBoats} from './street-props.js?v=40.0';
-import {stationFixtures,calderaDress,manholes} from './detail-dress.js?v=40.0';
+import {WALLS,MAPS,groundHeight} from './shared.js?v=41.0';
+import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=41.0';
+import {metricBlock as block,beam,ring,panel} from './caldera-architecture.js?v=41.0';
+import {createAtmosphere} from './atmosphere.js?v=41.0';
+import {layeredWear,toneAlbedo} from './surface-detail.js?v=41.0';
+import {decorateFacade,decalMaterial} from './decals.js?v=41.0';
+import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=41.0';
+import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=41.0';
+import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=41.0';
+import {siteMarkings} from './site-markings.js?v=41.0';
+import {calderaSiteProps} from './site-props.js?v=41.0';
+import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=41.0';
+import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin,reskin,calderaBoats} from './street-props.js?v=41.0';
+import {stationFixtures,calderaDress,manholes} from './detail-dress.js?v=41.0';
 // CALDERA / 07: a coastal research station on a volcanic headland. Cast concrete and
 // white render over a basalt plinth, teal metal fascias, ribbon glazing above head
 // height, a timber jetty, a sea wall with open water beyond, and a heliostat over A.

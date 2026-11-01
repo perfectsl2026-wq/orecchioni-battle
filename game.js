@@ -1,61 +1,61 @@
-import {WeaponInspection} from './weapon-inspection.js?v=40.0';
-import {objectiveEnabled,flashEnabled,updateObjective,throwFlash,updateFlashes,flashOpacity,botObjectiveOrder,botSmokeTarget,botHeTarget,BOMB} from './objective-rules.js?v=40.0';
-import {UtilityPresentation} from './utility-presentation.js?v=40.0';
-import {applyMapTheme} from './visual-theme.js?v=40.0';
-import {InputChannel,cleanInput} from './network-input.js?v=40.0';
-import {NETWORK_PROTOCOL,ROOM_PREFIX,NetworkSession,sendPacket,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=40.0';
-import {FrameMeter} from './frame-meter.js?v=40.0';
-import {FramePacing} from './frame-pacing.js?v=40.0';
-import {displayName,warmVariantMaterials} from './weapon-variants.js?v=40.0';
-import {Career} from './profile.js?v=40.0';
-import {applyFinish,cleanLoadout} from './weapon-finish.js?v=40.0';
-import {missingBots,replaceableBot,nextBotName} from './roster.js?v=40.0';
-import {sizeRenderer,filterTextures} from './render-quality.js?v=40.0';
-import {recordKill,KillLedger} from './kill-events.js?v=40.0';
-import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=40.0';
-import {viewMotion} from './view-motion.js?v=40.0';
-import {PostFX,supportsPostFX} from './postfx.js?v=40.0';
-import {realizeWorld,realizeEnvironment} from './realism.js?v=40.0';
-import {AudioEngine} from './audio-engine.js?v=40.0';
-import {ViewKick} from './view-kick.js?v=40.0';
-import {footSurface} from './surfaces.js?v=40.0';
+import {WeaponInspection} from './weapon-inspection.js?v=41.0';
+import {objectiveEnabled,flashEnabled,updateObjective,throwFlash,updateFlashes,flashOpacity,botObjectiveOrder,botSmokeTarget,botHeTarget,BOMB} from './objective-rules.js?v=41.0';
+import {UtilityPresentation} from './utility-presentation.js?v=41.0';
+import {applyMapTheme} from './visual-theme.js?v=41.0';
+import {InputChannel,cleanInput} from './network-input.js?v=41.0';
+import {NETWORK_PROTOCOL,ROOM_PREFIX,NetworkSession,sendPacket,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=41.0';
+import {FrameMeter} from './frame-meter.js?v=41.0';
+import {FramePacing} from './frame-pacing.js?v=41.0';
+import {displayName,warmVariantMaterials} from './weapon-variants.js?v=41.0';
+import {Career} from './profile.js?v=41.0';
+import {applyFinish,cleanLoadout} from './weapon-finish.js?v=41.0';
+import {missingBots,replaceableBot,nextBotName} from './roster.js?v=41.0';
+import {sizeRenderer,filterTextures} from './render-quality.js?v=41.0';
+import {recordKill,KillLedger} from './kill-events.js?v=41.0';
+import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=41.0';
+import {viewMotion} from './view-motion.js?v=41.0';
+import {PostFX,supportsPostFX} from './postfx.js?v=41.0';
+import {realizeWorld,realizeEnvironment} from './realism.js?v=41.0';
+import {AudioEngine} from './audio-engine.js?v=41.0';
+import {ViewKick} from './view-kick.js?v=41.0';
+import {footSurface} from './surfaces.js?v=41.0';
 const frameMeter=new FrameMeter();let metricsAt=0;const firstPersonMotion={};let viewOffsets={};
 // V33 frame pacing: the render scale settles where this device holds its display rate; the
 // settled step is remembered so the next session starts there instead of stuttering down to it.
 let pacingStart=0;try{pacingStart=Math.max(0,(Number(localStorage.getItem('ob-render-step'))||0)-1);}catch{}
 const pacing=new FramePacing({start:pacingStart});
 import * as THREE from './vendor/three.module.js';
-import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=40.0';
-import {Armory} from './armory.js?v=40.0';
-import {preloadArchitecture} from './architecture-assets.js?v=40.0';
-import {preloadAssets,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug} from './assets.js?v=40.0';
-import {cleanOperator,botOperator} from './operator-kits.js?v=40.0';
-import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=40.0';
-import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=40.0';
-import {CombatFX,createFlashLights,dressMuzzleFlash} from './combatfx.js?v=40.0';
-import {BASE_FOV,scopeFov,mouseGain,ControlsPanel} from './controls.js?v=40.0';
-import {presentAgent} from './agent-motion.js?v=40.0';
-import {mixShot} from './audio-mix.js?v=40.0';
-import {SimulationClock} from './simulation-clock.js?v=40.0';
-import {SnapshotBuffer} from './snapshots.js?v=40.0';
-import {resetCombat,stepMovement,stepBotMovement,shotParameters,traceShot,applyHit,applyBlast,sprayOffset,CAMERA_RECOIL,recoilAt,accuracyFor,traceMelee,equipWeapon,canAttack} from './combat-rules.js?v=40.0';
-import {createMatch,updateMatch,canAct,isRoundMode,mapAllowsMode,defaultMode,teamName,modeRules,matchRules,isRespawnMode,allowedWeapons,weaponAllowed} from './match-rules.js?v=40.0';
-import {addKillFeed,weaponIcon,weaponName} from './kill-feed.js?v=40.0';
-import {Radar,spottedEnemies} from './radar.js?v=40.0';
-import {CrosshairEditor} from './crosshair.js?v=40.0';
-import {ECONOMY,economyOn,ownsWeapon,canBuyNow,buyWindowOpen,buyWindowLeft,inBuyZone,buy as buyItem,sell as sellItem,applyCarry,give} from './economy.js?v=40.0';
-import {throwUtility,updateFires,WEAPON_HE,WEAPON_FIRE} from './blast-rules.js?v=40.0';
-import {dropWeapon,updatePickups,dropNear} from './pickups.js?v=40.0';
-import {syncSmokes,throwSmoke,insideSmoke,smokeBlocks} from './smoke-rules.js?v=40.0';
-import {BuyMenu} from './buy-menu.js?v=40.0';
-import {SmokeFX,BlastFX,FireFX} from './smoke-fx.js?v=40.0';
-import {recordPositions,rewoundPlayers,clearHistory} from './lag-compensation.js?v=40.0';
-import {createSkylife} from './skylife.js?v=40.0';
-import {streetClock} from './street-props.js?v=40.0';
-import {buildProbe} from './surface-probe.js?v=40.0';
-import {scoreboardHTML,rosterHTML} from './scoreboard.js?v=40.0';
-import {DeathPresentation} from './death-presentation.js?v=40.0';
-import {prefersTouch,requestMouseLock,TouchControls} from './touch-controls.js?v=40.0';
+import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=41.0';
+import {Armory} from './armory.js?v=41.0';
+import {preloadArchitecture} from './architecture-assets.js?v=41.0';
+import {preloadAssets,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug} from './assets.js?v=41.0';
+import {cleanOperator,botOperator} from './operator-kits.js?v=41.0';
+import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=41.0';
+import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=41.0';
+import {CombatFX,createFlashLights,dressMuzzleFlash} from './combatfx.js?v=41.0';
+import {BASE_FOV,scopeFov,mouseGain,ControlsPanel} from './controls.js?v=41.0';
+import {presentAgent} from './agent-motion.js?v=41.0';
+import {mixShot} from './audio-mix.js?v=41.0';
+import {SimulationClock} from './simulation-clock.js?v=41.0';
+import {SnapshotBuffer} from './snapshots.js?v=41.0';
+import {resetCombat,stepMovement,stepBotMovement,shotParameters,traceShot,applyHit,applyBlast,sprayOffset,CAMERA_RECOIL,recoilAt,accuracyFor,traceMelee,equipWeapon,canAttack} from './combat-rules.js?v=41.0';
+import {createMatch,updateMatch,canAct,isRoundMode,mapAllowsMode,defaultMode,teamName,modeRules,matchRules,isRespawnMode,allowedWeapons,weaponAllowed} from './match-rules.js?v=41.0';
+import {addKillFeed,weaponIcon,weaponName} from './kill-feed.js?v=41.0';
+import {Radar,spottedEnemies} from './radar.js?v=41.0';
+import {CrosshairEditor} from './crosshair.js?v=41.0';
+import {ECONOMY,economyOn,ownsWeapon,canBuyNow,buyWindowOpen,buyWindowLeft,inBuyZone,buy as buyItem,sell as sellItem,applyCarry,give,corsaWeapon,corsaNeeded,corsaKill,CORSA_LADDER} from './economy.js?v=41.0';
+import {throwUtility,updateFires,WEAPON_HE,WEAPON_FIRE} from './blast-rules.js?v=41.0';
+import {dropWeapon,updatePickups,dropNear} from './pickups.js?v=41.0';
+import {syncSmokes,throwSmoke,insideSmoke,smokeBlocks} from './smoke-rules.js?v=41.0';
+import {BuyMenu} from './buy-menu.js?v=41.0';
+import {SmokeFX,BlastFX,FireFX} from './smoke-fx.js?v=41.0';
+import {recordPositions,rewoundPlayers,clearHistory} from './lag-compensation.js?v=41.0';
+import {createSkylife} from './skylife.js?v=41.0';
+import {streetClock} from './street-props.js?v=41.0';
+import {buildProbe} from './surface-probe.js?v=41.0';
+import {scoreboardHTML,rosterHTML} from './scoreboard.js?v=41.0';
+import {DeathPresentation} from './death-presentation.js?v=41.0';
+import {prefersTouch,requestMouseLock,TouchControls} from './touch-controls.js?v=41.0';
 const $=s=>document.getElementById(s),canvas=$('game'),career=new Career(),sfx=new AudioEngine(),qaMode=new URLSearchParams(location.search).get('qa')==='1';
 const mobileDevice=prefersTouch({coarse:matchMedia('(pointer:coarse)').matches,anyCoarse:matchMedia('(any-pointer:coarse)').matches,maxTouchPoints:navigator.maxTouchPoints||0})||new URLSearchParams(location.search).get('touch')==='1';
 document.documentElement.classList.toggle('touch-mode',mobileDevice);
@@ -96,7 +96,7 @@ async function loadMap(mapId){
  // loading card instead of freezing the lobby on its last frame.
  if(fresh){$('loading').classList.remove('leaving');$('loading').hidden=false;$('loading-message').textContent='Costruzione di '+MAPS[key].title+'…';$('assetprogress').removeAttribute('value');$('retryload').hidden=true;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));if(run!==mapLoadEpoch)return false;}
  if(!mapScenes.has(key)){
-  const world=new THREE.Scene();const build=key==='forge'?(await import('./forge.js?v=40.0')).createForge:key==='caldera'?(await import('./caldera.js?v=40.0')).createCaldera:(await import('./sahra.js?v=40.0')).createSahra;
+  const world=new THREE.Scene();const build=key==='forge'?(await import('./forge.js?v=41.0')).createForge:key==='caldera'?(await import('./caldera.js?v=41.0')).createCaldera:(await import('./sahra.js?v=41.0')).createSahra;
   if(run!==mapLoadEpoch)return false;configureMap(key);const root=build(world,renderer);realizeWorld(world,key,{lamps:!mobileDevice});createSkylife(world,key);if(mobileDevice)world.traverse(o=>{if(o.isLight&&o.shadow)o.shadow.mapSize.set(1024,1024);});
   mapScenes.set(key,{scene:world,root,ready:Promise.resolve(root.userData.ready).then(()=>{const t0=performance.now();mapScenes.get(key).probe=buildProbe(root);if(qaMode)console.log('surface probe',key,Math.round(performance.now()-t0)+' ms');})});
  }
@@ -117,10 +117,10 @@ async function loadMap(mapId){
  }catch(e){if(startupReady){$('assetprogress').value=100;$('loading').hidden=true;}if(run!==mapLoadEpoch)return false;configureMap(lastGoodMap);mapSelect.value=lastGoodMap;mapScenes.delete(key);mapSelect.disabled=false;$('create').disabled=$('join').disabled=$('practice').disabled=$('explore').disabled=!mapRoot;throw e;}
 }
 // Playlists first, as in competitive clients: each one picks the mode and its map pool.
-const PLAYLISTS={competitive:{mode:'demolition',maps:['sahra']},wingman:{mode:'demolition',maps:['caldera']},deathmatch:{mode:'deathmatch',maps:['sahra','caldera','forge']}};
+const PLAYLISTS={competitive:{mode:'demolition',maps:['sahra']},wingman:{mode:'demolition',maps:['caldera']},deathmatch:{mode:'deathmatch',maps:['sahra','caldera','forge']},corsa:{mode:'corsa',maps:['sahra','caldera','forge']}};
 let playlist='competitive';
-const playlistFor=(map,mode)=>mode==='deathmatch'?'deathmatch':MAPS[map].pool==='wingman'?'wingman':'competitive';
-function syncPlaylist(){playlist=playlistFor(ACTIVE_MAP,$('mode').value);{const box=$('economy');box.disabled=playlist!=='wingman';if(playlist==='competitive')box.checked=true;box.closest('label').hidden=playlist==='deathmatch';}for(const b of document.querySelectorAll('.playlists [data-playlist]'))b.setAttribute('aria-checked',String(b.dataset.playlist===playlist));for(const b of document.querySelectorAll('.map-cards button[data-map]'))b.classList.toggle('outside',!PLAYLISTS[playlist].maps.includes(b.dataset.map));}
+const playlistFor=(map,mode)=>mode==='deathmatch'||mode==='corsa'?mode:MAPS[map].pool==='wingman'?'wingman':'competitive';
+function syncPlaylist(){playlist=playlistFor(ACTIVE_MAP,$('mode').value);{const box=$('economy');box.disabled=playlist!=='wingman';if(playlist==='competitive')box.checked=true;box.closest('label').hidden=playlist==='deathmatch'||playlist==='corsa';}for(const b of document.querySelectorAll('.playlists [data-playlist]'))b.setAttribute('aria-checked',String(b.dataset.playlist===playlist));for(const b of document.querySelectorAll('.map-cards button[data-map]'))b.classList.toggle('outside',!PLAYLISTS[playlist].maps.includes(b.dataset.map));}
 // Each map card shows the real walkable plan of its map, drawn from the shared data.
 function planSVG(map){const b=map.bounds;let body='';
  if(map.walk)for(const [x0,x1,z0,z1]of map.walk)body+=`<rect x="${x0}" y="${z0}" width="${x1-x0}" height="${z1-z0}"/>`;
@@ -250,7 +250,7 @@ function escape(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt
 // The loading card fades into the lobby instead of cutting to it.
 function revealGame(){const l=$('loading');if(l.hidden)return;l.classList.add('leaving');setTimeout(()=>{l.hidden=true;l.classList.remove('leaving');},420);}
 function notice(t){$('notice').textContent=t}function status(t){$('status').textContent=t;$('loading-message').textContent=t;}function error(t){status(t);$('create').disabled=$('join').disabled=false;mapSelect.disabled=false;}
-function spawn(p){const now=clock.time;p.life=(p.life||0)+1;p.input={};p.jumpRequestUntil=-Infinity;remoteInputs.set(p,new InputChannel(p.life));if(p.bot)resetBot(p);const spawnTeam=objectiveEnabled(state)&&state.attackTeam?(p.team===state.attackTeam?'orange':'blue'):p.team;const spots=SPAWNS[spawnTeam].slice(0,state.teamSize||2);const others=Object.values(state.players).filter(v=>v.id!==p.id&&v.hp>0),rank=s=>Math.min(50,...others.filter(v=>v.team!==p.team).map(v=>Math.hypot(v.x-s[0],v.z-s[1])))-(others.some(v=>v.team===p.team&&Math.hypot(v.x-s[0],v.z-s[1])<2)?100:0);let s=spots[Math.floor(Math.random()*spots.length)];for(const candidate of spots)if(rank(candidate)>rank(s))s=candidate;p.x=s[0];p.z=s[1];p.hp=100;p.dead=0;p.pitch=0;p.groundY=groundHeight(p.x,p.z);p.y=p.groundY;p.invulnerable=now+2200;if(!weaponAllowed(state.mode,p.weapon))p.weapon=allowedWeapons(state.mode)[0];p.ammo=WEAPONS.map(w=>w.mag);p.reload=0;p.reloadStart=0;resetCombat(p);if(economyOn(state))applyCarry(state,p);else{p.flashes=MAPS[ACTIVE_MAP].utility?2:0;p.smokes=MAPS[ACTIVE_MAP].utility?1:0;}p.flashReady=p.blindAt=p.blindUntil=p.blindStrength=0;p.yaw=MAPS[ACTIVE_MAP].spawnYaw?.[spawnTeam]??(p.team==='blue'?Math.PI:0);if(p.id===id){syncWeapon(p);local.x=p.x;local.z=p.z;yaw=p.yaw;pitch=0;jump=local.y=p.y||0;local.groundY=p.groundY||0;jumpV=local.jumpV=local.duck=0;local.landingUntil=0;jumpRequestUntil=-Infinity;local.vx=local.vz=0;lastDeath=null;localLife=p.life;localView.reset({x:local.x,z:local.z,y:p.y||0,groundY:p.groundY||0,life:p.life});viewKick.reset();}}
+function spawn(p){const now=clock.time;p.life=(p.life||0)+1;p.input={};p.jumpRequestUntil=-Infinity;remoteInputs.set(p,new InputChannel(p.life));if(p.bot)resetBot(p);const spawnTeam=objectiveEnabled(state)&&state.attackTeam?(p.team===state.attackTeam?'orange':'blue'):p.team;const spots=SPAWNS[spawnTeam].slice(0,state.teamSize||2);const others=Object.values(state.players).filter(v=>v.id!==p.id&&v.hp>0),rank=s=>Math.min(50,...others.filter(v=>v.team!==p.team).map(v=>Math.hypot(v.x-s[0],v.z-s[1])))-(others.some(v=>v.team===p.team&&Math.hypot(v.x-s[0],v.z-s[1])<2)?100:0);let s=spots[Math.floor(Math.random()*spots.length)];for(const candidate of spots)if(rank(candidate)>rank(s))s=candidate;p.x=s[0];p.z=s[1];p.hp=100;p.dead=0;p.pitch=0;p.groundY=groundHeight(p.x,p.z);p.y=p.groundY;p.invulnerable=now+2200;if(!weaponAllowed(state.mode,p.weapon))p.weapon=allowedWeapons(state.mode)[0];if(state.mode==='corsa')p.weapon=corsaWeapon(p);p.ammo=WEAPONS.map(w=>w.mag);p.reload=0;p.reloadStart=0;resetCombat(p);if(economyOn(state))applyCarry(state,p);else{p.flashes=MAPS[ACTIVE_MAP].utility?2:0;p.smokes=MAPS[ACTIVE_MAP].utility?1:0;}p.flashReady=p.blindAt=p.blindUntil=p.blindStrength=0;p.yaw=MAPS[ACTIVE_MAP].spawnYaw?.[spawnTeam]??(p.team==='blue'?Math.PI:0);if(p.id===id){syncWeapon(p);local.x=p.x;local.z=p.z;yaw=p.yaw;pitch=0;jump=local.y=p.y||0;local.groundY=p.groundY||0;jumpV=local.jumpV=local.duck=0;local.landingUntil=0;jumpRequestUntil=-Infinity;local.vx=local.vz=0;lastDeath=null;localLife=p.life;localView.reset({x:local.x,z:local.z,y:p.y||0,groundY:p.groundY||0,life:p.life});viewKick.reset();}}
 function addPlayer(pid,name,team,bot=false,finishes=null,initialWeapon=pid===id?selected:3,operator=null){team=chooseTeam(Object.values(state.players),team,state.teamSize||2);if(!team)return null;const p={id:pid,name:String(name||'Operatore').slice(0,16),team,kills:0,deaths:0,weapon:weaponAllowed(state.mode,initialWeapon)?initialWeapon:allowedWeapons(state.mode)[0],finishes:cleanLoadout(finishes),operator:bot?botOperator(Number(String(pid).replace(/\D/g,''))||0,team):cleanOperator(operator||(pid===id?career.data.operator:null)),pitch:0,y:0,bot,input:{},seen:Date.now(),seq:0};spawn(p);if(isRoundMode(state.mode)&&state.phase==='live'){p.hp=0;p.dead=0;p.invulnerable=0;}state.players[pid]=p;return p}
 function feed(text){const d=document.createElement('div');d.textContent=text;$('messages').prepend(d);while($('messages').children.length>2)$('messages').lastElementChild.remove();setTimeout(()=>d.remove(),4500)}
 function broadcast(data){for(const c of connections.values())sendPacket(c,data,{volatile:data.type==='state'||data.type==='event'&&data.event.kind!=='kill'&&data.event.kind!=='round'});}
@@ -268,7 +268,7 @@ function presentKill(e,age=0){
  if(career.kill(e,id))showCareer();
  addKillFeed($('feed'),e,id,age);deaths.add(e.victim,e,avatars.get(e.victimId));
  if(e.killerId===id&&e.victimId!==id&&age<1500){roundKills++;showHitMarker('kill');showKillConfirm(!!e.headshot);sfx.kill({streak:roundKills,headshot:!!e.headshot});}
- if(e.victimId===id&&state.mode==='deathmatch')clearKillConfirm();
+ if(e.victimId===id&&isRespawnMode(state.mode))clearKillConfirm();
  if(e.victimId===id&&victim?.life===e.victim.life){lastDeath=e;clearActions();scopeAmount=0;}
 }
 function event(e){
@@ -323,7 +323,7 @@ function shoot(p,now,heavy=false){
 // dropped primary and the kill event everyone presents.
 function lethal(victim,p,result,wi,point,direction,now){
  const self=p.id===victim.id;
- victim.deaths++;victim.dead=now+3000;if(!self){p.kills++;const reward=economyOn(state)?ECONOMY.kill[wi]??300:0;if(reward)give(p,reward);if(result.headshot)p.hs=(p.hs||0)+1;if(isRespawnMode(state.mode))state.score[p.team]++;}
+ victim.deaths++;victim.dead=now+3000;if(!self){p.kills++;const reward=economyOn(state)?ECONOMY.kill[wi]??300:0;if(reward)give(p,reward);if(result.headshot)p.hs=(p.hs||0)+1;if(isRespawnMode(state.mode))state.score[p.team]++;if(state.mode==='corsa')corsaKill(state,p,victim,wi);}
  // CS rule of thumb: 40+ damage on the victim from someone else earns the assist.
  for(const [sid,record]of Object.entries(victim.received||{})){const helper=state.players[sid];if(sid!==p.id&&sid!==victim.id&&helper&&helper.team!==victim.team&&record.damage>=40)helper.assists=(helper.assists||0)+1;}
  if(economyOn(state)&&Number.isInteger(victim.primary))dropWeapon(state,victim,now,{weapon:victim.primary});
@@ -346,7 +346,8 @@ function simulate(dt,now){
  for(const p of Object.values(state.players)){
   if(p.loading)continue;if(p.hp<=0){if(isRespawnMode(state.mode)&&now>p.dead&&!state.ended)spawn(p);continue;}
   if(!canAct(state)){p.vx=p.vz=p.speed=0;continue;}
-  if(p.bot)p.input=botInput(p,Object.values(state.players),now,dt,{difficulty:state.difficulty,weapon:economyOn(state)?p.primary??0:state.botWeapon??undefined,objective:botObjectiveOrder(state,p),fires:state.fires,he:known=>botHeTarget(state,p,now,known),utility:flashEnabled(state),grenades:state.grenades});
+  if(state.mode==='corsa'&&p.weapon!==corsaWeapon(p)){equipWeapon(p,corsaWeapon(p),now);p.ammo[p.weapon]=WEAPONS[p.weapon].mag;}
+  if(p.bot)p.input=botInput(p,Object.values(state.players),now,dt,{difficulty:state.difficulty,weapon:state.mode==='corsa'?corsaWeapon(p):economyOn(state)?p.primary??0:state.botWeapon??undefined,objective:botObjectiveOrder(state,p),fires:state.fires,he:known=>botHeTarget(state,p,now,known),utility:flashEnabled(state),grenades:state.grenades});
   const i=p.bot||p.id===id?p.input||{}:remoteInputs.get(p)?.read(performance.now())||{};p.input=i;
   if(p.reload&&now>=p.reload){p.ammo[p.weapon]=WEAPONS[p.weapon].mag;p.reload=0;}
   if(!WEAPONS[p.weapon].melee&&i.reload&&now>=(p.equipUntil||0)&&!p.reload&&p.ammo[p.weapon]<WEAPONS[p.weapon].mag){p.reloadStart=now;p.reload=now+WEAPONS[p.weapon].reload*1000;}
@@ -461,7 +462,7 @@ $('create').onclick=()=>online(true);$('join').onclick=()=>online(false);
 $('practice').onclick=()=>{disconnectNetwork();host=true;training=true;resetBots();id='local';room='';clock.reset(Date.now());const allies=Number($('alliedbots').value),enemies=Number($('enemybots').value);state=createMatch($('mode').value,clock.time,botDifficulty,ACTIVE_MAP,{...matchOptions(),teamSize:Math.max(allies+1,enemies)});const player=addPlayer(id,$('name').value,$('team').value,false,career.data.finishes),opponent=player.team==='blue'?'orange':'blue';for(const [count,team]of [[allies,player.team],[enemies,opponent]])for(let n=0;n<count;n++)addPlayer('bot'+(++botSerial),nextBotName(Object.values(state.players),botSerial),team,true);start();};
 try{$('name').value=localStorage.getItem('breach-name')||'Operatore';}catch{$('name').value='Operatore';}$('name').oninput=()=>{try{localStorage.setItem('breach-name',$('name').value);}catch{}};const invited=new URLSearchParams(location.search).get('room');if(invited){$('room').value=invited;status('Sei stato invitato nella stanza '+invited+'. Inserisci il nome e premi →.')}
 $('resume').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touch.enabled)touch.setEnabled(true);});
-$('resume').onclick=()=>{if(state.ended&&host){$('board').hidden=true;notice('');lastDamageHP=100;scopeAmount=0;aim=false;mouseDown=false;resetBots();state.score={blue:0,orange:0};state.killEvents=[];kills.clear();clock.reset(Date.now());state.started=clock.time;state.now=clock.time;snapshots.clear();state.ended=false;resultHandled=null;matchStartXP=career.data.xp;state.phase='waiting';state.round=0;deaths.clear();lastDeath=null;$('feed').replaceChildren();$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';state.history=[];for(const p of Object.values(state.players)){p.kills=p.deaths=p.assists=p.dealt=p.hs=0;if(!p.loading)spawn(p)}}enterField()};$('leave').onclick=cleanup;
+$('resume').onclick=()=>{if(state.ended&&host){$('board').hidden=true;notice('');lastDamageHP=100;scopeAmount=0;aim=false;mouseDown=false;resetBots();state.score={blue:0,orange:0};delete state.corsaWinner;for(const q of Object.values(state.players)){q.tier=0;q.tierKills=0;}state.killEvents=[];kills.clear();clock.reset(Date.now());state.started=clock.time;state.now=clock.time;snapshots.clear();state.ended=false;resultHandled=null;matchStartXP=career.data.xp;state.phase='waiting';state.round=0;deaths.clear();lastDeath=null;$('feed').replaceChildren();$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';state.history=[];for(const p of Object.values(state.players)){p.kills=p.deaths=p.assists=p.dealt=p.hs=0;if(!p.loading)spawn(p)}}enterField()};$('leave').onclick=cleanup;
 $('copy').onclick=async()=>{const url=location.origin+location.pathname+'?room='+room+'&map='+ACTIVE_MAP+(touch.enabled?'&touch=1':'');try{await navigator.clipboard.writeText(url);$('copy').textContent='LINK COPIATO ✓';setTimeout(()=>$('copy').textContent='COPIA INVITO ↗',2200)}catch{prompt('Copia questo invito:',url)}};
 document.addEventListener('pointerlockchange',()=>{if(armory.active||controls.active||buyMenu.active){ready=false;awaitingPointerLock=false;clearActions();if(armory.active||buyMenu.active)$('pause').hidden=true;if(document.pointerLockElement)document.exitPointerLock();return;}if(touch.enabled)return;ready=document.pointerLockElement===canvas;if(ready)awaitingPointerLock=false;if(playing){if(state.ended){$('pause').hidden=true;$('board').hidden=false;return;}$('pause').hidden=ready;if(!ready){awaitingPointerLock=false;clearActions();if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('pausetext').textContent=state.preview?'Visita libera in pausa. H nasconde l’HUD durante la visita.':training?'Allenamento in pausa.':'La partita online continua mentre sei in pausa.';$('resume').textContent='TORNA IN CAMPO ↗';}}}});document.addEventListener('pointerlockerror',()=>{if(!armory.active)mouseFallback();});
 window.addEventListener('mousemove',e=>{if(touch.enabled||!ready||controls.active||(fallbackMouse&&!aim))return;const gain=mouseGain(controls.value,camera.fov,aim);yaw-=e.movementX*gain;pitch=Math.max(-1.45,Math.min(1.45,pitch-e.movementY*gain));});window.addEventListener('keydown',e=>{if(!playing||controls.active||armory.active)return;if(state.preview&&ready&&e.code==='KeyH'&&!e.repeat){document.documentElement.classList.toggle('clean-view');return;}if(['Tab','Space','ArrowUp','ArrowDown','ControlLeft','ControlRight'].includes(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyB'){if(!e.repeat)openBuy();return}if(e.code==='Escape'&&(fallbackMouse||touch.enabled)){if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';}ready=false;$('pause').hidden=false;clearActions();}if(e.code==='Tab')$('board').hidden=false;if(ready&&e.code==='KeyR')reloadRequested=true;if(ready&&e.code==='KeyC'&&!e.repeat&&selected===4){scopeZoom=scopeZoom===4?8:4;}if(ready&&e.code==='KeyQ'&&!e.repeat)selectWeapon(weaponSwitch.previous);if(ready&&e.code==='KeyV'&&!e.repeat)selectWeapon(selected===5?weaponSwitch.previous:5);if(ready&&e.code==='KeyG'&&selected===5&&!e.repeat)secondaryPulse=true;if(ready&&e.code==='KeyF'&&!e.repeat)requestInspection();if(ready&&e.code==='KeyX'&&!e.repeat)utilityPulse=true;if(ready&&e.code==='KeyZ'&&!e.repeat)smokePulse=true;if(ready&&e.code==='KeyG'&&selected!==5&&!e.repeat)hePulse=true;if(ready&&e.code==='KeyH'&&!state.preview&&!e.repeat)firePulse=true;if(ready&&e.code==='KeyT'&&!e.repeat)dropPulse=true;if(ready&&/^Digit[1-6]$/.test(e.code))selectWeapon(Number(e.code.at(-1))-1);if(ready&&canAct(state)&&state.players[id]?.hp>0&&e.code==='Space'&&!e.repeat)jumpRequestUntil=matchNow()+JUMP.bufferMs});window.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='Tab'&&!state.ended)$('board').hidden=true});window.addEventListener('blur',()=>{if(qaMode)return;if(playing&&ready)pauseGame();else clearActions();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&playing&&!qaMode)pauseGame();});window.addEventListener('mousedown',e=>{if(touch.enabled||!ready||e.target!==canvas)return;if(e.button===0){mouseDown=true;shotPulse=true;inspection.cancel();const me=state.players[id];if(me&&me.hp>0&&selected!==5&&!me.reload&&me.ammo?.[selected]===0&&canAct(state))sfx.dry();}if(e.button===2){if(selected===5&&!fallbackMouse)secondaryPulse=true;else aim=controls.value.toggleAim?!aim:true;}});window.addEventListener('mouseup',e=>{if(touch.enabled)return;if(e.button===0)mouseDown=false;if(e.button===2&&!controls.value.toggleAim)aim=false});window.addEventListener('contextmenu',e=>e.preventDefault());window.addEventListener('wheel',e=>{if(ready&&!e.ctrlKey&&Math.abs(e.deltaY)>.01){const list=allowedWeapons(state.mode),next=weaponSwitch.wheel(e.deltaY,performance.now(),list.length);if(next!==null)cycleWeapon(e.deltaY);}},{passive:true});
@@ -508,7 +509,7 @@ function hud(){
   $('magbar').style.width=(selected===5?0:reloading?Math.max(0,Math.min(100,(now-(p.reloadStart||now))/Math.max(1,p.reload-(p.reloadStart||0))*100)):mag/w.mag*100)+'%';$('ammopanel').classList.toggle('reloading',!!reloading);$('ammopanel').classList.toggle('low',selected!==5&&!reloading&&mag<=Math.ceil(w.mag*.25));
   $('slots').classList.toggle('idle',performance.now()-slotsShownAt>2600&&ready);}
 $('ammo').textContent=selected===5?'—':p.ammo[selected];$('reserveammo').textContent=selected===5?'':'/ ∞';$('weaponname').textContent=displayName(selected,career.data.finishes[selected])+' / '+WEAPONS[selected].label;$('reloadtext').textContent=selected===5?(drawing?'ESTRAZIONE…':now<(p.weaponReady?.[5]||0)?'RECUPERO':'G  STOCCATA'):p.reload?'RICARICA…':drawing?'ESTRAZIONE…':'R  RICARICA';$('blue').textContent=state.score.blue;$('orange').textContent=state.score.orange;
- $('matchlabel').textContent=state.preview?'VISITA MAPPA':tactical?'ROUND '+Math.max(1,state.round)+' · PRIMI A '+matchRules(state).target:matchRules(state).label+' · '+matchRules(state).target+' KILLS';
+ $('matchlabel').textContent=state.preview?'VISITA MAPPA':tactical?'ROUND '+Math.max(1,state.round)+' · PRIMI A '+matchRules(state).target:matchRules(state).label+(state.mode==='corsa'?' · PRIMO AL COLTELLO':' · '+matchRules(state).target+' KILLS');
  const remaining=objectiveEnabled(state)&&state.objective?.status==='planted'?state.objective.explodeAt-now:tactical?(state.phase==='freeze'||state.phase==='result'?state.phaseUntil-now:state.roundEnds-now):matchRules(state).durationMs-(now-state.started),sec=Math.max(0,Math.ceil((remaining||0)/1000));
  $('timer').textContent=state.ended?'FINE':state.preview||state.phase==='waiting'&&tactical?'—':Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
  // The pips are rebuilt only when their markup changes: ten DOM rebuilds a second cost a style pass each.
@@ -517,11 +518,13 @@ $('ammo').textContent=selected===5?'—':p.ammo[selected];$('reserveammo').textC
  if(p.hp<lastDamageHP){$('damage').style.opacity=.18;setTimeout(()=>$('damage').style.opacity=0,180);}lastDamageHP=p.hp;
  Array.from($('slots').children).forEach((b,i)=>{b.classList.toggle('active',selected===i);b.hidden=!weaponAllowed(state.mode,i)||!ownsWeapon(state,p,i);});
  // Economy: credits, reward pop, buy prompt and the bought primary in hand.
+ if(state.mode==='corsa'&&p.hp>0&&selected!==corsaWeapon(p))selectWeapon(corsaWeapon(p));
  const economy=economyOn(state),windowOpen=buyWindowOpen(state,now)&&p.hp>0,buyable=windowOpen&&canBuyNow(state,p,now);$('money').hidden=!economy;
  if(economy){$('moneyvalue').textContent=(p.money||0).toLocaleString('it-IT');if(lastMoney!==null&&p.money>lastMoney){const d=$('moneydelta');d.textContent='+'+(p.money-lastMoney).toLocaleString('it-IT');d.classList.remove('pop');void d.offsetWidth;d.classList.add('pop');}lastMoney=p.money??null;
   if(p.primary!==shownPrimary){if(Number.isInteger(p.primary)&&p.hp>0)selectWeapon(p.primary);shownPrimary=p.primary;}if(p.hp>0&&!ownsWeapon(state,p,selected))selectWeapon(Number.isInteger(p.primary)?p.primary:0);}
  const near=economy&&p.hp>0&&Number.isInteger(p.primary)?dropNear(state,p):null,seconds=Math.max(0,Math.ceil(buyWindowLeft(state,now)/1000));
- $('buyhint').hidden=buyMenu.active||!(windowOpen||near);
+ $('buyhint').hidden=buyMenu.active||!(windowOpen||near||state.mode==='corsa');
+ if(state.mode==='corsa'){const step=(p.tier||0)+1,left=corsaNeeded(p)-(p.tierKills||0),next=CORSA_LADDER[(p.tier||0)+1];$('buyhint').textContent='ARMA '+step+' / '+CORSA_LADDER.length+'  ·  '+(next===undefined?'UN’ULTIMA UCCISIONE PER VINCERE':left+(left>1?' UCCISIONI':' UCCISIONE')+' PER '+WEAPONS[next].name);}
  if(near)$('buyhint').textContent='E  ·  RACCOGLI '+weaponName(near.weapon);
  else if(windowOpen)$('buyhint').textContent=buyable?(touch.enabled?'ACQUISTI':'B')+'  ·  '+(state.phase==='freeze'?'FASE D’ACQUISTO':'ZONA D’ACQUISTO')+'  ·  '+seconds+' s':'FUORI DALLA ZONA D’ACQUISTO  ·  '+seconds+' s';
  buyMenu.render(state,p,now,teamName(p.team));$('touchbuy').hidden=false;$('touchbuy').textContent=buyable?'ACQUISTI':'ARMI';$('touchbuy').setAttribute('aria-label',buyable?'Apri gli acquisti':'Apri l’arsenale');if(near&&!windowOpen)$('buyhint').hidden=buyMenu.active;
@@ -694,7 +697,7 @@ function matchOptions(){return {teamSize:Number($('teamsize').value),fillBots:$(
 function showCareer(){$('careerbrief').textContent='LIVELLO '+String(career.level).padStart(2,'0')+' / '+career.data.xp.toLocaleString('it-IT')+' XP · '+career.totalKills+' ELIMINAZIONI';}
 function showResult(){
  if(resultHandled!==state.started){resultHandled=state.started;career.complete(state,id);ready=false;clearActions();aim=false;document.exitPointerLock?.();showCareer();}
- const p=state.players[id],other=p.team==='blue'?'orange':'blue',draw=state.score.blue===state.score.orange,won=state.score[p.team]>state.score[other];$('resulttitle').textContent=draw?'PAREGGIO.':won?'VITTORIA.':'SCONFITTA.';
+ const p=state.players[id],other=p.team==='blue'?'orange':'blue',draw=state.score.blue===state.score.orange,won=state.score[p.team]>state.score[other];$('resulttitle').textContent=state.corsaWinner?(state.corsaWinner.id===id?'PRIMO AL TRAGUARDO.':state.corsaWinner.name.toUpperCase()+' VINCE.'):draw?'PAREGGIO.':won?'VITTORIA.':'SCONFITTA.';
  $('resultsummary').hidden=false;$('resultsummary').textContent=p.kills+' eliminazioni / '+p.deaths+' morti · +'+Math.max(0,career.data.xp-matchStartXP)+' XP · LIVELLO '+career.level;
  $('resultactions').hidden=false;$('rematch').disabled=!host;$('rematch').textContent=host?'RIVINCITA ↗':'IN ATTESA DELL’HOST';$('pause').hidden=true;
 }
@@ -705,7 +708,7 @@ function describeMode(){const mode=$('mode').value,rules=modeRules(mode,ACTIVE_M
  updateModeDescription();
 }
 function updateModeDescription(){const mode=$('mode').value,target=$('matchtarget').value,seconds=Number($('matchduration').value)/1000,map=MAPS[ACTIVE_MAP],lobby=map.lobby,sites=map.sites?.length||0,time=v=>Math.floor(v/60)+':'+String(v%60).padStart(2,'0');
- $('modedescription').textContent=mode==='demolition'?(map.pool==='wingman'?'Un sito bomba, round rapidi · E tenuto piazza o disinnesca · X flashbang · cambio lato a metà.':'Attacco e difesa su due siti · E tenuto piazza o disinnesca · X flashbang · cambio lato a metà.'):'Tutte le armi · rientro dopo 3 s · vince la squadra che arriva prima a '+target+' eliminazioni.';
+ $('modedescription').textContent=mode==='corsa'?'Tutti partono dall’M4 · due uccisioni per salire d’arma · chi finisce col coltello vince · una coltellata ti fa scendere.':mode==='demolition'?(map.pool==='wingman'?'Un sito bomba, round rapidi · E tenuto piazza o disinnesca · X flashbang · cambio lato a metà.':'Attacco e difesa su due siti · E tenuto piazza o disinnesca · X flashbang · cambio lato a metà.'):'Tutte le armi · rientro dopo 3 s · vince la squadra che arriva prima a '+target+' eliminazioni.';
  document.querySelector('.paneltop>small').textContent=map.short+' / '+modeLabel(ACTIVE_MAP,mode);
  const facts=mode==='demolition'?['Bomba · '+(sites>1?sites+' siti':'1 sito'),lobby.lanes,'Round '+time(seconds),'Primi a '+target]:['Deathmatch a squadre',lobby.lanes,seconds/60+' minuti','Primi a '+target];
  $('mapfacts').replaceChildren(...facts.map(t=>Object.assign(document.createElement('li'),{textContent:t})));
@@ -739,7 +742,7 @@ function syncMapModes(selectDefault=true){
  if(selectDefault){if(big){$('teamsize').value='5';$('alliedbots').value='4';$('enemybots').value='5';}else{$('teamsize').value='2';$('alliedbots').value='1';$('enemybots').value='2';}}
  else if(big&&!localStorage.getItem('ob-sahra-v24')){$('teamsize').value='5';$('alliedbots').value='4';$('enemybots').value='5';}
  showBotOptions();
- if(selectDefault||!mapAllowsMode(ACTIVE_MAP,$('mode').value)){$('mode').value=playlist==='deathmatch'&&mapAllowsMode(ACTIVE_MAP,'deathmatch')?'deathmatch':defaultMode(ACTIVE_MAP);describeMode();}
+ if(selectDefault||!mapAllowsMode(ACTIVE_MAP,$('mode').value)){$('mode').value=(playlist==='deathmatch'||playlist==='corsa')&&mapAllowsMode(ACTIVE_MAP,playlist)?playlist:defaultMode(ACTIVE_MAP);describeMode();}
 }
 function updateObjectiveHUD(p,now){
  const enabled=objectiveEnabled(state),o=state.objective;$('objectivepanel').hidden=!enabled||!o;$('utilityreadout').hidden=!flashEnabled(state);

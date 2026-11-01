@@ -11,7 +11,7 @@ import * as T from './vendor/three.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
-import {WEAPONS} from './shared.js?v=40.0';
+import {WEAPONS} from './shared.js?v=41.0';
 const range=(key,label,def=.5)=>({key,label,type:'range',min:0,max:1,step:.05,def});
 const choice=(key,label,options,def=0)=>({key,label,type:'choice',options,def});
 const toggle=(key,label,parts)=>({key,label,type:'choice',options:['Montato','Rimosso'],def:0,hides:parts});

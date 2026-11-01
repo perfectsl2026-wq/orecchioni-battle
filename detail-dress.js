@@ -1,7 +1,7 @@
 // V40 dressing: the lived-in layer of the three maps. Everything here is cosmetic and sits
 // where it cannot change play: above the 1.0–2.0 m head band, flush on a wall, flat on the
 // ground, or outside the playable boundary. Models are the V40 parts of street-props.js.
-import {blocked,groundHeight,wallDistance} from './shared.js?v=40.0';
+import {blocked,groundHeight,wallDistance} from './shared.js?v=41.0';
 const hash=(x,z)=>{const s=Math.sin(x*127.1+z*311.7)*43758.5453;return s-Math.floor(s);};
 // Point on a facade frame: u along the wall, out away from it.
 const onWall=(x,z,angle,u,out)=>[x+Math.cos(angle)*u+Math.sin(angle)*out,z-Math.sin(angle)*u+Math.cos(angle)*out];

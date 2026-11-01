@@ -26,7 +26,7 @@ export function snapshotIssue(s,id){
  for(const p of ps){if(!p)return 'operatore assente';if(typeof p.id!=='string')return 'identificativo';if(!['blue','orange'].includes(p.team))return 'squadra';for(const key of ['x','z','yaw','hp','life','weapon'])if(!Number.isFinite(p[key]))return 'campo '+key;if(!Array.isArray(p.ammo)||p.ammo.length!==6||!p.ammo.every(Number.isFinite))return 'munizioni';}
  return 'nessuna anomalia nei campi';
 }
-const PLAYER_FIELDS=['id','name','team','kills','deaths','assists','dealt','hs','money','primary','smokes','hes','fires','kit','bought','buyReady','weapon','yaw','pitch','y','groundY','bot','life','x','z','hp','dead','invulnerable','ammo','reload','reloadStart','duck','jumpV','landingUntil','shots','recoilWeapon','lastShot','vx','vz','speed','armor','helmet','taggedUntil','equipUntil','weaponReady','death','loading','flashes','flashReady','blindAt','blindUntil','blindStrength','operator'];
+const PLAYER_FIELDS=['id','name','team','tier','tierKills','kills','deaths','assists','dealt','hs','money','primary','smokes','hes','fires','kit','bought','buyReady','weapon','yaw','pitch','y','groundY','bot','life','x','z','hp','dead','invulnerable','ammo','reload','reloadStart','duck','jumpV','landingUntil','shots','recoilWeapon','lastShot','vx','vz','speed','armor','helmet','taggedUntil','equipUntil','weaponReady','death','loading','flashes','flashReady','blindAt','blindUntil','blindStrength','operator'];
 export function snapshotForNetwork(state){
  const players={};for(const [id,p]of Object.entries(state.players)){
   const view={};for(const field of PLAYER_FIELDS)if(p[field]!==undefined)view[field]=p[field];

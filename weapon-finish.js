@@ -1,5 +1,5 @@
-import {applyKit,KITS} from './weapon-kits.js?v=40.0';
-import {applyVariant,variantFor,cleanBuild,VARIANTS} from './weapon-variants.js?v=40.0';
+import {applyKit,KITS} from './weapon-kits.js?v=41.0';
+import {applyVariant,variantFor,cleanBuild,VARIANTS} from './weapon-variants.js?v=41.0';
 import * as T from './vendor/three.module.js';
 export const PAINTS={graphite:{label:'Grafite',hex:'#45535d'},arctic:{label:'Gesso',hex:'#c9d1cf'},sand:{label:'Sabbia',hex:'#ba9e76'},naval:{label:'Blu acciaio',hex:'#41647c'},oxide:{label:'Ossido',hex:'#955449'},olive:{label:'Oliva',hex:'#727a56'}};
 export const TRIMS={titanium:{label:'Titanio',hex:'#a2aeb0'},copper:{label:'Rame',hex:'#b8865b'},carbon:{label:'Carbonio',hex:'#29343c'}};

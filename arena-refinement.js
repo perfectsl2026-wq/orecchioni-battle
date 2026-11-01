@@ -1,6 +1,6 @@
 import * as T from './vendor/three.module.js';
-import {WALLS} from './shared.js?v=40.0';
-import {box,cyl,mesh,label,bevel} from './graphics.js?v=40.0';
+import {WALLS} from './shared.js?v=41.0';
+import {box,cyl,mesh,label,bevel} from './graphics.js?v=41.0';
 function facade(root,x,z,angle){const f=new T.Group();f.position.set(x,0,z);f.rotation.y=angle;root.add(f);return f;}
 function strut(root,material,a,b,width=.12){const start=new T.Vector3(...a),end=new T.Vector3(...b),m=box(root,material,0,0,0,width,start.distanceTo(end),width);m.position.copy(start).add(end).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),end.sub(start).normalize());return m;}
 export function refineForge(root,p){

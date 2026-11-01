@@ -7,9 +7,9 @@
 // V33: outside a buy window (deathmatch, free visit, closed window) B opens the same
 // panel as ARSENALE: every weapon, grenade and gear with its numbers, nothing for
 // sale; in modes where every weapon is issued, a click takes it in hand.
-import {CATEGORIES,buyIssue,sellIssue,priceFor,canBuyNow,buyWindowLeft,sideOf,grenadeCount,ECONOMY,economyOn} from './economy.js?v=40.0';
-import {weaponIcon} from './kill-feed.js?v=40.0';
-import {WEAPONS} from './shared.js?v=40.0';
+import {CATEGORIES,buyIssue,sellIssue,priceFor,canBuyNow,buyWindowLeft,sideOf,grenadeCount,ECONOMY,economyOn} from './economy.js?v=41.0';
+import {weaponIcon} from './kill-feed.js?v=41.0';
+import {WEAPONS} from './shared.js?v=41.0';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const ICONS={
  vest:'<svg viewBox="0 0 52 25" class="weapon-icon" aria-hidden="true"><path fill="currentColor" d="M18 2h5l3 3 3-3h5l6 5-3 6-3-1v11H18V12l-3 1-3-6z"/></svg>',
@@ -79,7 +79,7 @@ export class BuyMenu{
  }
  // ARSENALE: the same categories with facts instead of prices. Nothing is bought here.
  renderView(state,p){
-  const economy=economyOn(state),held=this.heldWeapon(),utility=this.utilityOn(),mode=state.preview?'VISITA LIBERA':state.mode==='deathmatch'?'DEATHMATCH':'COMPETITIVO';
+  const economy=economyOn(state),held=this.heldWeapon(),utility=this.utilityOn(),mode=state.preview?'VISITA LIBERA':state.mode==='deathmatch'?'DEATHMATCH':state.mode==='corsa'?'CORSA ALLE ARMI':'COMPETITIVO';
   document.getElementById('buymoney').textContent=economy?(p.money||0).toLocaleString('it-IT'):'—';
   document.getElementById('buytime').textContent=economy?Math.max(0,Math.ceil(buyWindowLeft(state,this.now)/1000)):'—';
   document.getElementById('buyround').textContent=mode+' · '+(economy?'ACQUISTI CHIUSI · SOLO CONSULTAZIONE':'TUTTO IN DOTAZIONE · SCEGLI COSA IMBRACCIARE');

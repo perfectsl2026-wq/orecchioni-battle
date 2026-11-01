@@ -1,7 +1,7 @@
 import * as THREE from './vendor/three.module.js';
-import {SKIES} from './atmosphere.js?v=40.0';
-import {surfaceRealism} from './surface-detail.js?v=40.0';
-import {createMotes} from './ambient-particles.js?v=40.0';
+import {SKIES} from './atmosphere.js?v=41.0';
+import {surfaceRealism} from './surface-detail.js?v=41.0';
+import {createMotes} from './ambient-particles.js?v=41.0';
 // Physically motivated light balance per arena. Earlier releases flattened the
 // image with a strong hemisphere fill; here direct sun and sky reflections carry
 // the scene, leaving shape to shadows and ambient obscurance.

@@ -1,5 +1,5 @@
-import {groundHeight} from './shared.js?v=40.0';
-import {createWeapon} from './graphics.js?v=40.0';
+import {groundHeight} from './shared.js?v=41.0';
+import {createWeapon} from './graphics.js?v=41.0';
 import * as T from './vendor/three.module.js';
 export class UtilityPresentation{
  constructor(scene){

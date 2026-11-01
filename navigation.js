@@ -1,10 +1,10 @@
-import {smokeBlocks} from './smoke-rules.js?v=40.0';
-import {FIRE} from './blast-rules.js?v=40.0';
-import {GUN_RULES} from './combat-rules.js?v=40.0';
-import {eyeHeight,STANCE} from './player-feel.js?v=40.0';
-import {turnToward,BOT_RUN_SPEED} from './agent-motion.js?v=40.0';
-import {blocked,wallDistance,raySphere,WEAPONS,WALLS,ACTIVE_MAP} from './shared.js?v=40.0';
-import {BotNavigator,planRoute,routeLength,walkClear,NAV_AREAS} from './bot-navigation.js?v=40.0';
+import {smokeBlocks} from './smoke-rules.js?v=41.0';
+import {FIRE} from './blast-rules.js?v=41.0';
+import {GUN_RULES} from './combat-rules.js?v=41.0';
+import {eyeHeight,STANCE} from './player-feel.js?v=41.0';
+import {turnToward,BOT_RUN_SPEED} from './agent-motion.js?v=41.0';
+import {blocked,wallDistance,raySphere,WEAPONS,WALLS,ACTIVE_MAP} from './shared.js?v=41.0';
+import {BotNavigator,planRoute,routeLength,walkClear,NAV_AREAS} from './bot-navigation.js?v=41.0';
 export {planRoute,walkClear};
 export const BOT_LEVELS={
  recruit:{label:'RECLUTA',reaction:[750,1100],turn:2.8,error:.025,burst:[2,3],pause:[650,1000]},
@@ -132,7 +132,7 @@ export function botInput(p,players,now,dt,context={}){
  if(now>m.burstUntil)m.burst=0;
  const previousMode=m.mode;
  let goal=null,fire=false,reload=false,maxSpeed=Math.min(BOT_RUN_SPEED,GUN_RULES[p.weapon].speed),look=null,aim=false;
- const weapon=WEAPONS[p.weapon],empty=p.ammo[p.weapon]===0;
+ const weapon=WEAPONS[p.weapon],empty=!weapon.melee&&p.ammo[p.weapon]===0;
  const report=reports.get(p.team),freshNoise=m.heard&&now-m.heard.time<5500&&m.heard.time>(m.lastKnown?.time||0)+350;
  const known=freshNoise?m.heard:m.lastKnown&&now-m.lastKnown.time<6500?m.lastKnown:
   report&&report.time>m.ignoreReportBefore&&now-report.time<5000?report:m.heard&&now-m.heard.time<5500?m.heard:null;
@@ -145,7 +145,9 @@ export function botInput(p,players,now,dt,context={}){
   const targetPitch=Math.atan2(height+(contact.y||0)-(contact.duck||0)*STANCE.drop-eyeHeight(p),Math.max(.1,d))+Math.cos(now*.0025+hash(p.id)*.002)*level.error*.6;
   p.pitch+=(targetPitch-p.pitch)*(1-Math.exp(-12*dt));
   const aligned=Math.abs(wrap(desired-p.yaw))<.045;
-  if(empty||p.reload||injured){
+  // Knife in hand (last step of CORSA ALLE ARMI): close the distance and stab, no bursts, no cover.
+  if(weapon.melee){m.burst=0;m.cover=null;m.mode='melee';goal=contact;maxSpeed=Math.min(BOT_RUN_SPEED,GUN_RULES[p.weapon].speed);fire=!!enemy&&d<1.75&&Math.abs(wrap(desired-p.yaw))<.7&&now>=(contact.invulnerable||0);}
+  else if(empty||p.reload||injured){
    m.burst=0;m.mode=empty||p.reload?'reload':'cover';
    if(!m.cover||now>m.actionUntil||m.nav.failed){m.cover=findCover(p,contact,players);m.combatGoal=m.cover?.hide||sidestep(p,contact,m,players,true);m.actionUntil=now+1800;}
    goal=m.combatGoal;maxSpeed=3.7;reload=empty||p.ammo[p.weapon]<weapon.mag*.5;

@@ -1,5 +1,5 @@
-import {eyeHeight,STANCE} from './player-feel.js?v=40.0';
-import {WEAPONS,move,raySphere,wallDistance,penetrationAt} from './shared.js?v=40.0';
+import {eyeHeight,STANCE} from './player-feel.js?v=41.0';
+import {WEAPONS,move,raySphere,wallDistance,penetrationAt} from './shared.js?v=41.0';
 
 // Original tuning: a settled first shot, a repeatable spray, and a real cost to
 // firing while running. The host uses the same rules for people and bots.

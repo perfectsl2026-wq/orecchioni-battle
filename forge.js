@@ -1,15 +1,15 @@
-import {refineForge} from './arena-refinement.js?v=40.0';
+import {refineForge} from './arena-refinement.js?v=41.0';
 import * as T from './vendor/three.module.js';
-import {WALLS,ARCHES} from './shared.js?v=40.0';
-import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=40.0';
-import {metricBlock as block} from './caldera-architecture.js?v=40.0';
-import {arched} from './district-builder.js?v=40.0';
-import {createAtmosphere} from './atmosphere.js?v=40.0';
-import {readableAlbedo} from './surface-detail.js?v=40.0';
-import {placeArchitecture} from './architecture-assets.js?v=40.0';
-import {StreetProps,roofClutter,reskin,coverSkin,forgeWallDress} from './street-props.js?v=40.0';
-import {forgeDress,manholes,FORGE_PYLONS} from './detail-dress.js?v=40.0';
-import {MAPS} from './shared.js?v=40.0';
+import {WALLS,ARCHES} from './shared.js?v=41.0';
+import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=41.0';
+import {metricBlock as block} from './caldera-architecture.js?v=41.0';
+import {arched} from './district-builder.js?v=41.0';
+import {createAtmosphere} from './atmosphere.js?v=41.0';
+import {readableAlbedo} from './surface-detail.js?v=41.0';
+import {placeArchitecture} from './architecture-assets.js?v=41.0';
+import {StreetProps,roofClutter,reskin,coverSkin,forgeWallDress} from './street-props.js?v=41.0';
+import {forgeDress,manholes,FORGE_PYLONS} from './detail-dress.js?v=41.0';
+import {MAPS} from './shared.js?v=41.0';
 const loader=new T.TextureLoader();
 // Painted steel wainscot in bays, with a flashing on top and a dark kick plate: the walls read at human scale.
 function forgeCladding(root,p){

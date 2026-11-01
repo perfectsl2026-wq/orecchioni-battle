@@ -1,4 +1,4 @@
-import {groundHeight} from './shared.js?v=40.0';
+import {groundHeight} from './shared.js?v=41.0';
 // Foot plants are stored in world metres. Stance never advances with the body.
 const smooth=t=>t*t*(3-2*t);
 export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.124},dt){
@@ -15,7 +15,7 @@ export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.1
   const centre={x:x+c*side-s*.025,z:z-s*side-c*.025};
   if(!f){f=state.feet[n]={x:centre.x,z:centre.z,startX:centre.x,startZ:centre.z,swing:false};}
   let lift=0;
-  if(airborne){f.x=centre.x;f.z=centre.z;f.swing=false;lift=.055;}
+  if(airborne){f.x=centre.x;f.z=centre.z;f.swing=false;lift=.055+Math.min(.13,(y-groundY)*.45);}
   else if(!moving){const blend=1-Math.exp(-10*dt);f.x+=(centre.x-f.x)*blend;f.z+=(centre.z-f.z)*blend;f.swing=false;}
   else if(phase>=.5){
    if(!f.swing){f.startX=f.x;f.startZ=f.z;f.swing=true;}

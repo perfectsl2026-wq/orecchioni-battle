@@ -1,11 +1,12 @@
-import {inspectionPose,reloadPose} from './weapon-inspection.js?v=40.0';
-import {readableAlbedo} from './surface-detail.js?v=40.0';
-import {prepareKits} from './weapon-kits.js?v=40.0';
-import {createKnife} from './knife.js?v=40.0';
-import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear} from './operator-kits.js?v=40.0';
-import {footPlants} from './agent-locomotion.js?v=40.0';
+import {inspectionPose,reloadPose} from './weapon-inspection.js?v=41.0';
+import {readableAlbedo} from './surface-detail.js?v=41.0';
+import {prepareKits} from './weapon-kits.js?v=41.0';
+import {createKnife} from './knife.js?v=41.0';
+import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear,headScale,cleanOperator as cleanOperatorLook} from './operator-kits.js?v=41.0';
+const cleanMask=o=>!!cleanOperatorLook(o).mask;
+import {footPlants} from './agent-locomotion.js?v=41.0';
 import * as THREE from './vendor/three.module.js';
-import {locomotionWeights,gaitDirection} from './agent-motion.js?v=40.0';
+import {locomotionWeights,gaitDirection} from './agent-motion.js?v=41.0';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {clone as cloneSkeleton} from './vendor/addons/utils/SkeletonUtils.js';
@@ -379,10 +380,11 @@ export const operatorDebug={operatorRest,gearTemplates};
 export function dressOperator(root,team,operator){
  const d=root.userData;if(!d.bones||!operatorRest.frames)return;const key=operatorKey(team,operator);if(d.operatorKey===key)return;d.operatorKey=key;
  const old=[];root.traverse(o=>{if(o.userData.operatorGear)old.push(o);});for(const o of old)o.removeFromParent();
- for(const {bone,group,local} of gearTemplate(team,operator)){const target=d.bones.get(bone);if(!target)continue;const clone=group.clone();clone.traverse(o=>{if(o.isMesh)o.userData.ownedGeometry=false;});local.decompose(clone.position,clone.quaternion,clone.scale);target.add(clone);}
+ const head=d.bones.get('Head'),shrink=headScale(operator);if(head){d.headRest??=head.scale.clone();head.scale.copy(d.headRest).multiplyScalar(shrink);}
+ for(const {bone,group,local} of gearTemplate(team,operator)){const target=d.bones.get(bone);if(!target)continue;const clone=group.clone();clone.traverse(o=>{if(o.isMesh)o.userData.ownedGeometry=false;});local.decompose(clone.position,clone.quaternion,clone.scale);if(bone==='Head'){clone.position.divideScalar(shrink);clone.scale.divideScalar(shrink);}target.add(clone);}
  // The export's cap and headset skins serve the reconnaissance kit; they ride the shared skeleton.
  // The export's cap skin serves the reconnaissance kit (its headset is authored adrift of the cap and stays hidden).
- const recon=/:ricognizione:/.test(key);root.traverse(o=>{if(o.isSkinnedMesh&&/GreenCap/.test(o.material.name))o.visible=recon;});
+ const recon=/:ricognizione:/.test(key)&&!cleanMask(operator);root.traverse(o=>{if(o.isSkinnedMesh&&/GreenCap/.test(o.material.name))o.visible=recon;});
 }
 export function createAgent(team,weapon=3){
  const a=loaded.get('soldier_tac');if(!a)return null;
@@ -393,11 +395,13 @@ export function createAgent(team,weapon=3){
   if((armor||fabric)&&!tinted.has(m)){
    // Retain photographed weave and folds while replacing the original green
    // garment dye. Skin, gloves, visor and neutral pads keep their own materials.
-   const tint=new THREE.Color(team==='blue'?(armor?0x597c91:0x668a9e):(armor?0xa08560:0xaf9575));
+   const tint=new THREE.Color(team==='blue'?(armor?0x41586a:0x4d6a7e):(armor?0x8c7450:0xa58c6c));
    m.color.set(0xffffff);m.onBeforeCompile=shader=>{
     shader.uniforms.teamFabricTint={value:tint};shader.fragmentShader='uniform vec3 teamFabricTint;\n'+shader.fragmentShader;
-    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\nfloat fabricValue=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.0,1.0);\ndiffuseColor.rgb=teamFabricTint*(.48+.85*sqrt(fabricValue));');
-   };m.customProgramCacheKey=()=>'operator-fabric-v18';tinted.add(m);
+    shader.vertexShader='varying float vOperatorY;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvOperatorY=position.y;');shader.fragmentShader='varying float vOperatorY;\n'+shader.fragmentShader;
+    // Boots stay dark leather whatever the team dye, so the figure is grounded and less like a toy.
+    shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\nfloat fabricValue=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.0,1.0);\nvec3 fabricDyed=teamFabricTint*(.48+.85*sqrt(fabricValue));\ndiffuseColor.rgb=mix(vec3(.075,.07,.062)*(.6+1.1*fabricValue),fabricDyed,smoothstep(BOOT_TOP-BOOT_FADE,BOOT_TOP+BOOT_FADE,vOperatorY));');
+   };m.defines={...m.defines,BOOT_TOP:'250000.0',BOOT_FADE:'15000.0'};m.customProgramCacheKey=()=>'operator-fabric-v41';tinted.add(m);
   }
  });
  const root=new THREE.Group(),target=normalize(targetModel);root.add(target);batchSkins(target);
@@ -445,7 +449,12 @@ export function animateAgent(root,dt,moving,weapon=3,speed=4.7,pose={}){
  if(reloading&&!d.wasReload)d.reloadStart=time;d.wasReload=reloading;
  const progress=reloading?THREE.MathUtils.clamp(pose.reloadProgress??(time-d.reloadStart)/((pose.reloadDuration||2)*1000),0,1):0,reloadWeight=reloading?Math.sin(Math.PI*progress):0;
  d.recoil*=Math.exp(-22*dt);d.impact*=Math.exp(-14*dt);
- const pitch=THREE.MathUtils.clamp(pose.pitch||0,-1.15,1.15),upperPitch=pitch*.45-reloadWeight*.32+d.recoil*.025-d.impact*.055;
+ // V41 weight: the torso leans into a run and into a strafe and breathes at rest. Only the bones
+ // move: speed, aim and the shot origin come from the rules, not from this pose.
+ const yawNow=root.rotation.y,forward=-((pose.vx||0)*Math.sin(yawNow)+(pose.vz||0)*Math.cos(yawNow)),strafe=(pose.vx||0)*Math.cos(yawNow)-(pose.vz||0)*Math.sin(yawNow);
+ d.leanForward=(d.leanForward||0)+(THREE.MathUtils.clamp(forward/4.3,-.6,1)*.1-(d.leanForward||0))*blend;d.leanSide=(d.leanSide||0)+(THREE.MathUtils.clamp(strafe/4.3,-1,1)*.075-(d.leanSide||0))*blend;
+ const breath=Math.sin(time*.0019+root.id)*.014*d.weights.idle,side=d.leanSide;
+ const pitch=THREE.MathUtils.clamp(pose.pitch||0,-1.15,1.15),upperPitch=pitch*.45-reloadWeight*.32+d.recoil*.025-d.impact*.055-d.leanForward+breath;
  d.plants??={};const oldX=d.plants.x??root.position.x,oldZ=d.plants.z??root.position.z;d.gaitPhase+=Math.hypot(root.position.x-oldX,root.position.z-oldZ)*Math.PI/.8;
  const duck=THREE.MathUtils.clamp(pose.duck||0,0,1);
  // V34: the skeleton is posed top down with fresh world matrices (see `rig`), and only
@@ -453,7 +462,7 @@ export function animateAgent(root,dt,moving,weapon=3,speed=4.7,pose={}){
  // recomputes every node before drawing, so equipment, skins and fingers wait for it.
  // Same joint rotations as walking each read up to the root, at a fraction of the cost.
  d.target.position.y=d.baseY-duck*.48-(.125+(.5-.5*Math.cos(d.gaitPhase*2))*.012)*Math.min(1,speed/3);root.updateWorldMatrix(true,false);const rootQ=freshQuaternion(root,d.poseRootQ),axisX=d.tempV.set(1,0,0);
- d.upperQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch));d.headQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,pitch*.85));
+ d.upperQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch)).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),-side));d.headQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,pitch*.85));
  d.spineQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch*.3));d.spine1Q.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch*.65));
  d.lowerQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(d.tempV.set(0,1,0),d.bodyOffset));
  for(const r of d.rig){

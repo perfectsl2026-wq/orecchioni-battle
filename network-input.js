@@ -1,4 +1,4 @@
-import {weaponAllowed} from './match-rules.js?v=40.0';
+import {weaponAllowed} from './match-rules.js?v=41.0';
 
 export const INPUT_TIMEOUT_MS=350;
 const axis=v=>Number.isFinite(v)?Math.max(-1,Math.min(1,v)):0;

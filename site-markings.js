@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-import {wallDistance,groundHeight} from './shared.js?v=40.0';
-import {label} from './graphics.js?v=40.0';
+import {wallDistance,groundHeight} from './shared.js?v=41.0';
+import {label} from './graphics.js?v=41.0';
 // Bomb-site identity in the Valorant/CS manner: a sprayed floor letter, a dashed
 // plant boundary and a wall sign facing the site. All flush, cosmetic, no collision.
 function stencil(text,{size=1024,color='#b65a35',ring=false}={}){
