@@ -21,7 +21,7 @@ const PAINTERS=[
  ...[11,23,37].map(seed=>{const r=rng(seed),lines=[];for(let b=0;b<4;b++){let x=.5+(r()-.5)*.2,y=b?lines[(r()*lines.length)|0]?.y??.5:.95,a=-Math.PI/2+(r()-.5)*.9;const pts=[];for(let i=0;i<60;i++){pts.push([x,y]);a+=(r()-.5)*.55;x+=Math.cos(a)*.012;y+=Math.sin(a)*.012;if(x<.05||x>.95||y<.05||y>.95)break;}lines.push({pts,y,w:b?.006:.009});}
   return (u,v)=>{let d=1;for(const l of lines)for(let i=0;i<l.pts.length;i+=2){const p=l.pts[i];d=Math.min(d,Math.hypot(u-p[0],v-p[1])/l.w);}const core=1-smooth(.5,1.1,d),lip=(1-smooth(1,2.6,d))*(1-core);return [.09+lip*.25,.08+lip*.23,.07+lip*.2,Math.min(1,core*.9+lip*.25)];};}),
  // 9–10: chipped paint spots exposing darker render.
- ...[5,9].map(seed=>(u,v)=>{const n=fbm(u*6+seed,v*6),d=Math.hypot(u-.5,v-.5)*2;const m=smooth(.48,.56,n+(.35-d*.45));return [.34,.29,.23,m*(1-smooth(.85,1,d))*.85];}),
+ ...[5,9].map(seed=>(u,v)=>{const n=fbm(u*6+seed,v*6),d=Math.hypot(u-.5,v-.5)*2;const m=smooth(.42,.66,n+(.35-d*.45));return [.46,.4,.32,m*(1-smooth(.6,1,d))*.42];}),
  // 11–13: weathered paper posters with torn edges and faded print blocks.
  ...[[.58,.2,.14],[.16,.34,.42],[.62,.5,.24]].map((ink,k)=>(u,v)=>{const torn=fbm(u*13+k,v*13);const inside=u>.16+torn*.05&&u<.84-torn*.05&&v>.08+torn*.06&&v<.92-torn*.04;if(!inside)return [0,0,0,0];const band=(v>.62&&v<.8)||(v>.3&&v<.36&&u<.7)||(v>.22&&v<.26&&u<.55);const fade=.55+.45*fbm(u*3+k,v*3);const paper=[.78,.73,.62],c=band?ink:paper;return [c[0]*fade+.08,c[1]*fade+.07,c[2]*fade+.05,.92*smooth(0,.25,fbm(u*20,v*20)+.2)];}),
  // 14: stencilled, sun-faded direction chevrons.

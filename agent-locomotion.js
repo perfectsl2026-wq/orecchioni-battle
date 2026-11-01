@@ -1,4 +1,4 @@
-import {groundHeight} from './shared.js?v=38.3';
+import {groundHeight} from './shared.js?v=39.0';
 // Foot plants are stored in world metres. Stance never advances with the body.
 const smooth=t=>t*t*(3-2*t);
 export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.124},dt){

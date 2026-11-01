@@ -1,18 +1,18 @@
-import {sahraSiteDetails} from './sahra-sites.js?v=38.3';
-import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=38.3';
-import {sahraStairAt} from './sahra-terrain.js?v=38.3';
+import {sahraSiteDetails} from './sahra-sites.js?v=39.0';
+import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=39.0';
+import {sahraStairAt} from './sahra-terrain.js?v=39.0';
 import * as T from './vendor/three.module.js';
-import {WALLS,MAPS,groundHeight,wallDistance} from './shared.js?v=38.3';
-import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=38.3';
-import {metricBlock as block} from './caldera-architecture.js?v=38.3';
-import {createAtmosphere} from './atmosphere.js?v=38.3';
-import {readableAlbedo,layeredWear,groundDrift,toneAlbedo} from './surface-detail.js?v=38.3';
-import {decorateFacade,decalMaterial,driftField} from './decals.js?v=38.3';
-import {trimMaterials} from './trim-kit.js?v=38.3';
-import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=38.3';
-import {sahraSiteProps} from './site-props.js?v=38.3';
-import {sahraInterior,sahraWalkable} from './sahra-layout.js?v=38.3';
-import {StreetProps,roofClutter,facadeCondenser} from './street-props.js?v=38.3';
+import {WALLS,MAPS,groundHeight,wallDistance} from './shared.js?v=39.0';
+import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=39.0';
+import {metricBlock as block} from './caldera-architecture.js?v=39.0';
+import {createAtmosphere} from './atmosphere.js?v=39.0';
+import {readableAlbedo,layeredWear,groundDrift,toneAlbedo} from './surface-detail.js?v=39.0';
+import {decorateFacade,decalMaterial,driftField} from './decals.js?v=39.0';
+import {trimMaterials} from './trim-kit.js?v=39.0';
+import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=39.0';
+import {sahraSiteProps} from './site-props.js?v=39.0';
+import {sahraInterior,sahraWalkable} from './sahra-layout.js?v=39.0';
+import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin} from './street-props.js?v=39.0';
 export function createSahra(scene,renderer){
  const root=new T.Group();root.name='SAHRA / 13 desert district';scene.add(root);const {pending,texture,surface,layer}=materialLibrary();
  // V28.1 material library: tiling photographed CC0 bases plus a worn substrate layer (see QA-TEXTURE-V28-1.md).
@@ -22,7 +22,7 @@ export function createSahra(scene,renderer){
  const mat=(color,roughness=.86,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
  Object.assign(p,{trim:mat(0xeee5d2),blue:mat(0x32626b),dark:mat(0x405458),metal:mat(0x34545a,.49,.45),copper:mat(0xad7955,.5,.48),siteIvory:mat(0xeee8da,.72),sitePaving:surface('v13/stone_tiles_02',0xe1dbce,.48,.07),road:groundDrift(surface('v28/asphalt_02',0xd8c9b2,.8,.02,{amount:.08,floor:true,normal:.3})),glass:mat(0x76999d,.34,.22),rust:mat(0x916f52),tire:mat(0x313a37),paper:mat(0xd7c29c)});
  Object.assign(p,{stuccoRose:stucco(0xf5d3b8),stuccoOchre:stucco(0xeac18a),stuccoWhite:stucco(0xf5e5c9),wornStone:surface('v5/sandstone_blocks_05',0xd5c8af),wornWood:mat(0x8a785e),shutterOlive:mat(0x426970),cargoBlue:layeredWear(surface('v28/corrugated_iron',0x7fa4ad,.85,.01,{amount:.1,normal:.4}),rust,{edge:.32,base:.5,top:.18,scale:.7,tint:0xd2b49a}),carPaints:[mat(0xc9bfa9,.66,.08),mat(0x48656b,.6,.14)],lamp:mat(0xe0d2a6)});
- Object.assign(p,{doorPaint:surface('v28/wood_peeling_paint_weathered',0xd9e6e4,.85,.02,{amount:.08,normal:.35}),shutter:surface('v28/corrugated_iron',0x6f9aa1,.85,.01,{amount:.12,normal:.45}),shutterMarket:surface('v28/corrugated_iron',0x8aa088,.85,.01,{amount:.12,normal:.45}),annexConcrete:surface('v28/concrete_wall_008',0xf0e2cb,.86,.01,{amount:.1})});
+ Object.assign(p,{doorPaint:surface('v13/weathered_planks',0x8fc2c4,.82,.02,{amount:.08,normal:.45}),shutter:surface('v28/corrugated_iron',0x6f9aa1,.85,.01,{amount:.12,normal:.45}),shutterMarket:surface('v28/corrugated_iron',0x8aa088,.85,.01,{amount:.12,normal:.45}),annexConcrete:surface('v28/concrete_wall_008',0xf0e2cb,.86,.01,{amount:.1})});
  // Fresh-sawn lumber for the timber stacks: an even warm tone with only the grain relief, lighter than the weathered boards.
  p.lumber=new T.MeshStandardMaterial({color:0xab9069,normalMap:p.wood.normalMap,normalScale:new T.Vector2(.35,.35),roughness:.88});
  p.crate=readableAlbedo(new T.MeshStandardMaterial({color:0xe6bc86,map:p.wood.map,normalMap:p.wood.normalMap,normalScale:new T.Vector2(.25,.25),roughness:.92}),{contrast:.8,lift:.055});
@@ -37,13 +37,14 @@ export function createSahra(scene,renderer){
  const inTunnel=(x,z)=>!!sahraInterior(x,z),paved=(x,z)=>PAVED.has(zone(x,z)),road=(x,z)=>zone(x,z)==='VIA CT';
  terrainMeshes(root,WALLS,{stairAt:sahraStairAt,drift:sandAt,range:[-60,60,-66,66],surfaces:[[p.floor,(x,z)=>!sahraStairAt(x,z)&&!inTunnel(x,z)&&!paved(x,z)&&!road(x,z)],[p.tunnelFloor,inTunnel],[p.road,(x,z)=>!sahraStairAt(x,z)&&!inTunnel(x,z)&&road(x,z)],[p.paving,(x,z)=>!inTunnel(x,z)&&(sahraStairAt(x,z)||paved(x,z))]]});
  const sp=new StreetProps();
- wallMeshes(root,p,WALLS,{feature:desertFeature,annex:desertAnnex,car:desertCar,crate:desertCrate,
+ wallMeshes(root,p,WALLS,{feature:(root,p,role,x,z,w,d,top,base)=>{if(role!=='trunk')return desertFeature(root,p,role,x,z,w,d,top,base);desertFeature(root,p,role,x,z,w,d,top,base,'bark');sp.add('palma',{x,y:base,z,yaw:x*2.3+z,scale:1.12+Math.abs(Math.sin(x+z))*.2,tag:'palm',fallback:()=>desertFeature(root,p,role,x,z,w,d,top,base,'crown')});},
+  annex:desertAnnex,car:desertCar,crate:(root,p,x,z,w,d,top,base,metal)=>coverSkin(sp,metal?'pod':'crate',{x,z,w,d,top,base,fallback:()=>desertCrate(root,p,x,z,w,d,top,base,metal)}),
   column:desertColumn,
   lowWall:(root,p,x,z,w,d,h,base)=>{block(root,p.stone,x,(h+base-.12)/2,z,w,h-base-.12,d,1.5);box(root,p.trim,x,h-.06,z,w+.06,.12,d+.06);},
   pier:(root,p,x,z,w,d,h,base)=>{block(root,p.stone,x,(h-.26+base)/2,z,w,h-.26-base,d,1.4);box(root,p.trim,x,base+.15,z,w+.12,.3,d+.12);box(root,p.trim,x,h-.13,z,w+.16,.26,d+.16);},
-  timber:desertTimber,
+  timber:(root,p,x,z,w,d,top,base)=>coverSkin(sp,'timber',{x,z,w,d,top,base,fallback:()=>desertTimber(root,p,x,z,w,d,top,base)}),
   building:(root,p,x,z,w,d,h,base)=>{const stone=x<-22&&z<-18;block(root,stone?p.stone:p.plaster,x,(h+base)/2,z,w,h-base,d,stone?1.9:2.8);},
-  facade:(x,z,width,h,angle,serial)=>{const face=desertFacade(root,p,{x,z,width,height:h,angle,serial});if(face)decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:!sahraInterior(x,z)});if(!sahraInterior(x,z))facadeCondenser(sp,{x,z,width,height:h,angle,serial,ground:groundHeight(x,z)});return face;},
+  facade:(x,z,width,h,angle,serial)=>{const face=desertFacade(root,p,{x,z,width,height:h,angle,serial});if(face)decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:!sahraInterior(x,z)});if(!sahraInterior(x,z)){facadeCondenser(sp,{x,z,width,height:h,angle,serial,ground:groundHeight(x,z)});facadeFixture(sp,{x,z,width,height:h,angle,serial,ground:groundHeight(x,z)});}return face;},
   roofCap:(root,p,x,z,w,d,h)=>{if(!(w>5&&d>5))return;box(root,p.trim,x,h+.1,z,w+.08,.2,d+.08);for(const side of [-1,1])box(root,p.trim,x,h+.45,z+side*(d/2-.12),w,.7,.24);if(w>9&&d>7){cyl(root,p.blue,x+w*.1,h+.9,z,.9,1.2,'y',.9,20);box(root,p.dark,x-w*.2,h+.6,z+1,1.4,.9,.9);}}});
  portals(root,p,MAPS.sahra.arches,{material:p.stone,vault:desertVaultGeometry,trim:desertArchTrim});
  // V38 street dressing: roof clutter over the streets and wall condensers (cosmetic, instanced, loaded after the build).

@@ -186,3 +186,19 @@ Roof clutter, wall condensers, boats and the re-skinned cover (dumpsters) are CC
 - **pallet** — *Wooden Pallets*, YadroGames (yadrogames): https://sketchfab.com/3d-models/wooden-pallets-dba5c00928cd400796d9f6fffdd724b3
 
 Modifications: texture downscale and WebP re-encoding, specular-glossiness materials converted to metallic-roughness, parts cut out of packs by bounding box, meshes merged per material, runtime scale/rotation/offset.
+
+
+## V39 — photographed cover and street fixtures
+
+CC Attribution 4.0 models from Sketchfab, placed by `dist/street-props.js`.
+
+- **palma (Sahra)** — *Date Palm*, evolveduk (evolveduk): https://sketchfab.com/3d-models/date-palm-11acf710e6c149daa8d6fb8cdc5d087f
+- **casse** — *Wooden Boxes*, MaX3Dd (MaX3Dd): https://sketchfab.com/3d-models/wooden-boxes-ddecbe4586594bddb4822a90c0cba222
+- **compensato (cataste)** — *Pallet Plywood GameReady*, Gerhald (Gerhald): https://sketchfab.com/3d-models/pallet-plywood-gameready-efd63a856c554480b93f5442f4df1f10
+- **container** — *Shipping containers*, SpatialNeglect (jeandiz): https://sketchfab.com/3d-models/shipping-containers-cc3f7136710f4905905eae1d10ac50b7
+- **quadro elettrico** — *Electrical Box On The Wall _ 5MB*, Mehdi Shahsavan (ahmagh2e): https://sketchfab.com/3d-models/electrical-box-on-the-wall---5mb-6f92c92bf3954940883adcf50a10142b
+- **plafoniera** — *Industrial Bulkhead Wall Lamp Lowpoly*, iwanPlays (iwanPlays): https://sketchfab.com/3d-models/industrial-bulkhead-wall-lamp-lowpoly-4c50439bcbc247629fe2194862d7acc9
+- **tested, not shipped** — *Industrial asset pack (Free)*, ForevereQ (ForevereQ): https://sketchfab.com/3d-models/industrial-asset-pack-free-94c5011772a84e8791779b342467f245
+
+Modifications: polygon reduction (crates, palm), texture downscale and WebP re-encoding, one container of the pack kept with its lettering painted out and a recoloured teal variant, parts cut out of packs by bounding box, per-axis stretch to the collision boxes, meshes merged per material.
+

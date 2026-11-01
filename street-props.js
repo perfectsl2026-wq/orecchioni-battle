@@ -11,24 +11,34 @@ import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
-import {MAPS} from './shared.js?v=38.3';
-const DIR='./assets/models/v38/';
+import {MAPS} from './shared.js?v=39.0';
+const DIR='./assets/models/';
 // Parts: a file, optionally a box (model units) that keeps only the triangles whose
 // centroid lies inside it (packs of several objects), and a yaw so the part's front
 // faces local +z. Every part is re-centred on its footprint with its base at y 0.
 export const PARTS={
- condensatore:{file:'condizionatori',box:[[412,214,-338],[526,302,-291]],front:0},
- impianto:{file:'condizionatori',box:[[376,0,-225],[598,142,-60]],front:0},
- barile:{file:'barile'},
- sacco:{file:'sacco'},
- pallet:{file:'pallet',box:[[-2.6,-.1,-1.1],[-.4,.3,1.1]]},
- cassa:{file:'cassa',box:[[-1.7,-.1,.8],[1.7,2.2,3.2]]},
- barca:{file:'barca'},
- generatore:{file:'generatore'},
- cassonetto:{file:'cassonetto'}
+ condensatore:{file:'v38/condizionatori',box:[[412,214,-338],[526,302,-291]],front:0},
+ impianto:{file:'v38/condizionatori',box:[[376,0,-225],[598,142,-60]],front:0},
+ barile:{file:'v38/barile'},
+ sacco:{file:'v38/sacco'},
+ pallet:{file:'v38/pallet',box:[[-2.6,-.1,-1.1],[-.4,.3,1.1]]},
+ cassa:{file:'v38/cassa',box:[[-1.7,-.1,.8],[1.7,2.2,3.2]]},
+ barca:{file:'v38/barca'},
+ generatore:{file:'v38/generatore'},
+ cassonetto:{file:'v38/cassonetto'},
+ // V39: photographed cover and street fixtures.
+ cassa_piccola:{file:'v39/casse',box:[[-.2,-.1,-.2],[.2,.4,.2]]},
+ cassa_larga:{file:'v39/casse',box:[[-.62,-.1,-.25],[-.24,.4,.25]]},
+ cassa_alta:{file:'v39/casse',box:[[.24,-.1,-.25],[.65,.7,.25]]},
+ compensato:{file:'v39/compensato'},
+ container:{file:'v39/container'},
+ container_b:{file:'v39/container_b'},
+ palma:{file:'v39/palma'},
+ quadro:{file:'v39/quadro'},
+ plafoniera:{file:'v39/plafoniera',front:Math.PI}
 };
 const FILES=[...new Set(Object.values(PARTS).map(p=>p.file))];
-const scenes=new Map(),parts=new Map();let loading=null;
+const scenes=new Map(),parts=new Map();
 function bake(scene){scene.updateMatrixWorld(true);const list=[];scene.traverse(o=>{if(!o.isMesh||Array.isArray(o.material))return;const g=o.geometry.index?o.geometry.toNonIndexed():o.geometry.clone();g.applyMatrix4(o.matrixWorld);for(const k of Object.keys(g.attributes))if(!['position','normal','uv'].includes(k))g.deleteAttribute(k);list.push({geometry:g,material:o.material});});return list;}
 function inside(geo,box){const pos=geo.attributes.position,keep=[],c=new T.Vector3(),v=new T.Vector3();
  for(let t=0;t<pos.count;t+=3){c.set(0,0,0);for(let k=0;k<3;k++)c.add(v.fromBufferAttribute(pos,t+k));c.multiplyScalar(1/3);if(c.x>=box[0][0]&&c.x<=box[1][0]&&c.y>=box[0][1]&&c.y<=box[1][1]&&c.z>=box[0][2]&&c.z<=box[1][2])keep.push(t);}
@@ -44,11 +54,15 @@ function buildPart(id){
  for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;}
  const part={pieces,size:(spec.front&&Math.abs(Math.sin(spec.front))>.5)?new T.Vector3(size.z,size.y,size.x):size};parts.set(id,part);return part;
 }
-export function loadStreetProps(){
- if(loading)return loading;
+// Only the files a map uses are downloaded: a palm has no business on Forge's first load.
+const fileLoads=new Map();
+export async function loadStreetProps(files=FILES){
  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
- loading=Promise.all(FILES.map(async file=>{try{const g=await loader.loadAsync(DIR+file+'.glb');scenes.set(file,bake(g.scene));}catch(e){console.error('Arredo non caricato',file,e);}})).then(()=>{for(const id of Object.keys(PARTS))buildPart(id);return parts.size;});
- return loading;
+ await Promise.all(files.map(file=>{if(!fileLoads.has(file))fileLoads.set(file,loader.loadAsync(DIR+file+'.glb').then(g=>{scenes.set(file,bake(g.scene));}).catch(e=>console.error('Arredo non caricato',file,e)));return fileLoads.get(file);}));
+ for(const id of Object.keys(PARTS))if(!parts.has(id)&&scenes.has(PARTS[id].file))buildPart(id);
+ // Dark core inside a photographed crate: slatted models are not watertight and the box behind them must still stop a sightline.
+ if(!parts.has('nucleo')){const core=new T.BoxGeometry(1,1,1);core.translate(0,.5,0);parts.set('nucleo',{pieces:[{geometry:core,material:new T.MeshStandardMaterial({color:0x1c1712,roughness:.95})}],size:new T.Vector3(1,1,1)});}
+ return parts.size;
 }
 export const partSize=id=>parts.get(id)?.size||null;
 // ---- placement -----------------------------------------------------------------------
@@ -56,12 +70,13 @@ const hash=(x,z)=>{const s=Math.sin(x*127.1+z*311.7)*43758.5453;return s-Math.fl
 export class StreetProps{
  constructor(){this.items=[];this.built=false;}
  // fit: {w,d,h} is the footprint the part must stay inside (after yaw); scale: explicit.
- add(part,{x,y=0,z,yaw=0,scale=1,fit=null,tag='prop'}){this.items.push({part,x,y,z,yaw,scale,fit,tag});return this;}
+ // fallback: draws the procedural original when the model cannot be loaded, so a re-skinned solid is never invisible.
+ add(part,{x,y=0,z,yaw=0,scale=1,fit=null,tag='prop',fallback=null}){this.items.push({part,x,y,z,yaw,scale,fit,tag,fallback});return this;}
  async build(root){
-  await loadStreetProps();if(this.built)return 0;this.built=true;
+  await loadStreetProps([...new Set(this.items.map(it=>PARTS[it.part]?.file).filter(Boolean))]);if(this.built)return 0;this.built=true;
   // Re-skins are the rendered solid itself: their materials stay ballistic (the render
   // suites check every sightline against the collision box); clutter is cosmetic.
-  const byPart=new Map();for(const it of this.items){if(!parts.has(it.part))continue;const key=it.part+(it.tag==='reskin'?'#solid':'');if(!byPart.has(key))byPart.set(key,[]);byPart.get(key).push(it);}
+  const byPart=new Map(),fellBack=new Set();for(const it of this.items){if(!parts.has(it.part)){if(it.fallback&&!fellBack.has(it.fallback)){fellBack.add(it.fallback);it.fallback();}continue;}const key=it.part+(it.tag==='reskin'?'#solid':'');if(!byPart.has(key))byPart.set(key,[]);byPart.get(key).push(it);}
   let draws=0;const m=new T.Matrix4(),q=new T.Quaternion(),s=new T.Vector3(),p=new T.Vector3();
   for(const [key,list] of byPart){
    const id=key.split('#')[0],solid=key.endsWith('#solid'),part=parts.get(id);
@@ -125,6 +140,40 @@ export function reskin(sp,mapId,x,z,w,d,top,base=0){
  const spec=RESKINS[mapId]?.[x+','+z];if(!spec)return false;const h=top-base,n=spec.count||1;
  for(let i=0;i<n;i++){const t=n>1?(i-(n-1)/2)*(w/n):0;sp.add(spec.part,{x:x+t,y:base,z,yaw:spec.yaw,fit:{w:w/n,d,h},tag:'reskin'});}
  return true;
+}
+// Photographed cover (V39): the collision box is filled exactly by a grid of models, so
+// hits and movement do not change. Crates split into cells of about 1.25 m (a single 2.4 m
+// crate reads as a toy), timber stacks into plywood pallets, metal pods into containers.
+// grow: slatted crates stop short of their corners, so the model overlaps the box by a hair and the box never stops a shot in thin air.
+function fillBox(sp,part,{x,z,w,d,base,nx=1,ny=1,nz=1,h,yaw=0,core=0,grow=0,fallback}){
+ const sx=w/nx,sy=h/ny,sz=d/nz;
+ for(let i=0;i<nx;i++)for(let k=0;k<nz;k++)for(let j=0;j<ny;j++){const px=x-w/2+sx*(i+.5),pz=z-d/2+sz*(k+.5),id=typeof part==='function'?part(px,pz,j):part,turn=hash(px*3.1,pz*1.7+j)>.5?Math.PI:0;sp.add(id,{x:px,y:base+sy*j,z:pz,yaw:yaw+turn,fit:{w:sx+grow,d:sz+grow,h:sy},tag:'reskin',fallback});if(core)sp.add('nucleo',{x:px,y:base+sy*j,z:pz,fit:{w:sx-core,d:sz-core,h:sy-core/2},tag:'reskin'});}
+}
+export function coverSkin(sp,kind,{x,z,w,d,top,base,fallback}){
+ const h=top-base;
+ if(kind==='pod'){const long=Math.max(w,d)/Math.min(w,d)>1.15;fillBox(sp,hash(x,z)>.45?'container_b':'container',{x,z,w,d,h,base,yaw:long&&w>d?Math.PI/2:0,fallback});return;}
+ if(kind==='timber'){const layers=Math.max(1,Math.round(h/.62));fillBox(sp,'compensato',{x,z,w,d,h,base,ny:layers,yaw:d>=w?Math.PI/2:0,core:.1,fallback});return;}
+ const nx=Math.max(1,Math.round(w/1.25)),nz=Math.max(1,Math.round(d/1.25)),cell=Math.max(w/nx,d/nz);
+ if(h/cell>1.25){fillBox(sp,'cassa_alta',{x,z,w,d,h,base,nx,nz,core:.12,grow:.1,fallback});return;}
+ fillBox(sp,(px,pz)=>hash(px*1.3,pz*2.1)>.5?'cassa_larga':'cassa_piccola',{x,z,w,d,h,base,nx,nz,core:.12,grow:.1,fallback});
+}
+// Fixtures on the facade frame, above the 1.0–2.0 m head band and away from the condensers.
+export function facadeFixture(sp,{x,z,width,height,angle,serial,ground=0}){
+ if(width<3.4||height<3.6)return false;const kind=serial%3,u=(hash(serial*1.7,width)>.5?1:-1)*(width/2-.9),put=(part,y,out,scale)=>sp.add(part,{x:x+Math.cos(angle)*u+Math.sin(angle)*out,y,z:z-Math.sin(angle)*u+Math.cos(angle)*out,yaw:angle,scale,tag:'facade'});
+ if(kind===2){put('quadro',ground+1.98,.14,.15);return true;}
+ if(kind===0){put('plafoniera',ground+3.2,.14,.0011);return true;}
+ return false;
+}
+// Forge's perimeter walls have no facade hook: fixtures above the head band.
+export function forgeWallDress(sp){
+ const put=(part,x,y,z,angle,out,scale)=>sp.add(part,{x:x+Math.sin(angle)*out,y,z:z+Math.cos(angle)*out,yaw:angle,scale,tag:'facade'});
+ for(const side of [-1,1]){
+  const za=side<0?0:Math.PI,xa=side<0?Math.PI/2:-Math.PI/2;
+  for(const u of [-11,11])put('quadro',u,2.62,side*19.5,za,.05,.2);
+  for(const u of [-8.5,8.5])put('quadro',side*17.5,2.62,u,xa,.05,.2);
+  for(const u of [-5.8,5.8])put('plafoniera',u,2.9,side*19.5,za,.05,.0016);
+  put('plafoniera',side*17.5,2.9,0,xa,.05,.0016);
+ }
 }
 // Boats moored on Caldera's open water, outside every parapet.
 export function calderaBoats(sp){

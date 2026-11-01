@@ -1,6 +1,6 @@
-import {sahraGround} from './sahra-terrain.js?v=38.3';
-import {SAHRA_INFILL} from './sahra-infill.js?v=38.3';
-import {vehicleSolids} from './vehicles.js?v=38.3';
+import {sahraGround} from './sahra-terrain.js?v=39.0';
+import {SAHRA_INFILL} from './sahra-infill.js?v=39.0';
+import {vehicleSolids} from './vehicles.js?v=39.0';
 // SAHRA / 13, original three-lane desert district (V29). T caravanserai south,
 // CT plateau north. A lane: covered souk, colonnaded arcade, fountain court and
 // ramp. Mid: a split-level piazza with a CT loggia and two links (A alley,

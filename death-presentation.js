@@ -1,7 +1,7 @@
-import {applyFinish} from './weapon-finish.js?v=38.3';
+import {applyFinish} from './weapon-finish.js?v=39.0';
 import * as THREE from './vendor/three.module.js';
-import {createAgent,createDisplayWeapon,animateAgent,relaxAgent,disposeAgent,dressOperator} from './assets.js?v=38.3';
-import {blocked,groundHeight} from './shared.js?v=38.3';
+import {createAgent,createDisplayWeapon,animateAgent,relaxAgent,disposeAgent,dressOperator} from './assets.js?v=39.0';
+import {blocked,groundHeight} from './shared.js?v=39.0';
 const up=new THREE.Vector3(0,1,0),box=new THREE.Box3(),partBox=new THREE.Box3();
 function visibleBounds(root){
  root.updateMatrixWorld(true);box.makeEmpty();root.traverse(o=>{

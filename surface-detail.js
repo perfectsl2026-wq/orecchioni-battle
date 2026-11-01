@@ -115,7 +115,7 @@ vec3 mapN=mix(texture2D(normalMap,vNormalMapUv).xyz,texture2D(wearNormal,wearUV)
 
 // Wind-blown sand banked against walls and in corners (per-vertex 'drift' from
 // decals.driftField): lighter, finer and flatter than the base ground material.
-export function groundDrift(material,{color=0xe9d3ad,strength=.85}={}){
+export function groundDrift(material,{color=0xc4a97f,strength=.72}={}){
  const previous=material.onBeforeCompile,previousKey=material.customProgramCacheKey?.()||'',sand=new THREE.Color(color);
  material.onBeforeCompile=function(shader,renderer){
   previous?.call(this,shader,renderer);shader.uniforms.driftColor={value:sand};

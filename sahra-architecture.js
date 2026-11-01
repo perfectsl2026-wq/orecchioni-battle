@@ -1,10 +1,10 @@
 import * as T from './vendor/three.module.js';
-import {groundHeight,blocked} from './shared.js?v=38.3';
-import {box,cyl,bevel,label} from './graphics.js?v=38.3';
-import {metricBlock as block} from './caldera-architecture.js?v=38.3';
-import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=38.3';
-import {sahraInterior} from './sahra-layout.js?v=38.3';
-import {vehicleGreenhouse} from './vehicles.js?v=38.3';
+import {groundHeight,blocked} from './shared.js?v=39.0';
+import {box,cyl,bevel,label} from './graphics.js?v=39.0';
+import {metricBlock as block} from './caldera-architecture.js?v=39.0';
+import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=39.0';
+import {sahraInterior} from './sahra-layout.js?v=39.0';
+import {vehicleGreenhouse} from './vehicles.js?v=39.0';
 let awningMat=null;
 function awning(){
  if(awningMat)return awningMat;
@@ -387,7 +387,7 @@ function treeMaterials(p){
  if(!p.fitCopper)p.fitCopper=cosmetic(p.copper||p.metal);
  return {foliage,foliageLight,water,stream,ripple,rope,bark:p.wornWood,twig:p.twig,copper:p.fitCopper};
 }
-export function desertFeature(root,p,role,x,z,w,d,top,base){
+export function desertFeature(root,p,role,x,z,w,d,top,base,part='full'){
  const g=new T.Group();g.position.set(x,0,z);root.add(g);const h=top-base,m=treeMaterials(p),tile=p.blue;
  if(role==='basin'||role==='well'){
   const rim=role==='well'?.42:.34;
@@ -433,8 +433,10 @@ export function desertFeature(root,p,role,x,z,w,d,top,base){
   return;
  }
  if(role==='trunk'){
-  // Bark trunk inside its 0.32 m shot box, then a loose crown of leaf clusters.
-  cyl(g,m.bark,0,(top+base)/2,0,.12,h,'y',.155,7);
+  // Bark trunk inside its 0.32 m shot box, then a loose crown of leaf clusters. V39: the trunk
+  // stays as the solid, inside a photographed palm; the crown is its fallback if the model fails.
+  if(part!=='crown')cyl(g,m.bark,0,(top+base)/2,0,.12,h,'y',.155,7);
+  if(part==='bark')return;
   const seed=Math.abs(Math.sin(x*12.9+z*78.2))*1000;
   // Olive-like crown: many small clusters in two tones, flattened and spread.
   for(let i=0;i<11;i++){

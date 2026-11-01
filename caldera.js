@@ -1,17 +1,17 @@
 import * as T from './vendor/three.module.js';
-import {WALLS,MAPS,groundHeight} from './shared.js?v=38.3';
-import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=38.3';
-import {metricBlock as block,beam,ring,panel} from './caldera-architecture.js?v=38.3';
-import {createAtmosphere} from './atmosphere.js?v=38.3';
-import {layeredWear,toneAlbedo} from './surface-detail.js?v=38.3';
-import {decorateFacade,decalMaterial} from './decals.js?v=38.3';
-import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=38.3';
-import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=38.3';
-import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=38.3';
-import {siteMarkings} from './site-markings.js?v=38.3';
-import {calderaSiteProps} from './site-props.js?v=38.3';
-import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=38.3';
-import {StreetProps,roofClutter,facadeCondenser,reskin,calderaBoats} from './street-props.js?v=38.3';
+import {WALLS,MAPS,groundHeight} from './shared.js?v=39.0';
+import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=39.0';
+import {metricBlock as block,beam,ring,panel} from './caldera-architecture.js?v=39.0';
+import {createAtmosphere} from './atmosphere.js?v=39.0';
+import {layeredWear,toneAlbedo} from './surface-detail.js?v=39.0';
+import {decorateFacade,decalMaterial} from './decals.js?v=39.0';
+import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=39.0';
+import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=39.0';
+import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=39.0';
+import {siteMarkings} from './site-markings.js?v=39.0';
+import {calderaSiteProps} from './site-props.js?v=39.0';
+import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=39.0';
+import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin,reskin,calderaBoats} from './street-props.js?v=39.0';
 // CALDERA / 07: a coastal research station on a volcanic headland. Cast concrete and
 // white render over a basalt plinth, teal metal fascias, ribbon glazing above head
 // height, a timber jetty, a sea wall with open water beyond, and a heliostat over A.
@@ -94,7 +94,7 @@ export function createCaldera(scene,renderer){
    box(root,rail,x,h+.92,z,alongX?w:.05,.05,alongX?.05:d);box(root,rail,x,h+.5,z,alongX?w:.03,.03,alongX?.03:d);
   },
   annex:(root,p,x,z,w,d,h,base)=>block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.8),
-  car:desertCar,crate:(root,p,x,z,w,d,top,base,metal)=>{if(reskin(sp,'caldera',x,z,w,d,top,base))return;desertCrate(root,p,x,z,w,d,top,base,metal);},
+  car:desertCar,crate:(root,p,x,z,w,d,top,base,metal)=>{if(reskin(sp,'caldera',x,z,w,d,top,base))return;coverSkin(sp,metal?'pod':'crate',{x,z,w,d,top,base,fallback:()=>desertCrate(root,p,x,z,w,d,top,base,metal)});},
   column:(root,p,x,z,w,d,h,base)=>{box(root,p.steel,x,(h+base)/2,z,w,h-base,d);box(root,p.creamMetal,x,base+.12,z,w+.1,.24,d+.1);},
   lowWall:(root,p,x,z,w,d,h,base)=>{if(reskin(sp,'caldera',x,z,w,d,h,base))return;block(root,p.concrete,x,(h+base-.1)/2,z,w,h-base-.1,d,1.5);box(root,p.creamMetal,x,h-.05,z,w+.04,.1,d+.04);},
   pier:(root,p,x,z,w,d,h,base)=>{if(h-base>2.5){block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,1.4);box(root,p.steel,x,h-.1,z,w+.06,.2,d+.06);return;}
@@ -102,7 +102,7 @@ export function createCaldera(scene,renderer){
    cyl(root,p.black,x,(h+base)/2,z,Math.min(w,d)*.42,h-base,'y',Math.min(w,d)*.5,10);cyl(root,p.steel,x,h-.04,z,Math.min(w,d)*.5,.08,'y',Math.min(w,d)*.5,10);},
   timber:desertTimber,
   building:(root,p,x,z,w,d,h,base)=>block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.8),
-  facade:(x,z,width,h,angle,serial)=>{const face=stationFacade(x,z,width,h,angle,serial);decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:false});if(!calderaInterior(x,z))facadeCondenser(sp,{x,z,width,height:h,angle,serial,ground:groundHeight(x,z)});return face;},
+  facade:(x,z,width,h,angle,serial)=>{const face=stationFacade(x,z,width,h,angle,serial);decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:false});if(!calderaInterior(x,z)){facadeCondenser(sp,{x,z,width,height:h,angle,serial,ground:groundHeight(x,z)});facadeFixture(sp,{x,z,width,height:h,angle,serial,ground:groundHeight(x,z)});}return face;},
   roofCap:(root,p,x,z,w,d,h)=>{if(w<5||d<5)return;box(root,p.trim,x,h+.08,z,w+.06,.16,d+.06);if(w>7&&d>5){box(root,p.steel,x+w*.2,h+.55,z,1.6,.9,1.1);for(let a=-.6;a<.7;a+=.2)box(root,p.dark,x+w*.2+a,h+.58,z+.56,.05,.6,.03);cyl(root,p.creamMetal,x-w*.22,h+.7,z,.35,1.2,'y',.35,14);}}
  });
  portals(root,p,map.arches,{material:p.concrete,trim:(root,p,a)=>{const g=new T.Group();g.position.set(a.x,0,a.z);if(a.axis==='x')g.rotation.y=Math.PI/2;root.add(g);const band=cosmetic(p.steel);for(const side of [-1,1])box(g,band,0,a.spring+a.rise+.25,side*(a.depth/2+.03),a.width+.2,.18,.05);}});

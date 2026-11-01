@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-import {WALLS,ARCHES,MAPS,ACTIVE_MAP,groundHeight,wallDistance} from './shared.js?v=38.3';
-import {markMaterial,markSize} from './impact-marks.js?v=38.3';
+import {WALLS,ARCHES,MAPS,ACTIVE_MAP,groundHeight,wallDistance} from './shared.js?v=39.0';
+import {markMaterial,markSize} from './impact-marks.js?v=39.0';
 // Procedural textures are generated from typed arrays: no canvas, no image files.
 function hash(x,y){const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);}
 function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);const a=hash(ix,iy),b=hash(ix+1,iy),c=hash(ix,iy+1),d=hash(ix+1,iy+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}

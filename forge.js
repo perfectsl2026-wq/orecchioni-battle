@@ -1,15 +1,22 @@
-import {refineForge} from './arena-refinement.js?v=38.3';
+import {refineForge} from './arena-refinement.js?v=39.0';
 import * as T from './vendor/three.module.js';
-import {WALLS,ARCHES} from './shared.js?v=38.3';
-import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=38.3';
-import {metricBlock as block} from './caldera-architecture.js?v=38.3';
-import {arched} from './district-builder.js?v=38.3';
-import {createAtmosphere} from './atmosphere.js?v=38.3';
-import {readableAlbedo} from './surface-detail.js?v=38.3';
-import {placeArchitecture} from './architecture-assets.js?v=38.3';
-import {StreetProps,roofClutter,reskin} from './street-props.js?v=38.3';
-import {MAPS} from './shared.js?v=38.3';
+import {WALLS,ARCHES} from './shared.js?v=39.0';
+import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=39.0';
+import {metricBlock as block} from './caldera-architecture.js?v=39.0';
+import {arched} from './district-builder.js?v=39.0';
+import {createAtmosphere} from './atmosphere.js?v=39.0';
+import {readableAlbedo} from './surface-detail.js?v=39.0';
+import {placeArchitecture} from './architecture-assets.js?v=39.0';
+import {StreetProps,roofClutter,reskin,coverSkin,forgeWallDress} from './street-props.js?v=39.0';
+import {MAPS} from './shared.js?v=39.0';
 const loader=new T.TextureLoader();
+// Painted steel wainscot in bays, with a flashing on top and a dark kick plate: the walls read at human scale.
+function forgeCladding(root,p){
+ for(const side of [-1,1]){
+  for(let u=-15;u<=15;u+=6){block(root,p.cladding,u,1.2,side*(19.5-.025),5.9,2.4,.05,3);box(root,p.steel,u,2.43,side*(19.5-.03),5.9,.06,.06);box(root,p.dark,u,.09,side*(19.5-.03),5.9,.18,.06);}
+  for(let u=-14.5;u<=14.5;u+=5.8){block(root,p.cladding,side*(17.5-.025),1.2,u,.05,2.4,5.7,3);box(root,p.steel,side*(17.5-.03),2.43,u,.06,.06,5.7);box(root,p.dark,side*(17.5-.03),.09,u,.06,.18,5.7);}
+ }
+}
 export function createForge(scene,renderer,{capture=true}={}){
  const root=new T.Group();root.name='FORGE / Alpine Hydroelectric Station';scene.add(root);const pending=[];
  function texture(path,color=false){let yes,no;pending.push(new Promise((a,b)=>{yes=a;no=b}));const t=loader.load(path,yes,undefined,no);t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=16;if(color)t.colorSpace=T.SRGBColorSpace;return t;}
@@ -19,7 +26,8 @@ export function createForge(scene,renderer,{capture=true}={}){
  const concreteRough=texture('./assets/textures/v28/concrete_wall_008_rough.webp'),floorRough=texture('./assets/textures/v28/concrete_floor_worn_001_rough.webp'),rock=texture('./assets/textures/v14/rock_face_03_diff.webp',true),rockNormal=texture('./assets/textures/v14/rock_face_03_nor_gl.webp');
  const mat=(color,r=.8,m=0)=>new T.MeshStandardMaterial({color,roughness:r,metalness:m});
  const plateMap=texture('./assets/textures/v14/blue_metal_plate_diff.webp',true),plateNormal=texture('./assets/textures/v14/blue_metal_plate_nor_gl.webp'),plateRough=texture('./assets/textures/v14/blue_metal_plate_rough.webp');
- const p={plate:new T.MeshStandardMaterial({color:0x9ea7a3,map:plateMap,normalMap:plateNormal,roughnessMap:plateRough,normalScale:new T.Vector2(.5,.5),roughness:1,metalness:.35}),boltHead:Object.assign(new T.MeshStandardMaterial({color:0x6d7a7d,metalness:.75,roughness:.45}),{userData:{nonBallistic:true}}),concrete:readableAlbedo(new T.MeshStandardMaterial({color:0xe4e2d8,map:plaster,roughnessMap:concreteRough,normalMap:normal,normalScale:new T.Vector2(.18,.18),roughness:.94}),{contrast:.55,lift:.07}),floor:readableAlbedo(new T.MeshStandardMaterial({color:0xd6d8d0,map:floorMap,roughnessMap:floorRough,normalMap:floorNormal,normalScale:new T.Vector2(.14,.14),roughness:.93}),{contrast:.6,lift:.055}),white:mat(0xd0d5cc),steel:mat(0x71858a,.5,.35),copper:mat(0xa67d5b,.53,.48),dark:mat(0x273e46,.9),black:mat(0x192a30,.75),stripe:mat(0xc29a56),glass:mat(0x597b85,.22,.35)};
+ const claddingMap=texture('./assets/textures/v28/corrugated_iron_diff.webp',true),claddingNormal=texture('./assets/textures/v28/corrugated_iron_nor_gl.webp'),claddingRough=texture('./assets/textures/v28/corrugated_iron_rough.webp');
+ const p={cladding:new T.MeshStandardMaterial({color:0x7f9ea3,map:claddingMap,normalMap:claddingNormal,roughnessMap:claddingRough,normalScale:new T.Vector2(.9,.9),roughness:1,metalness:.3}),plate:new T.MeshStandardMaterial({color:0x9ea7a3,map:plateMap,normalMap:plateNormal,roughnessMap:plateRough,normalScale:new T.Vector2(.5,.5),roughness:1,metalness:.35}),boltHead:Object.assign(new T.MeshStandardMaterial({color:0x6d7a7d,metalness:.75,roughness:.45}),{userData:{nonBallistic:true}}),concrete:readableAlbedo(new T.MeshStandardMaterial({color:0xe4e2d8,map:plaster,roughnessMap:concreteRough,normalMap:normal,normalScale:new T.Vector2(.55,.55),roughness:.94}),{contrast:.9,lift:.05}),floor:readableAlbedo(new T.MeshStandardMaterial({color:0xd6d8d0,map:floorMap,roughnessMap:floorRough,normalMap:floorNormal,normalScale:new T.Vector2(.14,.14),roughness:.93}),{contrast:.6,lift:.055}),white:mat(0xd0d5cc),steel:mat(0x71858a,.5,.35),copper:mat(0xa67d5b,.53,.48),dark:mat(0x273e46,.9),black:mat(0x192a30,.75),stripe:mat(0xc29a56),glass:mat(0x597b85,.22,.35)};
  const atmosphere=createAtmosphere(scene,renderer);atmosphere.sun.color.set(0xfff0df);atmosphere.sun.intensity=2.75;scene.add(new T.HemisphereLight(0xd6e8ee,0xc1b39b,.35));
  block(root,p.floor,0,-.15,0,37,.3,41,3.2);
  // The playable solids exactly match collision and hitscan; all fittings below
@@ -44,13 +52,13 @@ export function createForge(scene,renderer,{capture=true}={}){
    for(const side of [-1,1])for(const zz of [-2.85,0,2.85]){box(root,p.dark,x+side*(width/2+.012),4.5,z+zz,.025,1.8,1.8);box(root,p.glass,x+side*(width/2+.028),4.5,z+zz,.028,1.66,1.65);box(root,p.steel,x+side*(width/2+.045),4.5,z+zz,.015,.045,1.68);}
    box(root,p.steel,x,h+.09,z,width+.18,.18,depth+.18);box(root,p.white,x,h+.30,z,width+.3,.12,depth+.3);
    for(const zz of [-2.8,2.8]){cyl(root,p.steel,x,h+.85,z+zz,1.45,1.15,'y',1.45,48);cyl(root,p.dark,x,h+1.44,z+zz,1.32,.03,'y',1.32,48);for(let n=-5;n<=5;n++)box(root,p.copper,x+n*.22,h+1.47,z+zz,.075,.055,Math.sqrt(Math.max(0,1.6-n*n*.048))*2);}
-  }else if(kind===1){if(!placeArchitecture(root,'caldera-cargo',x,z,width,depth,h,{signage:false}))bevel(root,p.steel,x,h/2,z,width,h,depth,.035);label(root,'FORGE / FIELD EQUIPMENT',x,h*.64,z+depth/2+.065,width*.84,.24,0,{background:'#43575c',color:'#e4e6d8',font:65});}
+  }else if(kind===1){coverSkin(sp,'pod',{x,z,w:width,d:depth,top:h,base:0,fallback:()=>{if(!placeArchitecture(root,'caldera-cargo',x,z,width,depth,h,{signage:false}))bevel(root,p.steel,x,h/2,z,width,h,depth,.035);}});}
   else if(kind===3){bevel(root,p.white,x,h/2,z,width,h,depth,.045);
    // Lid: a chequered steel plate with corner bolts and two lifting lugs (all cosmetic for shots).
    block(root,p.plate,x,h+.014,z,width-.18,.028,depth-.18,.9);for(const sx of [-1,1])for(const sz of [-1,1])cyl(root,p.boltHead,x+sx*(width/2-.22),h+.035,z+sz*(depth/2-.22),.03,.02,'y',.03,8);
    for(const sx of [-1,1]){box(root,p.boltHead,x+sx*(width*.28),h+.06,z,.14,.07,.04);box(root,p.boltHead,x+sx*(width*.28),h+.11,z,.04,.1,.04);}for(const side of [-1,1]){box(root,p.dark,x,h*.54,z+side*(depth/2+.012),width-.22,h-.20,.025);for(let i=-3;i<=3;i++)box(root,p.steel,x+i*.67,h*.54,z+side*(depth/2+.03),.42,h-.30,.02);label(root,'FORGE / FLOW CONTROL',x,h*.54,z+side*(depth/2+.045),2.9,.25,side>0?0:Math.PI,{background:'#344950',color:'#dfe3d4',font:68});}}
   else if(kind===4){box(root,p.steel,x,h/2,z,width,h,depth);cyl(root,p.copper,x,h+.07,z,.58,.14,'y',.58,32);}
-  else if(kind===2){if(reskin(sp,'forge',x,z,width,depth,h,0))continue;bevel(root,p.steel,x,h/2,z,width,h,depth,.035);for(const side of [-1,1]){box(root,p.dark,x,h*.52,z+side*(depth/2+.025),width-.12,h-.15,.04);for(let n=-5;n<=5;n++)box(root,p.copper,x+n*.26,h*.52,z+side*(depth/2+.05),.1,h-.25,.015);}}
+  else if(kind===2){if(reskin(sp,'forge',x,z,width,depth,h,0))continue;coverSkin(sp,'pod',{x,z,w:width,d:depth,top:h,base:0,fallback:()=>{bevel(root,p.steel,x,h/2,z,width,h,depth,.035);for(const side of [-1,1]){box(root,p.dark,x,h*.52,z+side*(depth/2+.025),width-.12,h-.15,.04);for(let n=-5;n<=5;n++)box(root,p.copper,x+n*.26,h*.52,z+side*(depth/2+.05),.1,h-.25,.015);}}});}
   else{block(root,p.concrete,x,h/2,z,width,h,depth,2.5);box(root,p.copper,x,h+.08,z,width+.05,.16,depth+.05);}
  }
  for(const a of ARCHES){const portal=mesh(arched(a.width,a.spring,a.rise,a.height,a.depth),p.concrete,root,a.x,0,a.z);portal.rotation.y=Math.PI/2;for(const sign of [-1,1])label(root,a.x<0?'INTAKE / A':'CONTROL / B',a.x+sign*(a.depth/2+.035),3.8,a.z,3.6,.32,sign>0?Math.PI/2:-Math.PI/2,{background:'#31464d',color:'#e1dfcf',font:72});}
@@ -66,6 +74,7 @@ export function createForge(scene,renderer,{capture=true}={}){
  rock.repeat.set(15,15);rockNormal.repeat.set(15,15);const mountain=readableAlbedo(new T.MeshStandardMaterial({color:0x8d9d9c,map:rock,normalMap:rockNormal,normalScale:new T.Vector2(.3,.3),roughness:.98}),{contrast:.6,lift:.05});const previousMountain=mountain.onBeforeCompile;mountain.onBeforeCompile=shader=>{previousMountain.call(mountain,shader);shader.vertexShader='varying vec3 mountainPoint;\n'+shader.vertexShader;shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nmountainPoint=position;');shader.fragmentShader='varying vec3 mountainPoint;\n'+shader.fragmentShader;shader.fragmentShader=shader.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.rgb=mix(diffuseColor.rgb,vec3(.72,.79,.79),smoothstep(18.0,27.0,mountainPoint.y+sin(mountainPoint.x*.25)*2.0));');};mountain.customProgramCacheKey=()=>'forge-alpine-v19';const landscape=new T.Mesh(terrain,mountain);landscape.receiveShadow=true;scene.add(landscape);
  refineForge(root,p);root.userData.materials=p;root.userData.portalCount=ARCHES.length;mergeStatic(root);
  // V38 street dressing on the turbine-hall roofs; the service trailers are drawn by the vehicle re-skin above.
- roofClutter(sp,MAPS.forge,{walkable:(x,z)=>Math.abs(x)<17&&Math.abs(z)<19,maxHeight:8,minArea:30,seed:11});pending.push(sp.build(root));
+ // Corrugated service cladding along the perimeter, flush within 5 cm of the wall.
+ forgeCladding(root,p);forgeWallDress(sp);roofClutter(sp,MAPS.forge,{walkable:(x,z)=>Math.abs(x)<17&&Math.abs(z)<19,maxHeight:8,minArea:30,seed:11});pending.push(sp.build(root));
  root.userData.ready=Promise.all(pending).then(()=>{if(!capture||!renderer)return;const cube=new T.WebGLCubeRenderTarget(256,{type:T.HalfFloatType}),cam=new T.CubeCamera(.1,160,cube);cam.position.set(0,3.4,0);scene.add(cam);cam.update(renderer,scene);scene.remove(cam);const pm=new T.PMREMGenerator(renderer),env=pm.fromCubemap(cube.texture);scene.environment=env.texture;scene.environmentIntensity=.7;cube.dispose();pm.dispose();atmosphere.environment.dispose();root.userData.environment=env;});return root;
 }
