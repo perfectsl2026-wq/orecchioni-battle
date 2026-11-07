@@ -35,6 +35,7 @@ export class Radar{
   if(bomb){const [x,y]=clampTo(at(bomb.x,bomb.z));c.fillStyle=bomb.planted?'#ff5a4e':'#ecc08b';c.fillRect(x-4*u,y-3*u,8*u,6*u);c.fillStyle='#0f1b20';c.fillRect(x-1*u,y-1*u,2*u,2*u);}
   for(const m of marks){const [x,y,out]=clampTo(at(m.x,m.z));c.fillStyle=m.color;
    if(m.kind==='dead'){c.strokeStyle=m.color;c.lineWidth=1.6*u;c.beginPath();c.moveTo(x-3*u,y-3*u);c.lineTo(x+3*u,y+3*u);c.moveTo(x+3*u,y-3*u);c.lineTo(x-3*u,y+3*u);c.stroke();continue;}
+   if(m.kind==='ping'){c.strokeStyle=m.color;c.lineWidth=1.8*u;c.beginPath();c.arc(x,y,(5+2*Math.sin(m.age*.012))*u,0,Math.PI*2);c.stroke();c.fillRect(x-1.5*u,y-1.5*u,3*u,3*u);continue;}
    if(m.kind==='enemy'){c.beginPath();c.moveTo(x,y-5*u);c.lineTo(x+5*u,y);c.lineTo(x,y+5*u);c.lineTo(x-5*u,y);c.closePath();c.fill();c.strokeStyle='#0f1b20';c.lineWidth=1.2*u;c.stroke();continue;}
    const a=m.yaw-self.yaw;c.beginPath();c.arc(x,y,(out?2.6:3.6)*u,0,Math.PI*2);c.fill();
    if(!out){c.strokeStyle=m.color;c.lineWidth=1.5*u;c.beginPath();c.moveTo(x,y);c.lineTo(x-Math.sin(a)*8*u,y-Math.cos(a)*8*u);c.stroke();}}

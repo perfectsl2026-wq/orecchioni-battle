@@ -5,7 +5,8 @@ import {weaponFor,designOf} from './weapon-stats.js?v=42.0';
 import {applyFinish,cleanFinish,PAINTS,TRIMS,PATTERNS} from './weapon-finish.js?v=42.0';
 import {VARIANTS,variantFor,variantKey,cleanBuild} from './weapon-variants.js?v=42.0';
 import * as THREE from './vendor/three.module.js';
-import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator} from './assets.js?v=42.0';
+import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator,bodyReady,loadBody} from './assets.js?v=42.0';
+import {BODIES} from './operator-kits.js?v=42.0';
 import {KITS as OPERATOR_KITS,kitFor,cleanOperator} from './operator-kits.js?v=42.0';
 import {SMOKE_TINTS} from './smoke-rules.js?v=42.0';
 import {WEAPONS,groundHeight} from './shared.js?v=42.0';
@@ -146,6 +147,34 @@ export class Armory{
   if(unsaved&&!this.warnedClose){this.warnedClose=true;const status=$(this.index<6?'finishstatus':'operatorstatus');if(status)status.textContent='Modifiche non applicate: premi '+(this.index<6?'APPLICA FINITURA':'APPLICA OPERATORE')+', oppure CHIUDI di nuovo per scartarle.';return;}
   this.warnedClose=false;this.active=false;this.drag=false;$('armory').hidden=true;this.onClose();this.returnFocus?.focus?.()}
  setTheme(key){if(key===this.themeKey)return;this.themeKey=key;const colors=(MAP_THEMES[key]||MAP_THEMES.caldera).studio,g=this.studioCanvas.getContext('2d'),gradient=g.createLinearGradient(0,0,0,256);for(let n=0;n<3;n++)gradient.addColorStop(n===1?.65:n/2,colors[n]);g.fillStyle=gradient;g.fillRect(0,0,2,256);this.scene.background.needsUpdate=true;}
+ // V45 operator line-up: every kit standing in the studio, the chosen one steps forward and turns to you.
+ // Same renderer and studio scene as the Officina: no second WebGL context.
+ lineupAgent(team,kit){this.lineupBodies??=new Map();const key=team+':'+kit;let g=this.lineupBodies.get(key);
+  if(!g){const agent=createAgent(team,3);if(!agent)return null;const ground=groundHeight(0,0);agent.position.y=ground;animateAgent(agent,1/60,false,3,0,{life:1,time:0,pitch:0,vx:0,vz:0,groundY:ground});
+   dressOperator(agent,team,{...cleanOperator(this.career?.data.operator),kit});agent.updateMatrixWorld(true);agent.userData.shadow&&(agent.userData.shadow.visible=false);
+   const box=new THREE.Box3().setFromObject(agent),c=box.getCenter(new THREE.Vector3());agent.position.x-=c.x;agent.position.z-=c.z;agent.position.y-=box.min.y;g=new THREE.Group();g.add(agent);g.userData.kit=kit;g.userData.team=team;g.visible=false;this.scene.add(g);this.lineupBodies.set(key,g);}
+  // A whole-body kit arrives a moment later: dress again (a no-op once the key matches).
+  dressOperator(g.children[0],team,{...cleanOperator(this.career?.data.operator),kit});
+  return g;}
+ showLineup(team,kit){this.lineupTeam=team;this.lineupPick=kit;this.lineupCam??=new THREE.PerspectiveCamera(30,16/9,.1,60);
+  OPERATOR_KITS.forEach((k,i)=>{const g=this.lineupAgent(team,k.id);if(!g)return;g.visible=true;g.userData.slot=i;g.position.set((i-(OPERATOR_KITS.length-1)/2)*.95,0,0);g.rotation.y=Math.PI+.32;});
+  for(const [key,g]of this.lineupBodies||[])if(!key.startsWith(team+':'))g.visible=false;}
+ hideLineup(){for(const [,g]of this.lineupBodies||[])g.visible=false;this.lineupTeam=null;}
+ renderLineup(width,height,dt=1/60){if(!this.lineupTeam)return;const cam=this.lineupCam,f=1-Math.exp(-9*Math.min(.05,dt));cam.aspect=width/Math.max(1,height);cam.fov=cam.aspect<1.5?40:30;cam.updateProjectionMatrix();cam.position.set(0,1.25,cam.aspect<1.5?10.5:8.4);cam.lookAt(0,.95,0);
+  for(const k of OPERATOR_KITS){const g=this.lineupAgent(this.lineupTeam,k.id);if(!g)continue;const on=k.id===this.lineupPick;g.position.z+=((on?.7:0)-g.position.z)*f;g.rotation.y+=((on?Math.PI:Math.PI+.32)-g.rotation.y)*f;const sc=on?1.06:.97;g.scale.setScalar(g.scale.x+(sc-g.scale.x)*f);}
+  const pv=this.pivot.visible,fs=this.floorShadow.visible;this.pivot.visible=this.floorShadow.visible=false;this.renderer.setScissorTest(false);this.renderer.setViewport(0,0,width,height);this.renderer.autoClear=true;this.renderer.render(this.scene,cam);this.pivot.visible=pv;this.floorShadow.visible=fs;}
+ // V45 portraits: one head-and-shoulders render per team and kit into a small target, read back once
+ // and kept as an image URL (operator-portrait.js). Never called on phones.
+ portrait(team,kit){this.portraits??=new Map();const key=team+':'+kit;if(this.portraits.has(key))return this.portraits.get(key);if(BODIES[kit]&&!bodyReady(kit)){loadBody(kit);return null;}let url=null;
+  try{const g=this.lineupAgent(team,kit);if(!g)return null;const size=192,rt=this.portraitTarget??=new THREE.WebGLRenderTarget(size,size,{samples:4});rt.texture.colorSpace=THREE.SRGBColorSpace;
+   const cam=this.portraitCam??=new THREE.PerspectiveCamera(24,1,.05,20),hidden=[];for(const o of this.scene.children)if(o!==g&&o.visible&&!o.isLight){hidden.push(o);o.visible=false;}
+   const was={v:g.visible,p:g.position.clone(),r:g.rotation.y,s:g.scale.x},bg=this.scene.background;g.visible=true;g.position.set(0,0,0);g.rotation.y=Math.PI+.22;g.scale.setScalar(1);g.updateMatrixWorld(true);
+   const box=new THREE.Box3().setFromObject(g),top=box.max.y;cam.position.set(.18,top-.28,1.55);cam.lookAt(0,top-.36,0);
+   this.scene.background=null;const r=this.renderer,prevTarget=r.getRenderTarget(),clear=r.getClearAlpha();r.setRenderTarget(rt);r.setClearAlpha(0);r.clear();r.render(this.scene,cam);
+   const px=new Uint8Array(size*size*4);r.readRenderTargetPixels(rt,0,0,size,size,px);r.setRenderTarget(prevTarget);r.setClearAlpha(clear);this.scene.background=bg;for(const o of hidden)o.visible=true;
+   g.visible=was.v;g.position.copy(was.p);g.rotation.y=was.r;g.scale.setScalar(was.s);
+   const c=document.createElement('canvas');c.width=c.height=size;const ctx=c.getContext('2d'),img=ctx.createImageData(size,size);for(let y=0;y<size;y++)img.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4);ctx.putImageData(img,0,0);url=c.toDataURL('image/png');}catch(e){url=null;}
+  this.portraits.set(key,url);return url;}
  render(width,height,dt=1/60){
   // Left alone, the piece turns slowly a little each way, like a showroom turntable.
   const now=performance.now();if(!this.drag&&now-this.idleSince>2600&&!matchMedia('(prefers-reduced-motion:reduce)').matches){if(this.idleBase===null){this.idleBase=this.rotationTarget.y;this.idleStart=now;}const u=(now-this.idleStart)/1000,ease=Math.min(1,u/1.5);this.rotationTarget.y=this.idleBase+ease*.42*Math.sin(u*.45);}

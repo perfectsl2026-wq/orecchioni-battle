@@ -273,6 +273,12 @@ export class AudioEngine{
   this.play(headshot?b.hit.head:b.hit.body,{gain:headshot?G.head:G.body,rate:.98+this.rand()*.04,reverb:.03,priority:3});if(headshot&&helmet)this.play(b.helmet,{gain:.3,rate:.97+this.rand()*.05,reverb:.06,delay:.004,priority:3});}
  // Whole-tone steps per kill in the round, capped at the fifth.
  kill({streak=1,headshot=false}={}){const b=this.banks;if(!b)return;this.play(b.kill,{gain:headshot?.3:.24,rate:Math.pow(2,Math.min(4,Math.max(0,streak-1))/6),reverb:.04,delay:.03,priority:3});}
+ // V45 interface tones, made with oscillators on the spot: short and quiet, under the gunfire.
+ tone(notes,{gain=.04,type='sine',length=.1,gap=.06}={}){const c=this.ctx;if(!c||!this.master)return;const t0=c.currentTime+.005;notes.forEach((f,n)=>{const o=c.createOscillator(),g=c.createGain(),t=t0+n*gap;o.type=type;o.frequency.setValueAtTime(f,t);g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(gain,t+.004);g.gain.exponentialRampToValueAtTime(.0001,t+length);o.connect(g).connect(this.master);o.start(t);o.stop(t+length+.02);o.onended=()=>{o.disconnect();g.disconnect();};});}
+ // The centre banner: a fifth that climbs a whole tone per kill; the ACE and the clutch add the octave.
+ bannerTone(tier=1){const base=523.25*Math.pow(2,(Math.min(5,tier)-1)/6);this.tone(tier>=5?[base,base*1.5,base*2]:[base,base*1.5],{gain:tier>=5?.045:.03,type:'triangle',length:tier>=5?.34:.16,gap:.075});}
+ // A dry glassy tick on a headshot, doubled and brighter on a headshot kill.
+ headTick(kill=false){this.tone(kill?[3300,4400]:[3800],{gain:kill?.045:.035,type:'triangle',length:.04,gap:.03});}
  hurt(heavy=false){const b=this.banks;if(!b)return;this.play(this.pick(b.impacts.flesh),{gain:heavy?.75:.55,rate:.75+this.rand()*.1,lowpass:2200,reverb:.02,priority:3});}
  dry(){if(this.banks)this.play(this.banks.dry,{gain:.35,reverb:.05,priority:2});}
  equip(melee=false){const b=this.banks;if(!b)return;this.play(b.foley.draw,{gain:melee?.25:.3,rate:melee?1.25:.95+this.rand()*.1,reverb:.06,priority:1});}

@@ -7,7 +7,7 @@ const isTouch=()=>root.classList.contains('touch-mode');
 
 // Loading: the map being prepared and one short tip every few seconds, stopped as soon as the lobby shows.
 const TIPS=['Frena prima di sparare: da fermo il primo colpo va dove miri.','Raffiche brevi: il rinculo si ricompone in un attimo.','Con le cuffie senti da dove arrivano passi e ricariche.','Il fumogeno blocca la vista anche ai bot: usalo per attraversare.','Accovacciato o camminando con SHIFT i tuoi passi non si sentono.','Nella fase d’acquisto premi B: armi, giubbotto e granate.','In Officina scegli finiture e operatore: non cambiano danni né rinculo.','Due uccisioni nella Corsa alle armi e passi all’arma successiva.'];
-{const map=$('loadingmap'),tip=$('loadingtip'),loading=$('loading');if(map)map.textContent='PREPARAZIONE '+MAPS[mapKey];
+{const map=$('loadingmap'),tip=$('loadingtip'),loading=$('loading');if(map)map.textContent='PREPARAZIONE '+MAPS[mapKey];loading?.style.setProperty('--mapimg','url("assets/loading/'+mapKey+'.webp?v=42.0")');
  let n=Math.floor(Math.random()*TIPS.length),timer=0;const show=()=>{if(!tip)return;tip.classList.remove('in');void tip.offsetWidth;tip.textContent=TIPS[n++%TIPS.length];tip.classList.add('in');};
  const sync=()=>{clearInterval(timer);timer=0;if(!loading.hidden){show();timer=setInterval(show,4200);}};sync();watch(loading,sync);}
 

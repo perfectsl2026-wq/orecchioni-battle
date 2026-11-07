@@ -19,7 +19,8 @@ function textures(){
  // Bullet holes, scorch and burn marks live in impact-marks.js (colour + normal maps).
  return TEXTURES;
 }
-const TRACER_EVERY=[1,3,2,2,1,1],TRACER_SPAN=[4,4,5,5,9,0];
+// V45: shorter, brighter streaks.
+const TRACER_EVERY=[1,3,2,2,1,1],TRACER_SPAN=[2.6,2.6,3.2,3.2,6,0];
 const DUST={sahra:new THREE.Color(.74,.64,.5),caldera:new THREE.Color(.62,.6,.56),forge:new THREE.Color(.6,.6,.58)};
 // The two pooled flash lights live in the arena scene so shader light counts never change mid-match.
 export function createFlashLights(){const local=new THREE.PointLight(0xffc98a,0,10,2),remote=new THREE.PointLight(0xffcf96,0,12,2);local.castShadow=remote.castShadow=false;return {local,remote,localAge:1,remoteAge:1,localPeak:0,remotePeak:0,remoteSpan:.06};}
@@ -39,7 +40,7 @@ export function dressMuzzleFlash(flash,scale=1){
  flash.userData.flicker=()=>{star.rotation.z=Math.random()*Math.PI*2;star.scale.setScalar(.8+Math.random()*.55);glow.rotation.z=Math.random()*Math.PI*2;petals.forEach((p,i)=>{p.rotation.z=i*Math.PI/2+(Math.random()-.5)*.6;p.scale.set(.75+Math.random()*.5,1,.6+Math.random()*.8);});};
 }
 export class CombatFX{
- constructor(scene){this.scene=scene;this.marks=[];this.particles=[];this.trails=[];this.puffs=[];this.sparkList=[];this.lights=null;this.trailGeo=new THREE.CylinderGeometry(1,1,1,6);this.trailMat=new THREE.MeshBasicMaterial({color:0xffc98a,transparent:true,opacity:.3,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});this.coreMat=new THREE.MeshBasicMaterial({color:0xfff2d8,transparent:true,opacity:.85,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});this.camera=null;this.perMetre=.00157;
+ constructor(scene){this.scene=scene;this.marks=[];this.particles=[];this.trails=[];this.puffs=[];this.sparkList=[];this.lights=null;this.trailGeo=new THREE.CylinderGeometry(1,1,1,6);this.trailMat=new THREE.MeshBasicMaterial({color:0xffc98a,transparent:true,opacity:.3,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});this.coreMat=new THREE.MeshBasicMaterial({color:new THREE.Color(2.2,1.9,1.5),transparent:true,opacity:.95,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});this.camera=null;this.perMetre=.00157;
   const t=textures();this.markGeo=new THREE.PlaneGeometry(1,1);
   // V31 marks: colour and normal maps per material, a pool deep enough for a whole round.
   this.markMats={};for(const kind of ['stone','sand','metal','wood','blood','scorch','burn','slash'])this.markMats[kind]=markMaterial(kind);this.markMat=this.markMats.stone;
@@ -134,10 +135,17 @@ export class CombatFX{
   return material;
  }
  // V42: where a round enters a body, a warm flash for two frames; a helmet throws sparks. Both from the warmed pools.
- hitFlash(point,direction,helmet=false){
-  if(!Array.isArray(point)||!point.every(Number.isFinite))return;const at=this.near.set(point[0],point[1],point[2]);this.glow(at,{size:helmet?.32:.22,life:.07,color:this.hitColor??=new THREE.Color(2.6,1.5,.8)});
-  if(helmet){const back=Array.isArray(direction)?this.work.set(-direction[0],-direction[1],-direction[2]).normalize():this.work.set(0,1,0);for(let n=0;n<9;n++)this.spark(at,this.delta.copy(back).multiplyScalar(1.5+Math.random()*3).add(this.end.set((Math.random()-.5)*3,Math.random()*2.5,(Math.random()-.5)*3)),.08+Math.random()*.14);}
+ // V45: a helmet that stops a headshot flashes cold white-blue with a spray of sparks; a vest hit throws a
+ // short grey-blue puff of fabric dust and two or three sparks. Visual only.
+ hitFlash(point,direction,helmet=false,armor=false){
+  if(!Array.isArray(point)||!point.every(Number.isFinite))return;const at=this.near.set(point[0],point[1],point[2]);
+  this.glow(at,{size:helmet?.42:.22,life:helmet?.09:.07,color:helmet?(this.helmetColor??=new THREE.Color(2.2,2.7,3.6)):(this.hitColor??=new THREE.Color(2.6,1.5,.8))});
+  const back=Array.isArray(direction)?this.work.set(-direction[0],-direction[1],-direction[2]).normalize():this.work.set(0,1,0);
+  if(helmet)for(let n=0;n<12;n++)this.spark(at,this.delta.copy(back).multiplyScalar(1.5+Math.random()*3).add(this.end.set((Math.random()-.5)*3,Math.random()*2.5,(Math.random()-.5)*3)),.08+Math.random()*.16);
+  else if(armor){this.puff(at,{color:this.vestColor??=new THREE.Color(.62,.66,.7),size:.09,grow:.42,life:.45,opacity:.7,velocity:this.end.copy(back).multiplyScalar(.9),rise:.1,drag:4});for(let n=0;n<3;n++)this.spark(at,this.delta.copy(back).multiplyScalar(1+Math.random()*2).add(this.end.set((Math.random()-.5)*2,Math.random()*1.5,(Math.random()-.5)*2)),.05+Math.random()*.07);}
  }
+ // V45: after a burst of three or more, a thin wisp leaves the muzzle and drifts up.
+ barrelWisp(camera,muzzle){if(!muzzle||!camera)return;const at=this.muzzleWorld(camera,muzzle,new THREE.Vector3());for(let n=0;n<3;n++)this.puff(at.clone().add(new THREE.Vector3(0,n*.02,0)),{color:new THREE.Color(.78,.78,.76),size:.025,grow:.22+n*.06,life:1.1+n*.35,opacity:.2-n*.04,velocity:new THREE.Vector3((Math.random()-.5)*.05,.18+n*.06,(Math.random()-.5)*.05),rise:.12,drag:1.2});}
  // HE blast scorches the ground; a burnt-out fire leaves its black patch behind.
  scorch(point){if(!Array.isArray(point)||!point.every(Number.isFinite))return;const g=groundHeight(point[0],point[2]);if(point[1]-g>2.5)return;this.decal(new THREE.Vector3(point[0],g+.006,point[2]),new THREE.Vector3(0,1,0),'scorch',markSize('scorch'));}
  burn(point){if(!Array.isArray(point)||!point.every(Number.isFinite))return;this.decal(new THREE.Vector3(point[0],groundHeight(point[0],point[2])+.005,point[2]),new THREE.Vector3(0,1,0),'burn',markSize('burn'));}
@@ -170,13 +178,13 @@ export class CombatFX{
   for(let n=0;n<24;n++)this.spark(at.clone().add(new THREE.Vector3(0,.4,0)),new THREE.Vector3((Math.random()-.5)*18,3+Math.random()*12,(Math.random()-.5)*18),.4+Math.random()*.6);
  }
  // `at`: where the case leaves, in camera space (the OB-510 AVERLA's ejection port); otherwise the rifles' usual spot.
- casing(camera,at=null){const p=this.particle(true);(at?p.m.position.copy(at):p.m.position.set(.22,-.17,-.42)).applyMatrix4(camera.matrixWorld);p.v.set(1.4+Math.random()*.5,1+Math.random()*.4,-.2).applyQuaternion(camera.quaternion);p.life=2.2;}
+ casing(camera,at=null){const p=this.particle(true);(at?p.m.position.copy(at):p.m.position.set(.22,-.17,-.42)).applyMatrix4(camera.matrixWorld);p.v.set(1.4+Math.random()*.5,1+Math.random()*.4,-.2).applyQuaternion(camera.quaternion);p.spin.set(18+Math.random()*14,(Math.random()-.5)*10,(Math.random()-.5)*24);p.life=2.4;}
  update(dt){
   if(this.camera&&this.trails.length)this.perMetre=.00157*Math.sqrt(720/Math.max(360,innerHeight))*Math.tan(this.camera.fov*Math.PI/360)/Math.tan(39*Math.PI/180);
   for(let i=this.trails.length-1;i>=0;i--){const t=this.trails[i];this.placeTrail(t,dt);if(t.age>t.length/t.speed+.025){this.releaseTrail(t);this.trails.splice(i,1);}}
   for(let i=this.particles.length-1;i>=0;i--){const p=this.particles[i];p.life-=dt;p.v.y-=9.8*dt;p.m.position.addScaledVector(p.v,dt);p.m.rotation.x+=dt*p.spin.x;p.m.rotation.y+=dt*p.spin.y;p.m.rotation.z+=dt*p.spin.z;
    const floor=groundHeight(p.m.position.x,p.m.position.z)+(p.casing?.0045:.006);
-   if(p.m.position.y<floor){p.m.position.y=floor;if(p.casing&&p.bounces<3){p.bounces++;p.v.multiplyScalar(.38);p.v.y=Math.abs(p.v.y)*.45+.2/(p.bounces+1);p.spin.multiplyScalar(.5);}else{p.v.set(0,0,0);p.spin.set(0,0,0);if(p.casing)p.m.rotation.x=Math.PI/2;}}
+   if(p.m.position.y<floor){p.m.position.y=floor;if(p.casing&&p.bounces<3){p.bounces++;p.v.multiplyScalar(.38);p.v.y=Math.abs(p.v.y)*.45+.2/(p.bounces+1);p.spin.multiplyScalar(.5);}else{p.v.set(0,0,0);p.spin.set(0,0,0);if(p.casing){p.m.rotation.x=Math.PI/2;p.m.rotation.z=p.rest??=Math.random()*6.28;}}}
    if(p.life<=0){this.releaseParticle(p);this.particles.splice(i,1);}}
   for(let i=this.puffs.length-1;i>=0;i--){const p=this.puffs[i];p.age+=dt;const u=p.age/p.life;if(u>=1){p.s.removeFromParent();this.freePuffs.push(p);this.puffs.splice(i,1);continue;}p.v.multiplyScalar(Math.exp(-p.drag*dt));p.v.y+=p.rise*dt;p.s.position.addScaledVector(p.v,dt);p.s.scale.setScalar(p.size+p.grow*(1-Math.pow(1-u,2.2)));p.s.material.opacity=p.opacity*(1-u)*(1-u)*Math.min(1,p.age/.04);p.s.material.rotation+=dt*.3;}
   for(let i=this.glows.length-1;i>=0;i--){const g=this.glows[i];g.age+=dt;const u=g.age/g.life;if(u>=1){g.s.removeFromParent();this.freeGlows.push(g);this.glows.splice(i,1);continue;}g.s.material.opacity=(1-u)*(1-u);g.s.scale.setScalar(g.size*(.8+u*.5));}
