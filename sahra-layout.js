@@ -1,24 +1,24 @@
-import {sahraGround} from './sahra-terrain.js?v=41.0';
-import {SAHRA_INFILL} from './sahra-infill.js?v=41.0';
-import {vehicleSolids} from './vehicles.js?v=41.0';
-// SAHRA / 13, original three-lane desert district (V29). T caravanserai south,
-// CT plateau north. A lane: covered souk, colonnaded arcade, fountain court and
-// ramp. Mid: a split-level piazza with a CT loggia and two links (A alley,
+import {sahraGround} from './sahra-terrain.js?v=42.0';
+import {SAHRA_INFILL} from './sahra-infill.js?v=42.0';
+import {vehicleSolids} from './vehicles.js?v=42.0';
+// SAHRA / 13, three-lane desert district (V29). Attackers' caravanserai south,
+// defenders' plateau north. A lane: covered souk, colonnaded arcade, fountain court and
+// ramp. Mid: a split-level piazza with a defenders' loggia and two links (A alley,
 // B hammam). B lane: twisting alleys, a well court and a gated entry.
 // Rectangles are WALKABLE spaces; their complement becomes shared solid blocks.
 export const SAHRA_WALK=[
  [-12,12,32,46,'CARAVANSERRAGLIO'],[-22,-12,34,44,'USCITA OVEST'],[12,22,34,44,'USCITA EST'],[-4,4,12,32,'MERCATO'],
  [22,34,28,44,'SOUK'],[24,32,12,28,'ARCADE'],[22,42,-12,12,'FONTANA'],[30,38,-24,-12,'RAMPA A'],[22,44,-42,-24,'SITO A'],
- [-10,12,-10,12,'PIAZZA'],[6,12,-36,-10,'LOGGIA'],[12,18,-8,0,'PASSAGGIO A'],[14,20,-34,-8,'VICOLO A'],[20,22,-34,-28,'VICOLO A'],
+ [-10,12,-10,12,'PIAZZA'],[6,12,-36,-10,'LOGGIA'],[12,18,-8,0,'PASSAGGIO A'],[14,20,-34,-8,'VICOLO A'],[18,22,-6,-2,'VARCO A'],[-26,-24,-6,-2,'VARCO B'],[20,22,-34,-28,'VICOLO A'],
  [-24,-10,-8,0,'HAMMAM'],[-24,-18,-38,-8,'CORRIDOIO B'],[-26,-24,-38,-32,'CORRIDOIO B'],
  [-34,-22,36,44,'VICOLI'],[-32,-26,14,36,'VICOLI'],[-42,-26,-8,14,'CORTE B'],[-34,-28,-22,-8,'PORTA B'],[-46,-26,-42,-22,'SITO B'],
- [-2,18,-50,-36,'CT'],[18,22,-42,-38,'CT A'],[-30,-2,-50,-44,'VIA CT'],[-30,-26,-44,-42,'VIA CT']
+ [-2,18,-50,-36,'ALTOPIANO'],[18,22,-42,-38,'ALTOPIANO A'],[-30,-2,-50,-44,'VIA ALTOPIANO'],[-30,-26,-44,-42,'VIA ALTOPIANO']
 ];
 export const sahraWalkable=(x,z)=>SAHRA_WALK.some(r=>x>=r[0]&&x<=r[1]&&z>=r[2]&&z<=r[3]);
 // Covered spaces: interior paving, warm practical lights and no posters.
 export const SAHRA_INTERIORS=[[22,34,28,44,'souk'],[-24,-10,-8,0,'hammam'],[6,12,-22,-10,'loggia']];
 export const sahraInterior=(x,z)=>SAHRA_INTERIORS.find(r=>x>=r[0]&&x<=r[1]&&z>=r[2]&&z<=r[3]);
-// Roof heights by district: the hotel rises over A as its landmark, the kasbah walls
+// Roof heights by district: the tall frontage rises over A as its landmark, the fort walls
 // stand tall around B, the souk and caravanserai stay low, the rest varies by lot.
 function skyline(x,z,n){
  if(x>18&&z<-20)return x>30&&z<-30?13.4:11.8;
@@ -45,23 +45,23 @@ const footprint=(x,z,w,d)=>Math.min(sahraGround(x,z),...[-1,1].flatMap(a=>[-1,1]
 const tree=(x,z,size=1.6,h=.7)=>{const top=sahraGround(x,z)+h;return [[x,z,size,size,h,5,undefined,'planter'],[x,z,.32,.32,h+2.1,4,top,'trunk']];};
 const COVER=[
  // A site: default stack, ramp planter, link crate, service van; plant centre stays open.
- [38.4,-29.6,2.4,2.4,1.9,1],[34,-26.2,4.2,1.2,1.05,5],[25.2,-36,2,2,1.3,1],[41.6,-37.4,2.1,4.4,0,2],[28.4,-40.2,2.6,1.6,1.15,6],
+ [38.4,-29.6,2.4,2.4,1.9,1],[33.4,-26.2,6,1.2,2.3,5],[25.2,-36,2,2,1.3,1],[41.6,-37.4,2.1,4.4,0,2],[28.4,-40.2,2.6,1.6,1.15,6],
  // Fountain court: stone basin and spout break the arcade-to-ramp sightline.
  [32,-.2,4.4,4.4,.9,5,undefined,'basin'],[32,-.2,.9,.9,2.3,4,undefined,'spout'],...tree(24.6,10.2),...tree(40,-10.6),[25,-8.4,2,2,1.35,1],[39.6,7.4,2.2,2.2,1.5,1],[39.8,-7.8,1.6,2.8,1.25,3],
  // Colonnaded arcade (east side) and souk stalls.
  ...[14.5,19.5,24.5].map(z=>[31.2,z,.7,.7,4.1,4]),[24.6,32.6,1.8,3,1.3,3],[31.6,38.8,1.8,3,1.3,3],[28,43,3,1.4,1.5,1],
  // Market stalls zigzag up mid; piazza kiosk and upper planter.
- [-2.4,26.4,2.2,3,1.35,3],[2.4,19.6,2.2,3,1.35,3],[6.6,8.2,2.4,2.4,2.2,6],[-1,2.5,1.2,7,.9,5,undefined,'rill'],[-4.4,-5.4,4.6,1.2,1,5,undefined,'planter'],[-5.8,-5.4,.32,.32,3.1,4,1.8,'trunk'],[-3,-5.4,.32,.32,3.1,4,1.8,'trunk'],...tree(-8.4,10.4),...tree(10.4,10.4),[9.4,-6.2,1.6,1.6,1.2,1],
+ [-2.4,26.4,2.2,3,1.35,3],[2.4,19.6,2.2,3,1.35,3],[6.6,8.2,2.4,2.4,2.2,6],[-1,2.5,1.2,7,.9,5,undefined,'rill'],[-4.4,-5.4,4.6,1.2,1,5,undefined,'planter'],[-5.8,-5.4,.32,.32,3.1,4,1.8,'trunk'],[-3,-5.4,.32,.32,3.1,4,1.8,'trunk'],...tree(-8.4,10.4),...tree(10.4,10.4),
  // Hammam pier, B corridor crates, alley jars.
- [-19,-4,1.1,1.1,4,4],[-19,-19.8,1.6,1.6,1.3,1],[-22.4,-30.4,1.6,2,1.3,1],[16.4,-15,1.6,1.6,1.3,1],
+ [-19,-4,1.1,1.1,4,4],[-22.4,-30.4,1.6,2,1.3,1],[15,-12.4,1.6,1.6,1.3,1],
  // Well court: a closed sabil kiosk breaks the alleys-to-gate line; the well and
  // the cart are low cover on either side of it.
  [-30,-2,3,3,3.4,8],[-38,1,3,3,1,5,undefined,'well'],[-27.4,4.6,1.6,2.6,1.4,3],[-39.4,9.6,2,2,1.4,1],[-29,30,1.6,1.6,1.2,1],
- // B site: gate planter, entry stack, kasbah cart.
- [-31,-25,3.2,1.4,1.1,5],[-28,-36.6,2.2,2.2,1.8,1],[-43.4,-25.6,2,3,1.25,3],[-32.6,-40.6,2.4,1.4,1.2,6],
+ // B site: gate planter, entry stack, market cart.
+ [-31,-25,3.2,1.4,2.3,5],[-28,-36.6,2.2,2.2,1.8,1],[-43.4,-25.6,2,3,1.25,3],[-32.6,-40.6,2.4,1.4,1.2,6],
  // B terrace parapets and the stair balustrade: real low walls, never a ledge.
  [-43,-32.2,6,.4,1,5,-.03],[-40.2,-33.1,.4,1.8,1,5,-.03],[-37,-34.2,6,.4,1.6,5],
- // Spawns and the CT walk.
+ // Spawns and the defenders' walk.
  [-8,44.2,3,1.4,1.4,1],[9.6,34.4,2,2,1.2,1],[-1.5,35.6,2.6,1.6,1.3,3],...tree(10.6,44.6),...tree(-10.6,33.6),...tree(16.6,-48.6),[-14,-47,2,2,1.3,1],[1,-38.4,2.4,1.4,1.2,6],[9,-39.4,3,1,1,5],[14.6,-38.7,2.1,4.4,0,2]
 ];
 const cover=COVER.map(([x,z,w,d,h,kind,low,role])=>{const y=sahraGround(x,z),base=kind===2?y+.195:low??footprint(x,z,w,d)-.03,top=kind===2?y+.745:y+h;return role?[x,z,w,d,top,kind,base,role]:[x,z,w,d,top,kind,base];});
@@ -70,27 +70,27 @@ const arch=(x,z,width,axis,{spring=2.6,rise=1,height=6,depth=.7,doors=false}={})
 const ARCHES=[
  arch(-31,-15,6,'z',{doors:true,height:6.2}),arch(21,-31,6,'x',{doors:true}),arch(-16,-4,8,'x',{doors:true,rise:1.2,height:5.6}),
  arch(28,27,8,'z',{rise:1.4,height:6.4}),arch(34,-22.6,8,'z',{spring:2.8,rise:1.6,height:7.2,depth:.9}),arch(0,13,8,'z',{rise:1.2}),
- arch(9,-11,6,'z'),arch(13,-4,8,'x'),arch(-29,15,6,'z'),arch(-25,-35,6,'x'),arch(20,-40,4,'x',{spring:2.4,rise:.8,height:5.4}),arch(-28,-43,4,'z',{spring:2.4,rise:.8,height:5.4})
+ arch(9,-11,6,'z'),arch(13,-4,8,'x'),arch(-29,15,6,'z'),arch(-25,-35,6,'x'),arch(20,-40,4,'x',{spring:2.4,rise:.8,height:5.4}),arch(-28,-43,4,'z',{spring:2.4,rise:.8,height:5.4}),arch(20,-4,4,'x',{spring:2.4,rise:.8,height:5.4}),arch(-25,-4,4,'x',{spring:2.4,rise:.8,height:5.4})
 ];
-export const SAHRA={id:'sahra',title:'SAHRA / 13',short:'SAHRA',description:'Distretto del deserto · Minaret A / Riwaq B · souk, piazza, vicoli · competitiva 5v5',
+export const SAHRA={id:'sahra',title:'SAHRA / 13',short:'SAHRA',description:'Distretto del deserto · Minaret A / Riwaq B · souk, piazza, vicoli · squadra 5v5',
  ground:sahraGround,bounds:{x:47.2,z:51.2},walls:[...walls,...cover],arches:ARCHES,
  spawns:{orange:[[-8,40],[-4,40],[0,40],[4,40],[8,40]],blue:[[0,-44],[4,-44],[8,-44],[12,-44],[16,-44]]},spawnYaw:{orange:0,blue:Math.PI},
  menuCamera:{position:[30,2.3,10],look:[33,5,-34]},
  // Bot routes per T approach (waypoints in order) and defender holds per site:
  // x, z and the entrance each hold watches.
- sites:[{id:'A',name:'MINARET',x:33,z:-34,radius:4.5,approaches:['ramp','link','ct'],routes:{ramp:[[17,39],[28,36],[28,20],[30,4],[34,-16]],link:[[0,24],[2,6],[15,-4],[17,-18],[21,-31]]},holds:[[38,-33,34,-24],[26,-38,21,-31],[39.5,-41,34,-24],[30,-30,21,-31]],watch:[[34,-24],[21,-31]]},
-  {id:'B',name:'RIWAQ',x:-31,z:-29,radius:4.5,approaches:['gate','hammam','ct'],routes:{gate:[[-17,39],[-29,30],[-30,10],[-34,4],[-31,-10]],hammam:[[0,24],[2,6],[-12.5,-4],[-21,-14],[-21,-32],[-25,-35]]},holds:[[-43,-36,-31,-22],[-28,-40,-25,-35],[-36,-27,-31,-22],[-27.5,-24,-25,-35]],watch:[[-31,-22],[-25,-35]]}],
+ sites:[{id:'A',name:'MINARET',x:33,z:-34,radius:4.5,approaches:['ramp','link','difesa'],routes:{ramp:[[17,39],[28,36],[28,20],[30,4],[34,-16]],link:[[0,24],[2,6],[15,-4],[17,-18],[21,-31]],varco:[[0,24],[2,6],[15,-4],[21,-4],[30,-8],[34,-16]]},holds:[[36.5,-33,37.2,-25],[26,-38,21,-31],[36,-41,37.2,-25],[30,-30,29.5,-25]],watch:[[37.2,-25],[29.5,-25],[21,-31]]},
+  {id:'B',name:'RIWAQ',x:-31,z:-29,radius:4.5,approaches:['gate','hammam','difesa'],routes:{gate:[[-17,39],[-29,30],[-30,10],[-34,4],[-31,-10]],hammam:[[0,24],[2,6],[-12.5,-4],[-21,-14],[-21,-32],[-25,-35]],pozzo:[[0,24],[2,6],[-12.5,-4],[-25,-4],[-31,-10]]},holds:[[-43,-36,-34,-22],[-28,-40,-25,-35],[-36,-27,-31,-22],[-27.5,-24,-31,-21]],watch:[[-31,-22],[-25,-35]]}], midHold:[-1,-7,0,13],
  labPoints:{MID:{x:1,z:2},SOUK:{x:30,z:20},FONT:{x:32,z:-6},LINK:{x:17,z:-14},CORTE:{x:-31,z:-3},HAM:{x:-18,z:-4}},
- navAreas:[[0,40],[-17,39],[17,39],[28,36],[28,20],[27,4],[37,-4],[34,-18],[33,-34],[26,-30],[40,-40],[0,24],[2,6],[2,-6],[9,-18],[9,-30],[15,-4],[17,-20],[-17,-4],[-21,-16],[-21,-32],
-  [-28,40],[-29,25],[-36,4],[-31,-12],[-31,-29],[-43,-36],[-28,-40],[8,-44],[20,-40],[-16,-47]].map(([x,z])=>({x,z})),
+ navAreas:[[0,40],[-17,39],[17,39],[28,36],[28,20],[27,4],[37,-4],[34,-18],[33,-34],[26,-30],[40,-40],[0,24],[2,6],[-1,-6],[9,-18],[9,-30],[15,-4],[17,-20],[-17,-4],[-21,-16],[-21,-32],
+  [-28,40],[-29,25],[-36,4],[-31,-12],[-31,-29],[-43,-36],[-28,-40],[8,-44],[20,-40],[-16,-47],[20,-4],[-25,-4]].map(([x,z])=>({x,z})),
  ballisticBoxes:[],movementBoxes:[],ballisticCylinders:[],
- // Visit-mode viewpoints: x, z, yaw (0 faces north, towards CT).
- visits:{spawn:[0,40,0,'Partenza T · caravanserraglio'],mercato:[0,26,0,'Mercato · verso la piazza'],souk:[28,38,0,'Souk coperto · corsia A'],arcade:[28,22,0,'Arcata · colonne'],
+ // Visit-mode viewpoints: x, z, yaw (0 faces north, towards the defenders).
+ visits:{spawn:[0,40,0,'Partenza attacco · caravanserraglio'],mercato:[0,26,0,'Mercato · verso la piazza'],souk:[28,38,0,'Souk coperto · corsia A'],arcade:[28,22,0,'Arcata · colonne'],
   fontana:[30,8,0,'Corte della fontana · ingresso A'],rampa:[34,-14,0,'Rampa A · verso il sito'],a:[33,-28,0,'Sito A · Minaret'],piazza:[1,8,0,'Piazza · due livelli'],
-  loggia:[9,-32,Math.PI,'Loggia CT · sopra la piazza'],passaggio:[14,-4,-Math.PI/2,'Passaggio A · dal centro'],vicolo:[17,-12,0,'Vicolo A · scale'],hammam:[-12.5,-4,Math.PI/2,'Hammam · verso B'],
-  corridoio:[-21,-12,0,'Corridoio B'],vicoli:[-29,26,0,'Vicoli · corsia B'],corte:[-34,9,0,'Corte del pozzo · ingresso B'],porta:[-31,-12,0,'Porta B · battenti'],b:[-28,-27,0,'Sito B · Riwaq'],ct:[8,-44,Math.PI,'Partenza CT']},
+  loggia:[9,-32,Math.PI,'Loggia difesa · sopra la piazza'],passaggio:[14,-4,-Math.PI/2,'Passaggio A · dal centro'],vicolo:[17,-12,0,'Vicolo A · scale'],hammam:[-12.5,-4,Math.PI/2,'Hammam · verso B'],
+  corridoio:[-21,-12,0,'Corridoio B'],vicoli:[-29,26,0,'Vicoli · corsia B'],corte:[-34,9,0,'Corte del pozzo · ingresso B'],porta:[-31,-12,0,'Porta B · battenti'],b:[-28,-27,0,'Sito B · Riwaq'],difesa:[8,-44,Math.PI,'Partenza difesa']},
 
- lobby:{kicker:'COMPETITIVA · 5 CONTRO 5',name:'SAHRA',code:'13',subtitle:'DISTRETTO DEL DESERTO',lanes:'3 corsie',tagline:'Distretto del deserto. Souk coperto e corte della fontana verso A, piazza su due livelli al centro, vicoli e hammam verso B.'},
+ lobby:{kicker:'SQUADRA · 5 CONTRO 5',name:'SAHRA',code:'13',subtitle:'DISTRETTO DEL DESERTO',lanes:'3 corsie',tagline:'Distretto del deserto. Souk coperto e corte della fontana verso A, piazza su due livelli al centro, vicoli e hammam verso B.'},
  interiors:SAHRA_INTERIORS,walk:SAHRA_WALK
 };
 // Open, angled double leaves. The same oriented boxes drive mesh, walking and shots.

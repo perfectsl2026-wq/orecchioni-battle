@@ -1,6 +1,6 @@
 import * as THREE from './vendor/three.module.js';
-import {WALLS,ARCHES,MAPS,ACTIVE_MAP,groundHeight,wallDistance} from './shared.js?v=41.0';
-import {markMaterial,markSize} from './impact-marks.js?v=41.0';
+import {WALLS,ARCHES,MAPS,ACTIVE_MAP,groundHeight,wallDistance} from './shared.js?v=42.0';
+import {markMaterial,markSize} from './impact-marks.js?v=42.0';
 // Procedural textures are generated from typed arrays: no canvas, no image files.
 function hash(x,y){const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);}
 function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);const a=hash(ix,iy),b=hash(ix+1,iy),c=hash(ix,iy+1),d=hash(ix+1,iy+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
@@ -19,24 +19,30 @@ function textures(){
  // Bullet holes, scorch and burn marks live in impact-marks.js (colour + normal maps).
  return TEXTURES;
 }
+const TRACER_EVERY=[1,3,2,2,1,1],TRACER_SPAN=[4,4,5,5,9,0];
 const DUST={sahra:new THREE.Color(.74,.64,.5),caldera:new THREE.Color(.62,.6,.56),forge:new THREE.Color(.6,.6,.58)};
 // The two pooled flash lights live in the arena scene so shader light counts never change mid-match.
 export function createFlashLights(){const local=new THREE.PointLight(0xffc98a,0,10,2),remote=new THREE.PointLight(0xffcf96,0,12,2);local.castShadow=remote.castShadow=false;return {local,remote,localAge:1,remoteAge:1,localPeak:0,remotePeak:0,remoteSpan:.06};}
-// Star, petals and core randomised per shot; additive and unlit like a real flash.
+// Star, petals and core randomised per shot; additive and unlit like a real flash. V42: drawn over the gun and glove
+// (the hands pass has no depth to respect for a flash at the muzzle), with a soft glow that fades over the flash's life.
 export function dressMuzzleFlash(flash,scale=1){
  if(!flash||flash.userData.dressed)return;flash.userData.dressed=true;const t=textures();
- const star=new THREE.Mesh(new THREE.PlaneGeometry(.15*scale,.15*scale),new THREE.MeshBasicMaterial({map:t.flash,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,color:new THREE.Color(1.6,1.25,.85)}));
- const petalMaterial=new THREE.MeshBasicMaterial({map:t.petal,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,color:new THREE.Color(1.4,1.05,.7)});
+ TEXTURES.glow??=dataTexture(64,(x,y)=>{const r=Math.hypot(x,y);return [1,.78,.5,Math.exp(-r*r*5.5)*(1-smooth(.8,1,r))];});
+ const over=m=>{m.depthTest=false;m.depthWrite=false;return m;};
+ const star=new THREE.Mesh(new THREE.PlaneGeometry(.15*scale,.15*scale),over(new THREE.MeshBasicMaterial({map:t.flash,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,color:new THREE.Color(1.6,1.25,.85)})));
+ const petalMaterial=over(new THREE.MeshBasicMaterial({map:t.petal,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,color:new THREE.Color(1.4,1.05,.7)}));
  const petalGeometry=new THREE.PlaneGeometry(.075*scale,.24*scale);petalGeometry.rotateX(-Math.PI/2);petalGeometry.translate(0,0,-.12*scale);
  const petals=[0,1].map(i=>{const m=new THREE.Mesh(petalGeometry,petalMaterial);m.rotation.z=i*Math.PI/2;return m;});
- star.position.z=-.012;for(const c of flash.children){c.scale.multiplyScalar(.7);}flash.add(star,...petals);
- flash.userData.flicker=()=>{star.rotation.z=Math.random()*Math.PI*2;star.scale.setScalar(.8+Math.random()*.55);petals.forEach((p,i)=>{p.rotation.z=i*Math.PI/2+(Math.random()-.5)*.6;p.scale.set(.75+Math.random()*.5,1,.6+Math.random()*.8);});};
+ const glow=new THREE.Mesh(new THREE.PlaneGeometry(.38*scale,.38*scale),over(new THREE.MeshBasicMaterial({map:TEXTURES.glow,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide,color:new THREE.Color(1,.75,.45),opacity:.55})));
+ star.position.z=-.012;glow.position.z=-.03;for(const c of flash.children){c.scale.multiplyScalar(.7);if(c.material)over(c.material);c.renderOrder=20;}
+ for(const m of [star,...petals])m.renderOrder=21;glow.renderOrder=20;flash.add(glow,star,...petals);flash.userData.glow=glow;
+ flash.userData.flicker=()=>{star.rotation.z=Math.random()*Math.PI*2;star.scale.setScalar(.8+Math.random()*.55);glow.rotation.z=Math.random()*Math.PI*2;petals.forEach((p,i)=>{p.rotation.z=i*Math.PI/2+(Math.random()-.5)*.6;p.scale.set(.75+Math.random()*.5,1,.6+Math.random()*.8);});};
 }
 export class CombatFX{
- constructor(scene){this.scene=scene;this.marks=[];this.particles=[];this.trails=[];this.puffs=[];this.sparkList=[];this.lights=null;this.trailGeo=new THREE.CylinderGeometry(1,1,1,6);this.trailMat=new THREE.MeshBasicMaterial({color:0xffdeb0,transparent:true,opacity:.32,depthWrite:false,toneMapped:false});this.coreMat=new THREE.MeshBasicMaterial({color:0xfff5df,transparent:true,opacity:.65,depthWrite:false,toneMapped:false});
+ constructor(scene){this.scene=scene;this.marks=[];this.particles=[];this.trails=[];this.puffs=[];this.sparkList=[];this.lights=null;this.trailGeo=new THREE.CylinderGeometry(1,1,1,6);this.trailMat=new THREE.MeshBasicMaterial({color:0xffc98a,transparent:true,opacity:.3,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});this.coreMat=new THREE.MeshBasicMaterial({color:0xfff2d8,transparent:true,opacity:.85,depthWrite:false,toneMapped:false,blending:THREE.AdditiveBlending});this.camera=null;this.perMetre=.00157;
   const t=textures();this.markGeo=new THREE.PlaneGeometry(1,1);
   // V31 marks: colour and normal maps per material, a pool deep enough for a whole round.
-  this.markMats={};for(const kind of ['stone','sand','metal','wood','blood','scorch','burn'])this.markMats[kind]=markMaterial(kind);this.markMat=this.markMats.stone;
+  this.markMats={};for(const kind of ['stone','sand','metal','wood','blood','scorch','burn','slash'])this.markMats[kind]=markMaterial(kind);this.markMat=this.markMats.stone;
   this.chipGeo=new THREE.IcosahedronGeometry(.013,0);this.splinterGeo=new THREE.BoxGeometry(.006,.006,.04);this.dropGeo=new THREE.IcosahedronGeometry(.008,0);
   this.chipMats={stone:new THREE.MeshStandardMaterial({color:0xb4a790,roughness:1}),sand:new THREE.MeshStandardMaterial({color:0xc4ae8a,roughness:1}),wood:new THREE.MeshStandardMaterial({color:0x8a6a45,roughness:.95}),metal:new THREE.MeshStandardMaterial({color:0x8d9493,roughness:.5,metalness:.7}),blood:new THREE.MeshStandardMaterial({color:0x5a0a0a,roughness:.35})};this.chipMat=this.chipMats.stone;
   this.casingGeo=new THREE.CylinderGeometry(.0045,.0045,.026,8);this.casingMat=new THREE.MeshStandardMaterial({color:0xc9a55a,metalness:.85,roughness:.32});
@@ -49,7 +55,7 @@ export class CombatFX{
   const sparkCount=96;this.sparkPositions=new Float32Array(sparkCount*6);this.sparkGeometry=new THREE.BufferGeometry();this.sparkGeometry.setAttribute('position',new THREE.BufferAttribute(this.sparkPositions,3));this.sparkGeometry.setDrawRange(0,0);
   this.sparkMesh=new THREE.LineSegments(this.sparkGeometry,new THREE.LineBasicMaterial({color:new THREE.Color(4,2.2,.9),transparent:true,opacity:.95,depthWrite:false,blending:THREE.AdditiveBlending}));this.sparkMesh.frustumCulled=false;
   this.freeSparks=Array.from({length:sparkCount},()=>({p:new THREE.Vector3(),v:new THREE.Vector3(),life:0}));
-  this.start=new THREE.Vector3();this.end=new THREE.Vector3();this.delta=new THREE.Vector3();this.normal=new THREE.Vector3();this.up=new THREE.Vector3(0,1,0);this.front=new THREE.Vector3(0,0,1);this.work=new THREE.Vector3();this.spin=new THREE.Quaternion();
+  this.start=new THREE.Vector3();this.near=new THREE.Vector3();this.end=new THREE.Vector3();this.delta=new THREE.Vector3();this.normal=new THREE.Vector3();this.up=new THREE.Vector3(0,1,0);this.front=new THREE.Vector3(0,0,1);this.work=new THREE.Vector3();this.spin=new THREE.Quaternion();
  }
  releaseTrail(t){t.root.removeFromParent();this.freeTrails.push(t);}
  releaseParticle(p){p.m.removeFromParent();this.freeParticles.push(p);}
@@ -67,19 +73,23 @@ export class CombatFX{
   if(!e.from.every(Number.isFinite)||!e.to.every(Number.isFinite))return;
   const start=this.start.set(...e.from),end=this.end.set(...e.to),ray=this.delta.subVectors(end,start),distance=ray.length();if(distance<.15)return;
   ray.normalize();
+  // Your own rifle shows a tracer every second round (every third on the SMG), as loaded belts do; every enemy round shows one.
+  if(camera)this.camera=camera;if(local&&(Math.max(1,e.shots||1)-1)%TRACER_EVERY[e.weapon]!==0)return;
   if(local&&camera&&muzzle){this.muzzleWorld(camera,muzzle,start);}
   else {start.addScaledVector(ray,Math.min(.5,distance*.15));start.y-=.12;}
   const delta=this.delta.subVectors(end,start),length=delta.length();if(length<.05)return;
   const trail=this.freeTrails.pop()||this.trails.shift();trail.root.removeFromParent();trail.start.copy(start);trail.end.copy(end);trail.dir.copy(delta).divideScalar(length);
-  trail.outer.scale.set(e.weapon===4?.005:.0035,1,e.weapon===4?.005:.0035);trail.core.scale.set(.0014,1,.0014);
   trail.root.quaternion.setFromUnitVectors(this.up,trail.dir);this.scene.add(trail.root);
-  Object.assign(trail,{length,age:0,speed:e.weapon===4?900:650,span:e.weapon===4?1.65:1});
+  Object.assign(trail,{length,age:0,speed:e.weapon===4?900:650,span:TRACER_SPAN[e.weapon]??5,width:e.weapon===4?1.4:1});
   this.trails.push(trail);this.placeTrail(trail,0);
  }
  muzzleWorld(camera,muzzle,target){muzzle.updateWorldMatrix(true,false);muzzle.getWorldPosition(target);camera.updateMatrixWorld();return target.applyMatrix4(camera.matrixWorld);}
  placeTrail(t,dt){
   t.age+=dt;const head=Math.min(t.length,.5+t.age*t.speed),tail=Math.max(0,head-t.span),visible=Math.max(.01,head-tail);
-  t.root.position.copy(t.start).addScaledVector(t.dir,(head+tail)/2);t.root.scale.y=visible;const fade=Math.max(0,Math.min(1,1-(t.age-t.length/t.speed)/.025));t.root.scale.x=t.root.scale.z=fade;
+  t.root.position.copy(t.start).addScaledVector(t.dir,(head+tail)/2);t.root.scale.y=visible;const fade=Math.max(0,Math.min(1,1-(t.age-t.length/t.speed)/.025));
+  // V42: a constant width on screen, about 1.4 px at 720p, from the camera's distance to the nearest point of the drawn streak.
+  let range=1;if(this.camera){const c=this.camera.position,w=this.work.subVectors(c,t.start),along=Math.max(tail,Math.min(head,w.dot(t.dir)));range=Math.max(.5,c.distanceTo(this.near.copy(t.start).addScaledVector(t.dir,along)));}
+  const r=Math.max(.0035,range*this.perMetre)*t.width*fade;t.outer.scale.set(r,1,r);t.core.scale.set(r*.4,1,r*.4);t.root.scale.x=t.root.scale.z=1;
  }
  // Classify the struck surface from the same shared solids used by collision and hitscan.
  surface(point,normal){
@@ -115,6 +125,19 @@ export class CombatFX{
   else{const ground=material==='sand';const count=ground?3:2;for(let n=0;n<count;n++)this.puff(pos.clone().addScaledVector(normal,.05+n*.03),{size:ground?.12:.08,grow:ground?.9:.55,life:.8+Math.random()*.5,opacity:ground?.5:.42,velocity:normal.clone().multiplyScalar((ground?.5:.8)+Math.random()*.5).add(new THREE.Vector3((Math.random()-.5)*.3,ground?.35+Math.random()*.4:.1,(Math.random()-.5)*.3)),rise:ground?.05:.12,color:material==='wood'?new THREE.Color(.55,.45,.33):undefined});}
   return material;
  }
+ // A blade on a solid: a scored line, a shower of sparks off anything hard, a few chips off the rest.
+ slash(point,direction){
+  const pos=new THREE.Vector3(...point),dir=new THREE.Vector3(...direction).normalize(),normal=this.surfaceNormal(point,dir).clone(),material=this.surface(point,normal),hard=material==='metal'||material==='stone';
+  this.decal(pos,normal,'slash',markSize('slash'));
+  if(hard){const reflect=this.work.copy(dir).reflect(normal);for(let n=material==='metal'?10:5;n>0;n--)this.spark(pos.clone().addScaledVector(normal,.01),reflect.clone().multiplyScalar(1.5+Math.random()*3.5).add(new THREE.Vector3((Math.random()-.5)*2.4,Math.random()*2.2-.4,(Math.random()-.5)*2.4)),.1+Math.random()*.18);}
+  else for(let n=0;n<2;n++){const p=this.particle(false,material);p.m.position.copy(pos).addScaledVector(normal,.03);p.v.copy(normal).multiplyScalar(.7+Math.random()).add(new THREE.Vector3((Math.random()-.5)*.8,Math.random(),(Math.random()-.5)*.8));p.life=.25+Math.random()*.3;}
+  return material;
+ }
+ // V42: where a round enters a body, a warm flash for two frames; a helmet throws sparks. Both from the warmed pools.
+ hitFlash(point,direction,helmet=false){
+  if(!Array.isArray(point)||!point.every(Number.isFinite))return;const at=this.near.set(point[0],point[1],point[2]);this.glow(at,{size:helmet?.32:.22,life:.07,color:this.hitColor??=new THREE.Color(2.6,1.5,.8)});
+  if(helmet){const back=Array.isArray(direction)?this.work.set(-direction[0],-direction[1],-direction[2]).normalize():this.work.set(0,1,0);for(let n=0;n<9;n++)this.spark(at,this.delta.copy(back).multiplyScalar(1.5+Math.random()*3).add(this.end.set((Math.random()-.5)*3,Math.random()*2.5,(Math.random()-.5)*3)),.08+Math.random()*.14);}
+ }
  // HE blast scorches the ground; a burnt-out fire leaves its black patch behind.
  scorch(point){if(!Array.isArray(point)||!point.every(Number.isFinite))return;const g=groundHeight(point[0],point[2]);if(point[1]-g>2.5)return;this.decal(new THREE.Vector3(point[0],g+.006,point[2]),new THREE.Vector3(0,1,0),'scorch',markSize('scorch'));}
  burn(point){if(!Array.isArray(point)||!point.every(Number.isFinite))return;this.decal(new THREE.Vector3(point[0],groundHeight(point[0],point[2])+.005,point[2]),new THREE.Vector3(0,1,0),'burn',markSize('burn'));}
@@ -146,8 +169,10 @@ export class CombatFX{
   for(let n=0;n<14;n++){const p=this.particle(false,ACTIVE_MAP==='sahra'?'sand':'stone');p.m.position.copy(at).y+=.3;p.v.set((Math.random()-.5)*12,4+Math.random()*8,(Math.random()-.5)*12);p.life=1.2+Math.random();p.m.scale.setScalar(1.5+Math.random()*2);}
   for(let n=0;n<24;n++)this.spark(at.clone().add(new THREE.Vector3(0,.4,0)),new THREE.Vector3((Math.random()-.5)*18,3+Math.random()*12,(Math.random()-.5)*18),.4+Math.random()*.6);
  }
- casing(camera){const p=this.particle(true);p.m.position.set(.22,-.17,-.42).applyMatrix4(camera.matrixWorld);p.v.set(1.4+Math.random()*.5,1+Math.random()*.4,-.2).applyQuaternion(camera.quaternion);p.life=2.2;}
+ // `at`: where the case leaves, in camera space (the OB-510 AVERLA's ejection port); otherwise the rifles' usual spot.
+ casing(camera,at=null){const p=this.particle(true);(at?p.m.position.copy(at):p.m.position.set(.22,-.17,-.42)).applyMatrix4(camera.matrixWorld);p.v.set(1.4+Math.random()*.5,1+Math.random()*.4,-.2).applyQuaternion(camera.quaternion);p.life=2.2;}
  update(dt){
+  if(this.camera&&this.trails.length)this.perMetre=.00157*Math.sqrt(720/Math.max(360,innerHeight))*Math.tan(this.camera.fov*Math.PI/360)/Math.tan(39*Math.PI/180);
   for(let i=this.trails.length-1;i>=0;i--){const t=this.trails[i];this.placeTrail(t,dt);if(t.age>t.length/t.speed+.025){this.releaseTrail(t);this.trails.splice(i,1);}}
   for(let i=this.particles.length-1;i>=0;i--){const p=this.particles[i];p.life-=dt;p.v.y-=9.8*dt;p.m.position.addScaledVector(p.v,dt);p.m.rotation.x+=dt*p.spin.x;p.m.rotation.y+=dt*p.spin.y;p.m.rotation.z+=dt*p.spin.z;
    const floor=groundHeight(p.m.position.x,p.m.position.z)+(p.casing?.0045:.006);
@@ -159,7 +184,7 @@ export class CombatFX{
   this.sparkGeometry.setDrawRange(0,n*2);if(n){this.sparkGeometry.attributes.position.needsUpdate=true;}else if(this.sparkMesh.parent)this.sparkMesh.removeFromParent();
   if(this.lights){const l=this.lights;l.localAge+=dt;l.remoteAge+=dt;const f=(age,span)=>Math.max(0,1-age/span)**2;l.local.intensity=l.localPeak*f(l.localAge,.055);l.remote.intensity=l.remotePeak*f(l.remoteAge,l.remoteSpan);}
  }
- // Round start: holes, blood and scorch marks of the previous round are swept, as in CS.
+ // Round start: holes, blood and scorch marks of the previous round are swept.
  // V33: one stand-in per effect material, drawn once at load so the first hit, chip, casing or
  // flash of a match links no program and uploads no texture.
  warm(){const g=new THREE.Group();g.name='CombatFX warm';const mesh=(geo,mat)=>{const m=new THREE.Mesh(geo,mat);m.frustumCulled=false;g.add(m);};

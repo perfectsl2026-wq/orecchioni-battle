@@ -1,6 +1,7 @@
 import * as T from './vendor/three.module.js';
-import {WALLS} from './shared.js?v=41.0';
-import {box,cyl,mesh,label,bevel} from './graphics.js?v=41.0';
+import {WALLS} from './shared.js?v=42.0';
+import {box,cyl,mesh,label,bevel} from './graphics.js?v=42.0';
+import {spillway} from './forge-detail.js?v=42.0';
 function facade(root,x,z,angle){const f=new T.Group();f.position.set(x,0,z);f.rotation.y=angle;root.add(f);return f;}
 function strut(root,material,a,b,width=.12){const start=new T.Vector3(...a),end=new T.Vector3(...b),m=box(root,material,0,0,0,width,start.distanceTo(end),width);m.position.copy(start).add(end).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),end.sub(start).normalize());return m;}
 export function refineForge(root,p){
@@ -36,7 +37,7 @@ export function refineForge(root,p){
   strut(root,p.steel,[side*7.7,4.4,-.55],[side*6.8,5.5,-.55],.18);
   strut(root,p.steel,[side*7.7,4.4,.55],[side*6.8,5.5,.55],.18);
  }
- const pressureLabel=label(root,'FORGE / PRESSURE MAIN 11',0,6.2,-.835,4.6,.31,Math.PI,{background:'#b68562',color:'#293f46',font:76});
+ const pressureLabel=label(root,'FORGE / CONDOTTA FORZATA 11',0,6.2,-.835,4.6,.31,Math.PI,{background:'#b68562',color:'#293f46',font:76});
  // A monumental dam beyond the sealed perimeter; it cannot obstruct play.
  for(let n=0;n<13;n++){
   const x=(n-6)*4.8,z=-35+Math.cos((n-6)*.10)*2.6,h=18+Math.cos((n-6)*.12)*4;
@@ -44,6 +45,8 @@ export function refineForge(root,p){
   box(root,p.white,x,h+.15,z,4.9,.3,3.4);box(root,p.copper,x,h-2,z+1.66,.16,3.7,.08);
   if(n%2===0){box(root,p.dark,x,7.3,z+1.62,2.7,8,.035);for(let q=-3;q<=3;q++)box(root,p.steel,x+q*.34,7.3,z+1.65,.12,7.8,.04);}
  }
+ // The crest is spilling: water sheets over the three central bays, visible from the south yard.
+ spillway(root,[4,6,8].map(n=>[(n-6)*4.8,-35+Math.cos((n-6)*.10)*2.6+1.72,2.9,18+Math.cos((n-6)*.12)*4-.4,(n-6)*.045]));
  // Southern intake crest is visible from the northern starting area.
  for(let n=-5;n<=5;n++){
   const x=n*4.5,h=18-Math.abs(n)*.6,z=29+Math.cos(n*.14)*2;
@@ -52,6 +55,6 @@ export function refineForge(root,p){
   box(root,p.dark,x,10,z-1.44,3.3,6,.035);
   for(const side of [-1,1])box(root,p.copper,x+side*1.3,10,z-1.48,.1,5.8,.04);
  }
- for(const [z,text]of [[-17,'01 / INTAKE'],[17,'02 / CONTROL']]){const l=label(root,text,0,.018,z,4.8,.63,0,{background:'#abb7b1',color:'#34545c',font:100});l.rotation.x=-Math.PI/2;}
- root.userData.artRevision='forge-20';
+ for(const [z,text,background]of [[-17,'01 / INTAKE','#2f6fb5'],[17,'02 / CONTROL','#c56a24']]){const l=label(root,text,0,.018,z,4.8,.63,z<0?0:Math.PI,{background,color:'#f1f3ee',font:100});l.rotation.x=-Math.PI/2;}
+ root.userData.artRevision='forge-21';
 }

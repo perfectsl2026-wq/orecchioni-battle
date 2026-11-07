@@ -1,10 +1,10 @@
 import * as T from './vendor/three.module.js';
-import {box,cyl,cable,label} from './graphics.js?v=41.0';
-import {metricBlock as block} from './caldera-architecture.js?v=41.0';
-import {cosmetic} from './trim-kit.js?v=41.0';
-import {MAPS} from './shared.js?v=41.0';
-// Hero props after the Riot practice: a small dedicated set per site that names the
-// place at a glance (minaret and hotel for A, kasbah market for B, telemetry for the
+import {box,cyl,cable,label} from './graphics.js?v=42.0';
+import {metricBlock as block} from './caldera-architecture.js?v=42.0';
+import {cosmetic} from './trim-kit.js?v=42.0';
+import {MAPS,groundHeight} from './shared.js?v=42.0';
+// Hero props: a small dedicated set per site that names the
+// place at a glance (minaret and tall frontage for A, covered market for B, telemetry for the
 // Caldera site). Everything sits on unreachable roofs, outside the boundary, above
 // head height or flush on authoritative walls, so it never reads as cover; like the
 // wires and palms it is cosmetic for ballistics.
@@ -156,7 +156,7 @@ function bladeSign(parent,k,text,x,y,z,yaw,{length=2.7,width=.72,background='#21
 }
 
 // --- B / RIWAQ ---
-// Kasbah vigas: roof beams whose ends pierce the rammed-earth wall.
+// Vigas: roof beams whose ends pierce the rammed-earth wall.
 function vigas(parent,material,{axis,fixed,from,to,y,normal,step=.92}){
  for(let t=from;t<=to;t+=step){const out=fixed+normal*.24,r=.1+.018*Math.sin(t*7.3),h=typeof y==='function'?y(t):y;if(axis==='z')cyl(parent,material,out,h,t,r,.48,'x',r,7);else cyl(parent,material,t,h,out,r,.48,'z',r,7);}
 }
@@ -184,16 +184,24 @@ export function sahraSiteProps(root,p){
  const solidAt=(x,z,margin=.9)=>MAPS.sahra.walls.find(w=>w[5]===0&&Math.abs(x-w[0])<=w[2]/2-margin&&Math.abs(z-w[1])<=w[3]/2-margin);
  const top=(x,z)=>solidAt(x,z,0)?.[4]??0,onRoof=(x,z,fn)=>{const w=solidAt(x,z);if(w)fn(w[4]);};
  // A / MINARET: tower behind the court's back frontage, seen from the ramp and the
- // fountain court; lanterns under the hotel canopies; blade signs along the A lane.
+ // fountain court; lanterns under the frontage canopies; blade signs along the A lane.
  minaret(root,p,k,36,-50);
  for(const x of [25,29.6,36.4,41])lantern(root,k,x,6.74,-38.3);
- bladeSign(root,k,'HÔTEL  MINARET',42,6.4,-2.5,Math.PI);
- bladeSign(root,k,'HÔTEL  MINARET',44,7.7,-30.5,Math.PI,{length:2.4});
+ bladeSign(root,k,'LOCANDA  MINARETO',42,6.4,-2.5,Math.PI);
+ bladeSign(root,k,'LOCANDA  MINARETO',44,7.7,-30.5,Math.PI,{length:2.4});
  onRoof(41,-17,y=>acUnit(root,k,41,y,-17,Math.PI));onRoof(41,-20,y=>acUnit(root,k,41,y,-20,Math.PI));
  onRoof(26,-18,y=>waterTank(root,k,26,y,-18));onRoof(47,-28,y=>satelliteDish(root,k,47,y,-28,-Math.PI/2+.4,{pole:.9}));
  onRoof(47.5,-36,y=>yagi(root,k,47.5,y,-36,.3,2.9));onRoof(28,-46,y=>waterTank(root,k,28,y,-46,{stand:.95}));
  onRoof(42,-46,y=>satelliteDish(root,k,42,y,-46,.2,{pole:1.15}));onRoof(45,-16,y=>satelliteDish(root,k,45,y,-16,-.5,{pole:1.3,r:.36}));
- // B / RIWAQ: kasbah beam ends under the parapets, kilims, festoons over the court.
+ // V44 A court dressing, all above head height or flush on its walls: kilims, festoons.
+ const wireA=std({color:0x2a2c2a,roughness:.8});
+ for(const [x,z,yaw,cells]of [[43.95,-29.5,-Math.PI/2,[0,3]],[22.05,-30,Math.PI/2,[1,2]],[43.95,-20,-Math.PI/2,[2]]]){const t=top(x+Math.sign(x-33)*.6,z);if(t>4)rugs(root,k,wood,{x,y:Math.min(8.4,t-1.3),z,yaw,items:cells.map((cell,i)=>({w:1.15+i*.1,h:2.1-i*.15,cell}))});}
+ if(top(22.6,-27)>4&&top(44.6,-27)>4)festoon(root,k,wireA,[22.05,7.2,-26.5],[43.95,7.4,-28.5],{sag:.8});
+ if(top(22.6,-33)>4&&top(44.6,-33)>4)festoon(root,k,wireA,[22.05,7.4,-33],[43.95,7.2,-31.5],{sag:.7});
+ // Low planters and oil jars along the A court's back frontage, under knee height bar the foliage.
+ {const pot=std({color:0xb5a58a,roughness:.9}),leafA=std({color:0x56693f,roughness:.9}),clay=std({color:0xa65f3e,roughness:.86});const potG=new T.LatheGeometry([[0,0],[.2,0],[.26,.3],[.3,.34],[0,.34]].map(([a,b])=>new T.Vector2(a,b)),8),jarG=new T.LatheGeometry([[0,0],[.12,0],[.2,.14],[.22,.32],[.15,.52],[.08,.6],[.1,.66],[0,.66]].map(([a,b])=>new T.Vector2(a,b)),8);
+ for(const [x,z,kind]of [[24.2,-41.4,0],[26.6,-41.4,1],[39.4,-41.4,1],[41.8,-41.4,0],[43.4,-25.4,1],[22.6,-35.5,0]]){if(solidAt(x,z,0))continue;const y=groundHeight(x,z),m=new T.Mesh(kind?jarG:potG,kind?clay:pot);m.position.set(x,y,z);m.castShadow=true;root.add(m);if(!kind){const b=new T.Mesh(new T.IcosahedronGeometry(.3,0).scale(1,.8,1),leafA);b.position.set(x,y+.5,z);b.castShadow=true;root.add(b);}}}
+ // B / RIWAQ: beam ends under the parapets, kilims, festoons over the court.
  const beam=(x,z)=>Math.max(6.2,top(x,z)-.8);
  vigas(root,wood,{axis:'z',fixed:-46,normal:1,from:-41.4,to:-22.6,y:t=>beam(-47,t)});
  vigas(root,wood,{axis:'x',fixed:-42,normal:1,from:-45.4,to:-30.8,y:t=>beam(t,-43)});
@@ -209,7 +217,7 @@ export function sahraSiteProps(root,p){
 }
 
 // Caldera A / TELEMETRIA: lattice mast with dish, sector panels and beacon on the
-// roof of the CT block behind the site, a cable tray above the station sign and a
+// roof of the defenders' block behind the site, a cable tray above the station sign and a
 // flush field cabinet below it, past the sign's end.
 export function calderaSiteProps(root,site){
  if(!site)return;const k=propKit(),x=site.x,z=-22,face=-20;
@@ -230,4 +238,50 @@ export function calderaSiteProps(root,site){
  cyl(root,k.iron,riser,(trayY+2.15)/2,face+.05,.03,trayY-2.15,'y',.03,8);cyl(root,k.iron,-3.85,(trayY+top)/2,face+.05,.03,top-trayY,'y',.03,8);
  box(root,k.enamel,riser,1.45,face+.05,.42,1.2,.1);box(root,k.grille,riser,1.45,face+.104,.34,1.06,.006);box(root,k.led,riser-.12,1.9,face+.11,.04,.04,.01);
  const plate=label(root,'⚡  T-07  /  400 V',riser,1.2,face+.116,.4,.1,0,{background:'#d6b041',color:'#2a2a22',font:120});flag(plate.material);
+}
+
+// V44 street clutter: jars, planters, sacks and baskets in four shapes, instanced (one draw
+// per shape), standing against continuous wall runs only (never in doorways, on stairs or
+// in open floor), small and cosmetic: no collision, no ballistics, no navigation change.
+export function groundClutter(root,{walk,walls,ground,seed=7,max=80,avoid=[]}){
+ let r=seed*7919+17;const rand=()=>((r=(r*16807)%2147483647)/2147483647);
+ const solid=(x,z,m=0)=>walls.some(w=>w[5]===0&&w[4]>2.2&&Math.abs(x-w[0])<=w[2]/2-m&&Math.abs(z-w[1])<=w[3]/2-m);
+ const blocked=(x,z)=>walls.some(w=>Math.abs(x-w[0])<=w[2]/2+.35&&Math.abs(z-w[1])<=w[3]/2+.35&&!(w[5]===0&&w[4]>2.2));
+ const terracotta=std({color:0xa65f3e,roughness:.86}),glaze=std({color:0x2c6872,roughness:.38,metalness:.05}),sackM=std({color:0xbfa77f,roughness:.97}),reed=std({color:0x9a7a4c,roughness:.92}),leaf=std({color:0x56693f,roughness:.9}),stone=std({color:0xb9ab92,roughness:.9});
+ const lathe=pts=>new T.LatheGeometry(pts.map(([x,y])=>new T.Vector2(x,y)),8);
+ const shapes=[
+  {g:lathe([[0,0],[.13,0],[.2,.12],[.22,.3],[.16,.5],[.08,.58],[.09,.64],[0,.64]]),m:terracotta},
+  {g:lathe([[0,0],[.16,0],[.25,.1],[.27,.24],[.22,.34],[.24,.37],[0,.37]]),m:glaze},
+  {g:new T.SphereGeometry(.27,8,5).scale(1,.62,.82).translate(0,.16,0),m:sackM},
+  {g:new T.CylinderGeometry(.24,.18,.32,8,1,true).translate(0,.16,0),m:reed},
+  {g:lathe([[0,0],[.18,0],[.24,.32],[.27,.36],[0,.36]]),m:stone,plant:true}];
+ const placed=shapes.map(()=>[]),plants=[];let total=0;
+ for(const [x0,x1,z0,z1]of walk)for(const [ax,az,nx,nz,len]of [[x0,z0,0,-1,x1-x0],[x0,z1,0,1,x1-x0],[x0,z0,-1,0,z1-z0],[x1,z0,1,0,z1-z0]]){
+  const along=nx?[0,1]:[1,0];
+  for(let t=.8;t<len-.8&&total<max;t+=.9){if(rand()>.11)continue;
+   const ex=ax+along[0]*t,ez=az+along[1]*t,px=ex-nx*.34,pz=ez-nz*.34;
+   if(!solid(ex+nx*.45,ez+nz*.45)||!solid(ex+nx*.45+along[0]*1.3,ez+nz*.45+along[1]*1.3)||!solid(ex+nx*.45-along[0]*1.3,ez+nz*.45-along[1]*1.3))continue;
+   if(solid(px,pz)||blocked(px,pz)||avoid.some(([ox,oz,rad])=>Math.hypot(px-ox,pz-oz)<rad))continue;
+   const y=ground(px,pz);if(Math.abs(ground(px+.5,pz)-y)>.04||Math.abs(ground(px,pz+.5)-y)>.04||Math.abs(ground(px-.5,pz)-y)>.04||Math.abs(ground(px,pz-.5)-y)>.04)continue;
+   const n=1+(rand()*3|0);for(let i=0;i<n&&total<max;i++){const kind=rand()*shapes.length|0,off=(i-(n-1)/2)*.52;placed[kind].push([px+along[0]*off,y,pz+along[1]*off,rand()*6.28,.85+rand()*.3]);total++;}
+  }
+ }
+ const dummy=new T.Object3D();
+ shapes.forEach((s,i)=>{const list=placed[i];if(!list.length)return;const mesh=new T.InstancedMesh(s.g,s.m,list.length);
+  list.forEach(([x,y,z,yaw,k],n)=>{dummy.position.set(x,y,z);dummy.rotation.set(0,yaw,0);dummy.scale.setScalar(k);dummy.updateMatrix();mesh.setMatrixAt(n,dummy.matrix);if(s.plant)plants.push([x,y+.36*k,z,k]);});
+  mesh.castShadow=mesh.receiveShadow=true;mesh.userData.keep=true;mesh.userData.cosmetic=true;root.add(mesh);});
+ if(plants.length){const g=new T.IcosahedronGeometry(.3,0).scale(1,.85,1),mesh=new T.InstancedMesh(g,leaf,plants.length);plants.forEach(([x,y,z,k],n)=>{dummy.position.set(x,y+.16*k,z);dummy.rotation.set(0,n,0);dummy.scale.setScalar(k*(.9+(n%3)*.15));dummy.updateMatrix();mesh.setMatrixAt(n,dummy.matrix);});mesh.castShadow=true;mesh.userData.keep=true;root.add(mesh);}
+ return total;
+}
+// V44 jetty dressing (MOLO, x -8..8, z 18..28): bollards against the sea wall, rope coils, net piles with floats, low fish crates and two lamps on the wall top.
+// Ankle height against the sea wall or above it; cosmetic, no collision or ballistics.
+export function calderaPier(root,{y=0,wall=27.6,top=1.1}={}){
+ const k=propKit(),iron=std({color:0x2b3133,roughness:.55,metalness:.6}),rope=std({color:0x9c8a66,roughness:.95}),net=std({color:0x3d5a52,roughness:.95}),floatO=std({color:0xd8572e,roughness:.5}),floatW=std({color:0xe6e2d6,roughness:.5}),crate=std({color:0x5f7f86,roughness:.7}),ice=std({color:0xd9e4e3,roughness:.3});
+ const bollard=new T.LatheGeometry([[0,0],[.15,0],[.13,.05],[.11,.3],[.17,.36],[.17,.42],[0,.44]].map(([a,b])=>new T.Vector2(a,b)),14);
+ for(const x of [-6.6,-2.2,2.2,6.6]){const b=new T.Mesh(bollard,iron);b.position.set(x,y,wall-.1);b.castShadow=true;root.add(b);
+  if(Math.abs(x)>3){const coil=new T.Mesh(new T.TorusGeometry(.26,.035,6,18),rope);coil.rotation.x=-Math.PI/2;coil.position.set(x+.55*Math.sign(-x),y+.035,wall-.45);root.add(coil);const c2=coil.clone();c2.scale.setScalar(.78);c2.position.y+=.06;root.add(c2);}}
+ for(const [x,s]of [[-7.25,1],[7.25,-1]]){const pile=new T.Mesh(new T.SphereGeometry(.55,10,6,0,Math.PI*2,0,Math.PI/2).scale(1,.42,.8),net);pile.position.set(x,y,wall-.55);pile.castShadow=true;root.add(pile);
+  for(let i=0;i<4;i++){const f=new T.Mesh(new T.SphereGeometry(.1,10,6),i%2?floatW:floatO);f.position.set(x+s*(.15*i-.3),y+.12+(i%2)*.1,wall-.3-(i%3)*.22);root.add(f);}}
+ for(const [x,z,n]of [[3.8,wall-.3,2],[4.55,wall-.3,1],[-4.3,wall-.32,1]])for(let i=0;i<n;i++){box(root,crate,x,y+.11+i*.22,z,.62,.2,.4);if(i===n-1)box(root,ice,x,y+.215+i*.22,z,.54,.02,.32);}
+ for(const x of [-5,5]){cyl(root,iron,x,y+top+1.45,wall+1.4,.045,2.9,'y',.06,10);box(root,iron,x,y+top+2.9,wall+1.15,.08,.06,.6);const head=new T.Mesh(new T.CylinderGeometry(.11,.17,.18,10),iron);head.position.set(x,y+top+2.8,wall+.88);root.add(head);const bulb=new T.Mesh(new T.SphereGeometry(.09,10,6),k.bulb);bulb.position.set(x,y+top+2.7,wall+.88);root.add(bulb);}
 }

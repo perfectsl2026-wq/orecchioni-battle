@@ -1,9 +1,12 @@
 const lerp=(a,b,t)=>a+(b-a)*t;
 const angle=(a,b,t)=>a+Math.atan2(Math.sin(b-a),Math.cos(b-a))*t;
 // Buffer actual snapshots rather than repeatedly easing toward the newest packet.
+// The playout clock advances with real time and only leans towards the arrival-based target,
+// so a late packet does not move bodies backward and forward.
+export const SNAPSHOT_DELAY_MS=100;
 export class SnapshotBuffer{
- constructor(delay=100){this.delay=delay;this.clear();}
- clear(){this.frames=[];}
+ constructor(delay=SNAPSHOT_DELAY_MS){this.delay=delay;this.clear();}
+ clear(){this.frames=[];this.play=null;this.playedAt=0;this.time=null;}
  push(state,receivedAt){
   const time=state.now;if(!Number.isFinite(time))return;
   if(this.frames.length&&time<=this.frames.at(-1).time)return;
@@ -11,7 +14,10 @@ export class SnapshotBuffer{
  }
  sample(receivedNow){
   const last=this.frames.at(-1);if(!last)return null;
-  const time=last.time+Math.max(0,receivedNow-last.receivedAt)-this.delay;
+  const target=last.time+Math.max(0,receivedNow-last.receivedAt)-this.delay;
+  if(this.play===null||Math.abs(target-this.play)>250)this.play=target;
+  else{const dt=Math.max(0,receivedNow-this.playedAt);this.play+=dt;this.play+=dt*Math.max(-.1,Math.min(.1,(target-this.play)*.002));}
+  this.playedAt=receivedNow;const time=this.time=Math.min(this.play,last.time);
   let a=this.frames[0],b=last;for(let n=1;n<this.frames.length;n++)if(this.frames[n].time>=time){a=this.frames[n-1];b=this.frames[n];break;}
   const t=a===b?1:Math.max(0,Math.min(1,(time-a.time)/(b.time-a.time))),players={};
   for(const[id,next]of Object.entries(b.players)){

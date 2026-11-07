@@ -1,5 +1,5 @@
-import {blocked,onWorldChange,BOUNDS,MAPS,ACTIVE_MAP,groundHeight} from './shared.js?v=41.0';
-import {accelerate,BOT_BRAKING} from './agent-motion.js?v=41.0';
+import {blocked,onWorldChange,BOUNDS,MAPS,ACTIVE_MAP,groundHeight} from './shared.js?v=42.0';
+import {accelerate,BOT_BRAKING,BOT_RUN_SPEED} from './agent-motion.js?v=42.0';
 
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const copy=p=>({x:p.x,z:p.z});
@@ -118,7 +118,7 @@ export class BotNavigator{
   }
   return q;
  }
- update(p,requested,players,now,dt,maxSpeed=4.3,faceTravel=false){
+ update(p,requested,players,now,dt,maxSpeed=BOT_RUN_SPEED,faceTravel=false){
   let desired={x:0,z:0};this.reached=false;
   if(!this.moveOrigin){this.moveOrigin=copy(p);this.lastMovedAt=now;}
   if(distance(p,this.moveOrigin)>.25){this.moveOrigin=copy(p);this.lastMovedAt=now;}
@@ -151,7 +151,7 @@ export class BotNavigator{
    for(const a of players){
     if(a.id===p.id||a.hp<=0)continue;const dx=p.x-a.x,dz=p.z-a.z,d=Math.hypot(dx,dz);
     const speed=Math.hypot(desired.x,desired.z),ahead=speed>.1?(desired.x*(-dx)+desired.z*(-dz))/(speed*Math.max(.01,d)):0;
-    if(d<2.2&&d>.01&&ahead>.65&&speed>1){const force=(2.2-d)*1.8;const vx=desired.x/speed,vz=desired.z/speed;desired.x+=vz*force;desired.z-=vx*force;}
+    if(d<2.6&&d>.01&&ahead>.65&&speed>1){const force=(2.6-d)*2.1;const vx=desired.x/speed,vz=desired.z/speed;desired.x+=vz*force;desired.z-=vx*force;}
     if(d<1.4&&d>.01){const force=(1.4-d)*3.2;desired.x+=dx/d*force;desired.z+=dz/d*force;}
     // Inside arm's reach a bot never closes in on a body (a teammate's camera included): the
     // approaching part of its motion is removed, so it slides past instead of through.

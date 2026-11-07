@@ -4,7 +4,10 @@ import * as THREE from './vendor/three.module.js';
 // cavity that catch the sun and the muzzle flash instead of a flat dark dot.
 // Generated from typed arrays (no canvas, no image files) so Node checks run.
 function hash(x,y){const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);}
-function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);const a=hash(ix,iy),b=hash(ix+1,iy),c=hash(ix,iy+1),d=hash(ix+1,iy+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+// While the marks are painted, noise corners (whole numbers shared by neighbouring pixels) are computed once: same values.
+let lattice=null;const LAT=384,LAT0=160;
+function corner(x,y){if(!lattice)return hash(x,y);const i=x+LAT0,j=y+LAT0;if(i<0||j<0||i>=LAT||j>=LAT)return hash(x,y);const k=j*LAT+i,c=lattice[k];return c===c?c:lattice[k]=hash(x,y);}
+function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);const a=corner(ix,iy),b=corner(ix+1,iy),c=corner(ix,iy+1),d=corner(ix+1,iy+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
 const fbm=(x,y)=>noise(x,y)*.5+noise(x*2.1,y*2.1)*.27+noise(x*4.3,y*4.3)*.15+noise(x*8.7,y*8.7)*.08;
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 const clamp01=v=>Math.max(0,Math.min(1,v));
@@ -44,6 +47,11 @@ const PAINTERS={
   const core=1-smooth(.1,.42,r+(n-.5)*.3),ring=(1-smooth(.4,.95,r+(n-.5)*.35))*(1-core);
   const shade=core*.04+ring*(.1+.12*n)+streak*.06;
   return [shade*1.1,shade,shade*.9,Math.min(1,core*.8+ring*.42+streak*.45),-core*.25-ring*.06];},
+ // Blade: a long shallow score, bright where the edge bit, with a thin dark lip on each side.
+ slash:(x,y)=>{const u=x*.96+y*.28,v=(y*.96-x*.28)+Math.sin(u*2.6)*.03,n=noise(u*18,v*40),m=noise(u*5+2,v*5);
+  const ends=smooth(.92,.55,Math.abs(u)+(m-.5)*.3),width=.035+.03*(1-Math.abs(u))+(n-.5)*.018,groove=(1-smooth(width*.45,width,Math.abs(v)))*ends,lip=(1-smooth(width,width*2.1,Math.abs(v)))*(1-groove)*ends,second=(1-smooth(.008,.02,Math.abs(v-.075-u*.05)))*smooth(.62,.2,Math.abs(u-.12))*.7;
+  const shade=groove*(.78+.2*n)+lip*.16+second*.62;
+  return [shade,shade*.97,shade*.92,Math.min(1,groove*.95+lip*.55+second*.7),-groove*.5+lip*.18-second*.2];},
  // Fire residue: an uneven black patch with grey ash and an orange-brown edge.
  burn:(x,y)=>{const r=Math.hypot(x,y),n=fbm(x*4+9,y*4),m=noise(x*16,y*16);
   const patch=1-smooth(.3,1,r+(n-.5)*.6),ash=patch*smooth(.55,.75,m)*.5,edge=(1-smooth(.55,1,r+(n-.5)*.6))*(1-patch);
@@ -62,9 +70,9 @@ function paint(kind){
  return {map,normalMap};
 }
 let cache=null;
-export function impactTextures(){if(cache)return cache;cache={};for(const kind of Object.keys(PAINTERS))cache[kind]=paint(kind);return cache;}
+export function impactTextures(){if(cache)return cache;cache={};lattice=new Float64Array(LAT*LAT).fill(NaN);for(const kind of Object.keys(PAINTERS))cache[kind]=paint(kind);lattice=null;return cache;}
 // Roughness/metalness per mark so a torn steel rim glints and plaster stays chalky.
-const LOOK={stone:{roughness:.92,metalness:0,normal:1.1},sand:{roughness:.98,metalness:0,normal:.8},metal:{roughness:.4,metalness:.65,normal:1.3},wood:{roughness:.86,metalness:0,normal:1},blood:{roughness:.3,metalness:0,normal:.4},scorch:{roughness:.97,metalness:0,normal:.5},burn:{roughness:.98,metalness:0,normal:.4}};
+const LOOK={stone:{roughness:.92,metalness:0,normal:1.1},sand:{roughness:.98,metalness:0,normal:.8},metal:{roughness:.4,metalness:.65,normal:1.3},wood:{roughness:.86,metalness:0,normal:1},blood:{roughness:.3,metalness:0,normal:.4},scorch:{roughness:.97,metalness:0,normal:.5},burn:{roughness:.98,metalness:0,normal:.4},slash:{roughness:.42,metalness:.55,normal:1.2}};
 export function markMaterial(kind){
  const t=impactTextures()[kind]||impactTextures().stone,look=LOOK[kind]||LOOK.stone;
  const m=new THREE.MeshStandardMaterial({map:t.map,normalMap:t.normalMap,normalScale:new THREE.Vector2(look.normal,look.normal),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,roughness:look.roughness,metalness:look.metalness});
@@ -72,5 +80,5 @@ export function markMaterial(kind){
 }
 // Mark footprint per material (metres): metal holes are small and sharp, sand craters wide.
 export function markSize(kind,random=Math.random){
- return kind==='metal'?.05+random()*.015:kind==='wood'?.07+random()*.02:kind==='sand'?.13+random()*.05:kind==='scorch'?2.2+random()*.6:kind==='burn'?5.6+random()*.8:.085+random()*.03;
+ return kind==='slash'?.24+random()*.06:kind==='metal'?.05+random()*.015:kind==='wood'?.07+random()*.02:kind==='sand'?.13+random()*.05:kind==='scorch'?2.2+random()*.6:kind==='burn'?5.6+random()*.8:.085+random()*.03;
 }

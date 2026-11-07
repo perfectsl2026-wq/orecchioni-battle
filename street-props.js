@@ -1,4 +1,4 @@
-// V38 street dressing: photographed props (Sketchfab CC-BY, credits in assets/CREDITS.md)
+// V38 street dressing: third-party props (Sketchfab CC-BY, credits in assets/CREDITS.md)
 // that give the three districts a lived-in look without touching play. Two kinds:
 //  - cosmetic clutter placed where nobody walks (roof edges above the streets, wall
 //    condensers above head height, boats on the open water): instanced, no collision,
@@ -11,7 +11,7 @@ import * as T from './vendor/three.module.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
-import {MAPS} from './shared.js?v=41.0';
+import {MAPS} from './shared.js?v=42.0';
 const DIR='./assets/models/';
 // Parts: a file, optionally a box (model units) that keeps only the triangles whose
 // centroid lies inside it (packs of several objects), and a yaw so the part's front
@@ -26,7 +26,7 @@ export const PARTS={
  barca:{file:'v38/barca'},
  generatore:{file:'v38/generatore'},
  cassonetto:{file:'v38/cassonetto'},
- // V39: photographed cover and street fixtures.
+ // V39: third-party cover and street fixtures.
  cassa_piccola:{file:'v39/casse',box:[[-.2,-.1,-.2],[.2,.4,.2]]},
  cassa_larga:{file:'v39/casse',box:[[-.62,-.1,-.25],[-.24,.4,.25]]},
  cassa_alta:{file:'v39/casse',box:[[.24,-.1,-.25],[.65,.7,.25]]},
@@ -60,12 +60,12 @@ export const PARTS={
  isola:{file:'v40/roccia',box:[[-2.4,-.2,-4],[2.4,2.2,-1.2]],shadow:false},
  molo:{file:'v40/roccia',box:[[-2.4,-.2,-4],[2.4,2.2,-1.2]],shadow:false},
  traliccio:{file:'v40/traliccio',shadow:false},
- abete:{file:'v40/abete',shadow:false},
+ abete:{file:'v40/abete',shadow:false,tone:[.6,.66,.6]},
  valvola:{file:'v40/valvola',matte:.35,front:Math.PI/2,shadow:false},
  estintore:{file:'v40/estintore',shadow:false},
  telecamera:{file:'v40/telecamera',shadow:false},
  scala:{file:'v40/scala',shadow:false},
- condotto:{file:'v40/condotto',matte:.25,box:[[20,420,-385],[515,595,-205]],shadow:false}
+ condotto:{file:'v40/condotto',matte:.25,shadow:false}
 };
 const FILES=[...new Set(Object.values(PARTS).map(p=>p.file))];
 const scenes=new Map(),parts=new Map();
@@ -94,7 +94,7 @@ function buildPart(id){
  if(!pieces.length)return null;
  const centre=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3());
  const m=new T.Matrix4().makeRotationY(spec.front||0).multiply(new T.Matrix4().makeTranslation(-centre.x,-bounds.min.y,-centre.z));
- for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;if(spec.matte){p.material.metalness=spec.matte;p.material.metalnessMap=null;p.material.roughness=Math.max(.55,p.material.roughness);}if(spec.leaves)windMotion(p.material,spec.leaves,true);if(spec.solidAlpha){p.material.transparent=false;p.material.alphaTest=.35;}if(spec.glow){p.material.emissive.set(spec.glow);p.material.emissiveMap=p.material.map;p.material.emissiveIntensity=1.5;}if(spec.wind)windMotion(p.material,spec.wind);}
+ for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;if(spec.tone&&!p.material.userData.toned){p.material.userData.toned=true;p.material.color.multiply(new T.Color(...spec.tone));}if(spec.matte){p.material.metalness=spec.matte;p.material.metalnessMap=null;p.material.roughness=Math.max(.55,p.material.roughness);}if(spec.leaves)windMotion(p.material,spec.leaves,true);if(spec.solidAlpha){p.material.transparent=false;p.material.alphaTest=.35;}if(spec.glow){p.material.emissive.set(spec.glow);p.material.emissiveMap=p.material.map;p.material.emissiveIntensity=1.5;}if(spec.wind)windMotion(p.material,spec.wind);}
  const part={pieces,size:(spec.front&&Math.abs(Math.sin(spec.front))>.5)?new T.Vector3(size.z,size.y,size.x):size};parts.set(id,part);return part;
 }
 // Only the files a map uses are downloaded: a palm has no business on Forge's first load.
@@ -103,7 +103,7 @@ export async function loadStreetProps(files=FILES){
  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
  await Promise.all(files.map(file=>{if(!fileLoads.has(file))fileLoads.set(file,loader.loadAsync(DIR+file+'.glb').then(g=>{scenes.set(file,bake(g.scene));}).catch(e=>console.error('Arredo non caricato',file,e)));return fileLoads.get(file);}));
  for(const id of Object.keys(PARTS))if(!parts.has(id)&&scenes.has(PARTS[id].file))buildPart(id);
- // Dark core inside a photographed crate: slatted models are not watertight and the box behind them must still stop a sightline.
+ // Dark core inside a third-party crate: slatted models are not watertight and the box behind them must still stop a sightline.
  if(!parts.has('nucleo')){const core=new T.BoxGeometry(1,1,1);core.translate(0,.5,0);parts.set('nucleo',{pieces:[{geometry:core,material:new T.MeshStandardMaterial({color:0x1c1712,roughness:.95})}],size:new T.Vector3(1,1,1)});}
  if(!parts.has('nucleo_compensato')){const core=new T.BoxGeometry(1,1,1);core.translate(0,.5,0);parts.set('nucleo_compensato',{pieces:[{geometry:core,material:new T.MeshStandardMaterial({map:plyEdge(),roughness:.9})}],size:new T.Vector3(1,1,1)});}
  return parts.size;
@@ -191,7 +191,7 @@ export function reskin(sp,mapId,x,z,w,d,top,base=0){
  for(let i=0;i<n;i++){const t=n>1?(i-(n-1)/2)*(w/n):0;sp.add(spec.part,{x:x+t,y:base,z,yaw:spec.yaw,fit:{w:w/n,d,h},tag:'reskin'});}
  return true;
 }
-// Photographed cover (V39): the collision box is filled exactly by a grid of models, so
+// Third-party cover (V39): the collision box is filled exactly by a grid of models, so
 // hits and movement do not change. Crates split into cells of about 1.25 m (a single 2.4 m
 // crate reads as a toy), timber stacks into plywood pallets, metal pods into containers.
 // grow: slatted crates stop short of their corners, so the model overlaps the box by a hair and the box never stops a shot in thin air.

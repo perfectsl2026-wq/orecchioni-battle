@@ -1,6 +1,6 @@
-import {vehicleSolids} from './vehicles.js?v=41.0';
-// CALDERA / 07, original Wingman station (V29): one bomb site, two lanes and a
-// narrow mid portal. T land on the jetty (south), CT hold the station base (north).
+import {vehicleSolids} from './vehicles.js?v=42.0';
+// CALDERA / 07, Binomio station (V29): one bomb site, two lanes and a
+// narrow mid portal. Attackers land on the jetty (south), defenders hold the station base (north).
 // West lane: a covered warehouse onto the sea quay. East lane: the cliff belvedere,
 // raised 1.2 m, then a ramp down to the site. Mid: gallery, courtyard and portal.
 // Rectangles are WALKABLE spaces; their complement becomes station blocks, low sea
@@ -11,7 +11,7 @@ export const CALDERA_WALK=[
  [-22,-12,4,26,'MAGAZZINO'],[-20,-14,2,4,'PORTONE'],[-24,-10,-12,2,'BANCHINA'],[-12,-8,4,8,'CUNICOLO'],
  [12,22,-2,26,'BELVEDERE'],[6,12,2,6,'SCALETTA'],[14,22,-12,-2,'RAMPA'],[12,20,-18,-12,'RAMPA'],
  [-10,12,-20,-6,'SITO A'],[0,6,-6,0,'PORTALE'],
- [-8,8,-32,-24,'BASE CT'],[-8,-4,-24,-20,'ACCESSO CT'],[4,8,-24,-20,'ACCESSO CT']
+ [-8,8,-32,-24,'BASE DIFESA'],[-8,-4,-24,-20,'ACCESSO DIFESA'],[4,8,-24,-20,'ACCESSO DIFESA']
 ];
 export const calderaWalkable=(x,z)=>CALDERA_WALK.some(r=>x>=r[0]&&x<=r[1]&&z>=r[2]&&z<=r[3]);
 export const CALDERA_INTERIORS=[[-22,-12,4,26,'magazzino'],[-12,-8,4,8,'cunicolo'],[-6,-2,12,18,'galleria']];
@@ -24,8 +24,8 @@ const inRect=(x,z,r)=>x>=r[0]&&x<=r[1]&&z>=r[2]&&z<=r[3];
 export const CALDERA_STAIR_RUNS=[
  {id:'belvedere',axis:'z',x0:12,x1:22,z0:8,z1:14,low:1.2,rise:-1.2,count:6},
  {id:'scaletta',axis:'x',x0:6,x1:12,z0:2,z1:6,low:0,rise:1.2,count:6},
- {id:'ct-ovest',axis:'z',x0:-8,x1:-4,z0:-24,z1:-20,low:.8,rise:-.8,count:4},
- {id:'ct-est',axis:'z',x0:4,x1:8,z0:-24,z1:-20,low:.8,rise:-.8,count:4}
+ {id:'difesa-ovest',axis:'z',x0:-8,x1:-4,z0:-24,z1:-20,low:.8,rise:-.8,count:4},
+ {id:'difesa-est',axis:'z',x0:4,x1:8,z0:-24,z1:-20,low:.8,rise:-.8,count:4}
 ];
 export const calderaStairAt=(x,z)=>CALDERA_STAIR_RUNS.find(s=>x>=s.x0&&x<s.x1&&z>=s.z0&&z<s.z1);
 const tread=(t,n)=>Math.min(n-1,Math.floor(clamp(t)*n))/n;
@@ -64,24 +64,24 @@ const COVER=[
  [19.6,20.6,.6,.6,1.1,4],[19.6,1.6,.6,.6,1.1,4],[15.2,4,2.6,1,.9,5],[20.6,-.6,1.6,1.6,1.3,1],[17.4,17,1.8,1.8,1.4,6],
  // Site: instrument pods, a parked survey truck and the field cabinet wall.
  [-6.2,-9.2,2.4,2.4,1.6,1],[8.6,-16.4,2,2,1.3,1],[-6.8,-17.4,2.8,1.4,1.2,6],[9.4,-8.8,1.6,2.6,1.4,6],[2.8,-8.4,3,1,1.05,5],[-2.6,-18.2,2.1,4.2,0,2],
- // CT base.
+ // Defenders' base.
  [-5.6,-30.4,2.2,1.4,1.3,6],[5.8,-30.2,1.8,1.8,1.2,1]
 ];
 const cover=COVER.map(([x,z,w,d,h,kind,low,role])=>{const y=calderaGround(x,z),base=kind===2?y+.195:low??footprint(x,z,w,d)-.03,top=kind===2?y+.745:y+h;return role?[x,z,w,d,top,kind,base,role]:[x,z,w,d,top,kind,base];});
 const arch=(x,z,width,axis,{spring=2.8,rise=.45,height=5.2,depth=.7,doors=false,leaf}={})=>{const base=calderaGround(x,z);return {x,z,width,axis,base,spring:base+spring,rise,height:base+height,depth,doors,leaf};};
 const ARCHES=[arch(3,-3,6,'z',{doors:true,spring:2.9,rise:.5,height:5.4}),arch(-17,3,6,'z',{spring:3.2,rise:.4,height:6.6,depth:.9}),arch(-10,6,4,'x',{spring:2.5,rise:.35,height:3.8}),arch(-4,17,4,'z',{spring:2.6,rise:.4,height:4.6}),arch(18,-10.8,8,'z',{spring:2.8,rise:.5,height:5.6})];
-export const CALDERA={id:'caldera',title:'CALDERA / 07',short:'CALDERA',description:'Stazione costiera · un sito, magazzino e belvedere · Wingman 2v2',
+export const CALDERA={id:'caldera',title:'CALDERA / 07',short:'CALDERA',description:'Stazione costiera · un sito, magazzino e belvedere · Binomio 2v2',
  ground:calderaGround,bounds:{x:25.2,z:33.2},walls:[...walls,...cover],arches:ARCHES,
  spawns:{orange:[[-6,24],[-3,24],[0,24],[3,24],[6,24]],blue:[[-6,-28],[-3,-28],[0,-28],[3,-28],[6,-28]]},spawnYaw:{orange:0,blue:Math.PI},
  menuCamera:{position:[-18,3,-7],look:[-2,3.2,-20]},
  sites:[{id:'A',name:'TELEMETRIA',x:1,z:-13,radius:4,approaches:['banchina','portale','rampa'],routes:{banchina:[[-12,23],[-17,14],[-17,-2],[-12,-9]],portale:[[-4,15],[-4,9],[2,-1]],rampa:[[12,23],[15,19],[18,4],[18,-8],[16,-15]]},holds:[[-6,-12,-10,-9],[8,-11,12,-15],[1,-18,3,-6],[-4,-16,-10,-9]],watch:[[-10,-9],[3,-6],[12,-15]]}],
  labPoints:{MID:{x:-1,z:9},WEST:{x:-17,z:12},EAST:{x:17,z:0}},
  navAreas:[[0,24],[-12,23],[12,23],[-17,16],[-17,6],[-17,-4],[-12,-9],[-4,15],[-4,8],[3,-1.5],[17,20],[18.4,5],[18,-7],[16,-15],[1,-13],[-5,-14],[8,-12],[0,-28],[-6,-22],[6,-22]].map(([x,z])=>({x,z})),
- visits:{spawn:[0,24,0,'Molo · partenza T'],magazzino:[-17,18,0,'Magazzino coperto · corsia ovest'],banchina:[-18,-6,-Math.PI/2,'Banchina · ingresso ovest'],galleria:[-4,16,0,'Galleria · verso la corte'],
-  corte:[-3,4,0,'Corte · centro'],portale:[3,-2,0,'Portale · porte sul sito'],belvedere:[15.4,21,0,'Belvedere · corsia est'],vista:[18,4,-Math.PI/2,'Belvedere · vista sulla caldera'],molo:[0,26,Math.PI,'Molo · vista sul mare'],rampa:[18,-4,0,'Rampa · discesa sul sito'],a:[1,-11,0,'Sito A · Telemetria'],ct:[0,-28,Math.PI,'Base CT']},
+ visits:{spawn:[0,24,0,'Molo · partenza attacco'],magazzino:[-17,18,0,'Magazzino coperto · corsia ovest'],banchina:[-18,-6,-Math.PI/2,'Banchina · ingresso ovest'],galleria:[-4,16,0,'Galleria · verso la corte'],
+  corte:[-3,4,0,'Corte · centro'],portale:[3,-2,0,'Portale · porte sul sito'],belvedere:[15.4,21,0,'Belvedere · corsia est'],vista:[18,4,-Math.PI/2,'Belvedere · vista sulla caldera'],molo:[0,26,Math.PI,'Molo · vista sul mare'],rampa:[18,-4,0,'Rampa · discesa sul sito'],a:[1,-11,0,'Sito A · Telemetria'],difesa:[0,-28,Math.PI,'Base difesa']},
  ballisticBoxes:[],movementBoxes:[],ballisticCylinders:[],
- lobby:{kicker:'WINGMAN · 2 CONTRO 2',name:'CALDERA',code:'07',subtitle:'STAZIONE COSTIERA',lanes:'2 corsie + portale',tagline:'Stazione di ricerca sul bordo della caldera. Magazzino e banchina sul mare a ovest, belvedere a est, un portale stretto al centro.'},
- parapets:CALDERA_PARAPETS,interiors:CALDERA_INTERIORS,walk:CALDERA_WALK,pool:'wingman',utility:true
+ lobby:{kicker:'BINOMIO · 2 CONTRO 2',name:'CALDERA',code:'07',subtitle:'STAZIONE COSTIERA',lanes:'2 corsie + portale',tagline:'Stazione di ricerca sul bordo della caldera. Magazzino e banchina sul mare a ovest, belvedere a est, un portale stretto al centro.'},
+ parapets:CALDERA_PARAPETS,interiors:CALDERA_INTERIORS,walk:CALDERA_WALK,pool:'binomio',utility:true
 };
 CALDERA.doors=ARCHES.map((a,index)=>({...a,index})).filter(a=>a.doors);
 for(const a of CALDERA.doors){

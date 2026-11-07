@@ -2,9 +2,9 @@ import * as THREE from './vendor/three.module.js';
 // Linear-light sky palettes. Horizon haze doubles as the arena's aerial fog colour.
 export const SKIES={
  default:{zenith:[.10,.25,.52],horizon:[.62,.71,.78],ground:[.36,.35,.32],cover:.4},
- sahra:{zenith:[.17,.31,.52],horizon:[.79,.75,.67],ground:[.55,.47,.37],cover:.3},
- caldera:{zenith:[.095,.24,.52],horizon:[.63,.71,.78],ground:[.34,.37,.38],cover:.42},
- forge:{zenith:[.07,.2,.5],horizon:[.6,.69,.79],ground:[.33,.34,.33],cover:.38}
+ sahra:{zenith:[.13,.27,.5],horizon:[.79,.75,.67],ground:[.55,.47,.37],cover:.3},
+ caldera:{zenith:[.055,.17,.44],horizon:[.5,.6,.7],ground:[.3,.33,.35],cover:.5},
+ forge:{zenith:[.05,.16,.42],horizon:[.52,.61,.71],ground:[.3,.31,.3],cover:.55}
 };
 const FRAGMENT=`varying vec3 vSky;uniform vec3 sunDirection,zenithColor,horizonColor,groundColor;uniform float cloudCover,time;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
@@ -22,7 +22,7 @@ void main(){
   vec2 p=d.xz/(h+.12)*1.25+vec2(time*.006,time*.0022);float warp=fbm(p*.32);float c=fbm(p*.55+vec2(warp*1.5,warp*.6));
   float cov=smoothstep(1.-cloudCover-.1,1.-cloudCover+.2,c)*smoothstep(0.,.2,h);
   float shade=clamp(.7+.42*pow(s,3.)-.3*fbm(p*2.1+3.7),0.,1.15);
-  vec3 cloud=mix(vec3(.56,.6,.66),vec3(1.,.96,.9),shade)*1.12;
+  vec3 cloud=mix(vec3(.44,.49,.57),vec3(1.,.96,.9),shade)*1.1;
   sky=mix(sky,cloud,cov*.82);
  }
  sky+=vec3(1.,.93,.82)*smoothstep(.99988,.999965,mu)*60.;

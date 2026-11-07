@@ -12,6 +12,8 @@ export function sizeRenderer(renderer,width,height,dpr,scale=1){
 }
 export function filterTextures(root,anisotropy){
  const seen=new Set();root.traverse(o=>{for(const m of Array.isArray(o.material)?o.material:[o.material]){if(!m)continue;
+ // Cut-out leaves and plywood: alpha decides MSAA coverage, so their edges resolve like geometry.
+ if(m.alphaTest>0&&!m.transparent&&!m.alphaToCoverage){m.alphaToCoverage=true;m.needsUpdate=true;}
  for(const value of Object.values(m)){if(!value?.isTexture||seen.has(value)||value.isRenderTargetTexture)continue;seen.add(value);
  const min=value.generateMipmaps&&!value.isCompressedTexture?THREE.LinearMipmapLinearFilter:value.minFilter;
  if(value.anisotropy!==anisotropy||value.magFilter!==THREE.LinearFilter||value.minFilter!==min){value.anisotropy=anisotropy;value.magFilter=THREE.LinearFilter;value.minFilter=min;value.needsUpdate=true;}

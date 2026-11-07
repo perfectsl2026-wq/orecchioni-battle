@@ -8,4 +8,5 @@ export function replaceableBot(players,requested,capacity){const humanCounts={bl
  return players.find(p=>p.bot&&p.team===team)||players.find(p=>p.bot);
 }
 export function missingBots(players,capacity){capacity=teamCapacity(capacity);return ['blue','orange'].flatMap(team=>Array(Math.max(0,capacity-players.filter(p=>p.team===team).length)).fill(team));}
-export function nextBotName(players,serial){return ['Rook','Echo','Ghost','Sable','Reef','Flint'].find(name=>!players.some(p=>p.name===name))||'Unit '+serial;}
+// V44: original Italian callsigns (plants and stones of the dry south), never a character or a brand from another game or film.
+export function nextBotName(players,serial){return ['Ortica','Lentisco','Selce','Carrubo','Ardesia','Sughero'].find(name=>!players.some(p=>p.name===name))||'Recluta '+serial;}

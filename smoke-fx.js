@@ -3,7 +3,9 @@
 // A full-screen veil, drawn with the world (so the weapon stays visible), greys the
 // view while the camera is inside a cloud.
 import * as T from './vendor/three.module.js';
-import {SMOKE,smokeRadius,insideSmoke} from './smoke-rules.js?v=41.0';
+import {SMOKE,SMOKE_TINTS,cleanTint,smokeRadius,insideSmoke} from './smoke-rules.js?v=42.0';
+// Tint factors with unit luminance: a tone times its factor keeps the tone's brightness.
+const TINT=SMOKE_TINTS.map(t=>{const c=new T.Color(t.hex),l=.2126*c.r+.7152*c.g+.0722*c.b;return c.multiplyScalar(1/l);});
 export function puffTexture(){
  // Built from pixels rather than a 2D canvas: radial falloff broken up by value noise.
  const n=64,data=new Uint8Array(n*n*4),h=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);};
@@ -22,7 +24,7 @@ export class SmokeFX{
   this.veil.frustumCulled=false;this.veil.renderOrder=10000;this.veil.visible=false;scene.add(this.veil);
  }
  build(s){
-  const g=new T.Group(),tones=[0xb6bab4,0x9fa39d,0x878b86].map(c=>new T.SpriteMaterial({map:this.texture,color:c,transparent:true,depthWrite:false,opacity:0,fog:true}));
+  const tint=TINT[cleanTint(s.tint)],g=new T.Group(),tones=[0xb6bab4,0x9fa39d,0x878b86].map(c=>{const m=new T.SpriteMaterial({map:this.texture,color:c,transparent:true,depthWrite:false,opacity:0,fog:true});if(s.tint)m.color.lerp((this.tintColor??=new T.Color()).copy(m.color).multiply(tint),.55);return m;});
   let seed=s.id*9301+49297;const rand=()=>((seed=(seed*16807)%2147483647)/2147483647);
   for(let n=0;n<40;n++){const a=rand()*Math.PI*2,u=rand()*2-1,r=Math.cbrt(rand())*.74,horizontal=Math.sqrt(1-u*u)*r;
    // Sun-side puffs take the light tone, the underside the shadow tone: the cloud reads as a lit volume.
@@ -32,7 +34,7 @@ export class SmokeFX{
  }
  setSun(direction){this.sun.copy(direction).normalize();}
  // A bullet through the cloud shoves the puffs it passes aside for about a second,
- // opening a thin tunnel that closes again, as the CS2 volumetric smoke does.
+ // opening a thin tunnel that closes again.
  carve(from,to,now){
   if(!Array.isArray(from)||!Array.isArray(to))return;const a=this.work.set(...from),ab=this.work2.set(...to).sub(a),len2=ab.lengthSq();if(len2<.01)return;
   for(const g of this.clouds.values()){const t=Math.max(0,Math.min(1,((g.position.x-a.x)*ab.x+(g.position.y-a.y)*ab.y+(g.position.z-a.z)*ab.z)/len2));

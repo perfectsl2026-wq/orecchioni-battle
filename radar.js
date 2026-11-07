@@ -14,12 +14,12 @@ export class Radar{
   c.fillStyle='#3b5157';c.fillRect(0,0,w,h);
   // Sites first so walls sit on top of the tinted zone.
   for(const s of map.sites||[]){c.fillStyle='rgba(236,192,139,.2)';c.strokeStyle='rgba(236,192,139,.6)';c.lineWidth=2;c.beginPath();c.arc(X(s.x),Z(s.z),(s.radius||4)*PX*1.25,0,Math.PI*2);c.fill();c.stroke();}
-  // CS-style reading: open ground is the light field, buildings are dark blocks
+  // Reading: open ground is the light field, buildings are dark blocks
   // with a lit edge, waist-high cover is a mid tone you can see over.
-  for(const v of walls){const height=v[4]-(v[6]||0),x=X(v[0]-v[2]/2),z=Z(v[1]-v[3]/2),ww=v[2]*PX,dd=v[3]*PX;
+  for(const v of [...walls,...(map.decks||[])]){const height=v[4]-(v[6]||0),x=X(v[0]-v[2]/2),z=Z(v[1]-v[3]/2),ww=v[2]*PX,dd=v[3]*PX;
    if(height>=1.9){c.fillStyle='#132126';c.fillRect(x,z,ww,dd);c.strokeStyle='#8aa29f';c.lineWidth=1.5;c.strokeRect(x+.75,z+.75,ww-1.5,dd-1.5);}
    else{c.fillStyle='#283b40';c.fillRect(x,z,ww,dd);c.strokeStyle='#6d8582';c.lineWidth=1;c.strokeRect(x+.5,z+.5,ww-1,dd-1);}}
-  this.sites=map.sites||[];
+  this.sites=map.sites||[];this.zones=map.zones||map.walk||[];
  }
  // self: {x,z,yaw}; marks: [{x,z,yaw,kind:'ally'|'enemy'|'dead',color}]; bomb: {x,z,planted}
  draw(self,marks,bomb){
@@ -42,6 +42,9 @@ export class Radar{
   const g=c.createRadialGradient(s/2,s/2,0,s/2,s/2,s*.42);g.addColorStop(0,'rgba(255,255,255,.22)');g.addColorStop(1,'rgba(255,255,255,0)');
   c.fillStyle=g;c.beginPath();c.moveTo(s/2,s/2);c.arc(s/2,s/2,s*.42,-Math.PI/2-.62,-Math.PI/2+.62);c.closePath();c.fill();
   c.fillStyle='#ffffff';c.beginPath();c.moveTo(s/2,s/2-6*u);c.lineTo(s/2+4.6*u,s/2+4.6*u);c.lineTo(s/2,s/2+2.4*u);c.lineTo(s/2-4.6*u,s/2+4.6*u);c.closePath();c.fill();
+  // Where you are, as on any tactical radar: the authored zone name under the map.
+  const zone=this.zones?.find(r=>self.x>=r[0]&&self.x<=r[1]&&self.z>=r[2]&&self.z<=r[3])?.[4];
+  if(zone){c.font='700 '+Math.round(11*u)+'px "Barlow Condensed",sans-serif';c.fillStyle='#0f1b20c8';c.fillRect(0,s-15*u,s,15*u);c.fillStyle='#ecc08b';c.textBaseline='middle';c.fillText(zone,s/2,s-7*u);}
  }
 }
 // Enemies in view of the local player or a living teammate: inside a 110° cone and

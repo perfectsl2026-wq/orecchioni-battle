@@ -1,15 +1,16 @@
-import {smokeBlocks} from './smoke-rules.js?v=41.0';
-import {FIRE} from './blast-rules.js?v=41.0';
-import {GUN_RULES} from './combat-rules.js?v=41.0';
-import {eyeHeight,STANCE} from './player-feel.js?v=41.0';
-import {turnToward,BOT_RUN_SPEED} from './agent-motion.js?v=41.0';
-import {blocked,wallDistance,raySphere,WEAPONS,WALLS,ACTIVE_MAP} from './shared.js?v=41.0';
-import {BotNavigator,planRoute,routeLength,walkClear,NAV_AREAS} from './bot-navigation.js?v=41.0';
+import {smokeBlocks} from './smoke-rules.js?v=42.0';
+import {FIRE} from './blast-rules.js?v=42.0';
+import {GUN_RULES} from './combat-rules.js?v=42.0';
+import {gunOf} from './weapon-stats.js?v=42.0';
+import {eyeHeight,STANCE} from './player-feel.js?v=42.0';
+import {turnToward,BOT_RUN_SPEED,BOT_INPUT_SCALE} from './agent-motion.js?v=42.0';
+import {blocked,wallDistance,raySphere,WEAPONS,WALLS,ACTIVE_MAP} from './shared.js?v=42.0';
+import {BotNavigator,planRoute,routeLength,walkClear,NAV_AREAS} from './bot-navigation.js?v=42.0';
 export {planRoute,walkClear};
 export const BOT_LEVELS={
- recruit:{label:'RECLUTA',reaction:[750,1100],turn:2.8,error:.025,burst:[2,3],pause:[650,1000]},
- tactical:{label:'REGOLARE',reaction:[350,600],turn:4.2,error:.013,burst:[3,5],pause:[350,650]},
- veteran:{label:'VETERANO',reaction:[230,380],turn:4.8,error:.008,burst:[4,6],pause:[220,450]}
+ recruit:{label:'RECLUTA',reaction:[750,1100],turn:2.8,error:.025,recoil:.15,burst:[2,3],pause:[650,1000]},
+ tactical:{label:'REGOLARE',reaction:[350,600],turn:4.2,error:.013,recoil:.4,burst:[3,5],pause:[350,650]},
+ veteran:{label:'VETERANO',reaction:[230,380],turn:4.8,error:.008,recoil:.65,burst:[4,6],pause:[220,450]}
 };
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z),wrap=a=>Math.atan2(Math.sin(a),Math.cos(a));
 const memory=new Map(),reports=new Map(),orders=new Map(),visits={blue:new Map(),orange:new Map()};
@@ -116,7 +117,7 @@ function patrol(p,players,m,now){
 export function botInput(p,players,now,dt,context={}){
  dt=Math.max(.001,Math.min(.05,dt));
  if(!Number.isFinite(p.yaw))p.yaw=p.team==='blue'?Math.PI:0;if(!Number.isFinite(p.pitch))p.pitch=0;
- const level=BOT_LEVELS[context.difficulty]||BOT_LEVELS.tactical;
+ const level=BOT_LEVELS[context.difficulty]||BOT_LEVELS.tactical;p.recoilControl=level.recoil;
  let m=memory.get(p.id);if(!m||m.life!==(p.life||0)){m=createMemory(p,players,now);if(Number.isInteger(context.weapon)&&WEAPONS[context.weapon])m.primary=context.weapon;memory.set(p.id,m);p.weapon=m.primary;}
  if(now>=(m.visitAt||0)){for(let i=0;i<NAV_AREAS.length;i++)if(distance(p,NAV_AREAS[i])<2.2)visits[p.team].set(i,now);m.visitAt=now+250;}
  let enemy;
@@ -132,7 +133,7 @@ export function botInput(p,players,now,dt,context={}){
  if(now>m.burstUntil)m.burst=0;
  const previousMode=m.mode;
  let goal=null,fire=false,reload=false,maxSpeed=Math.min(BOT_RUN_SPEED,GUN_RULES[p.weapon].speed),look=null,aim=false;
- const weapon=WEAPONS[p.weapon],empty=!weapon.melee&&p.ammo[p.weapon]===0;
+ const weapon=gunOf(p),empty=!weapon.melee&&p.ammo[p.weapon]===0;
  const report=reports.get(p.team),freshNoise=m.heard&&now-m.heard.time<5500&&m.heard.time>(m.lastKnown?.time||0)+350;
  const known=freshNoise?m.heard:m.lastKnown&&now-m.lastKnown.time<6500?m.lastKnown:
   report&&report.time>m.ignoreReportBefore&&now-report.time<5000?report:m.heard&&now-m.heard.time<5500?m.heard:null;
@@ -200,7 +201,7 @@ export function botInput(p,players,now,dt,context={}){
  if(goal&&m.mode!==previousMode&&['search','patrol','reload','cover','objective'].includes(m.mode))m.nav.goal=null;
  // Standing in fire: step straight out of it, away from the nearest patch, before anything else.
  const burning=context.fires?.find(f=>distance(p,f)<FIRE.radius+.6);
- if(burning){const d=Math.max(.3,distance(p,burning));goal={x:p.x+(p.x-burning.x)/d*(FIRE.radius+2.5),z:p.z+(p.z-burning.z)/d*(FIRE.radius+2.5)};m.mode='escape';m.nav.goal=null;maxSpeed=4.7;}
+ if(burning){const d=Math.max(.3,distance(p,burning));goal={x:p.x+(p.x-burning.x)/d*(FIRE.radius+2.5),z:p.z+(p.z-burning.z)/d*(FIRE.radius+2.5)};m.mode='escape';m.nav.goal=null;maxSpeed=BOT_RUN_SPEED+.4;}
  const velocity=m.nav.update(p,goal,players,now,dt,Math.min(maxSpeed,GUN_RULES[p.weapon].speed),!contact);
  if(!contact){
   const facing=now<m.scanUntil?m.scanYaw+Math.sin((now-(m.scanUntil-650))*.006)*.6:
@@ -211,8 +212,8 @@ export function botInput(p,players,now,dt,context={}){
  const pop=context.grenades?.find(g=>g.kind!=='smoke'&&g.explodeAt-now<900&&g.explodeAt>now&&distance(p,g)<20&&players.some(a=>a.id===g.owner&&a.team!==p.team));
  if(pop){turnToward(p,m,Math.atan2(p.x-pop.x,p.z-pop.z)+Math.PI,level.turn*1.5,dt);fire=false;aim=false;}
  p.vx=velocity.x;p.vz=velocity.z;
- const forward=(-Math.sin(p.yaw)*velocity.x-Math.cos(p.yaw)*velocity.z)/4.7;
- const side=(Math.cos(p.yaw)*velocity.x-Math.sin(p.yaw)*velocity.z)/4.7;
+ const forward=(-Math.sin(p.yaw)*velocity.x-Math.cos(p.yaw)*velocity.z)/BOT_INPUT_SCALE;
+ const side=(Math.cos(p.yaw)*velocity.x-Math.sin(p.yaw)*velocity.z)/BOT_INPUT_SCALE;
  const flash=!!context.utility&&!!enemy&&p.flashes>0&&now>=(p.flashReady||0)&&now-m.born>2000&&distance(p,enemy)>9&&distance(p,enemy)<22&&now>=(p.blindUntil||0);
  // HE at a known enemy position out of sight, only when no flash goes out this tick.
  const heTarget=!flash&&!enemy&&!burning&&context.he&&now>=(p.flashReady||0)&&now>=(p.equipUntil||0)?context.he(m.lastKnown&&now-m.lastKnown.time<2500?m.lastKnown:null):null;

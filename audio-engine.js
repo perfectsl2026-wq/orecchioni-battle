@@ -65,6 +65,12 @@ function step(v,surface,heavy){
  }
  if(heavy)v.layer(v.noise('white',.25,.012),v.filter('bandpass',3800,1),v.env(.2,{start:.012,attack:.01,decay:.05}));
 }
+// A blade dragged over something hard: a bright noise band sliding down with a thin ring under it.
+function scrape(v){
+ v.layer(v.noise('white',.07),v.filter('highpass',3200),v.env(.75,{attack:.0004,decay:.012}));
+ for(let n=0;n<7;n++){const t=.012+n*.019+v.rand()*.008;v.layer(v.noise('white',.03,t),v.filter('bandpass',5400-n*420,6),v.env(.34-n*.03,{start:t,attack:.002,decay:.016}));}
+ const base=2300+v.rand()*500;for(const r of [1,1.53,2.37])v.layer(v.tone(base*r,{dur:.3}),v.env(.1/r,{attack:.002,decay:.09}));
+}
 function impact(v,material){
  if(material==='metal'){
   v.layer(v.noise('white',.03),v.filter('highpass',3000),v.env(.7,{attack:.0002,decay:.003}));
@@ -92,6 +98,20 @@ function casing(v){
   v.layer(v.noise('white',.01,t),v.filter('highpass',5000),v.env(g*.3,{start:t,decay:.002}));}
 }
 function helmet(v){v.layer(v.noise('white',.02),v.filter('highpass',2500),v.env(.8,{attack:.0002,decay:.003}));for(const [f,g,d]of [[1880,.5,.09],[3760,.3,.06],[5420,.18,.04],[1240,.22,.05]])v.layer(v.tone(f,{dur:.6}),v.env(g,{attack:.0005,decay:d}));}
+// V42 hit confirmation, heard over a gunshot even on phone speakers: a short band of bright noise and a
+// clean tone in the 2-3 kHz range the report leaves free, a lower thud under the body hit, a ring on the head.
+function hitTick(v,head){
+ v.layer(v.noise('white',.02),v.filter('bandpass',head?3300:2800,2.2),v.env(1,{attack:.0002,decay:.0028}));
+ v.layer(v.tone(head?2350:1900,{dur:.06}),v.env(head?.5:.42,{attack:.0004,decay:.012}));
+ v.layer(v.noise('brown',.12),v.filter('lowpass',360),v.env(head?.35:.6,{attack:.001,decay:.024}));
+ if(head)for(const [f,g,d]of [[4700,.16,.05],[6900,.08,.03]])v.layer(v.tone(f,{start:.003,dur:.2}),v.env(g,{start:.003,attack:.0005,decay:d}));
+}
+// The bolt rifle's own weight: a falling sub drop and a longer outdoor roll under the shared report.
+function sniperLayer(v){
+ v.layer(v.tone(70,{end:30,dur:.32}),v.env(1,{attack:.002,decay:.12}));
+ v.layer(v.noise('brown',1.6),v.filter('lowpass',260),v.env(.5,{start:.02,attack:.03,decay:.42}));
+ v.layer(v.noise('pink',1.4),v.filter('bandpass',900,.6),v.env(.12,{start:.09,attack:.06,decay:.38}));
+}
 function dryFire(v){v.layer(v.noise('white',.02),v.filter('bandpass',2800,5),v.env(.8,{attack:.0002,decay:.003}));v.layer(v.tone(1900,{dur:.08}),v.env(.15,{decay:.01}));v.layer(v.noise('white',.03,.012),v.filter('bandpass',4200,3),v.env(.25,{start:.012,decay:.003}));}
 function foley(v,kind){
  if(kind==='magout'){v.layer(v.noise('white',.02),v.filter('bandpass',2300,4),v.env(.7,{attack:.0003,decay:.003}));v.layer(v.noise('white',.2,.01),v.filter('bandpass',1400,1),v.env(.4,{start:.01,attack:.012,decay:.04}));}
@@ -134,7 +154,7 @@ export class AudioEngine{
  constructor(){
   this.ctx=null;this.banks=null;this.voices=0;this.map='caldera';this.enclosure=0;this.ambient=[];this.heartAt=0;this.reloads=new Map();this.rand=rng(Date.now()&0xffff);
   let stored=.8;try{const v=Number(localStorage.getItem('ob-volume-v28'));if(Number.isFinite(v)&&localStorage.getItem('ob-volume-v28')!==null)stored=Math.max(0,Math.min(1,v));}catch{}this.volume=stored;
-  this.ready=null;this.unlocked=false;
+  this.ready=null;this.unlocked=false;this.gains={body:.5,head:.55,sniper:.75};
  }
  // Baking runs once the lobby is interactive, so it never competes with arena loading.
  // The context and its reverbs are built here too, suspended: creating them inside the
@@ -156,11 +176,11 @@ export class AudioEngine{
    Promise.all(materials.map((m,i)=>many(3,.5,7000+i*31,v=>impact(v,m),.85))),
    Promise.all([many(3,.6,8100,ricochet,.7),many(3,.3,8200,whiz,.9),many(3,.35,8300,casing,.6),bake(.8,8400,helmet,.85),bake(.15,8500,dryFire,.7),
     ...['magout','magin','bolt','slide','cloth','draw','swish'].map((k,i)=>bake(.4,8600+i,v=>foley(v,k),.8)),
-    bake(1.4,8800,v=>bang(v,false),.95),bake(3.4,8900,v=>bang(v,true),.95),bake(.2,9000,beep,.6),bake(.5,9100,heartbeat,.9),bake(.32,9200,v=>radio(v,1250),.6),bake(1.6,9300,v=>chord(v,[523.3,659.3,784]),.5),bake(1.6,9400,v=>chord(v,[392,311.1,261.6]),.5),bake(.36,9500,killTone,.6)])
+    bake(1.4,8800,v=>bang(v,false),.95),bake(3.4,8900,v=>bang(v,true),.95),bake(.2,9000,beep,.6),bake(.5,9100,heartbeat,.9),bake(.32,9200,v=>radio(v,1250),.6),bake(1.6,9300,v=>chord(v,[523.3,659.3,784]),.5),bake(1.6,9400,v=>chord(v,[392,311.1,261.6]),.5),bake(.36,9500,killTone,.6),bake(.3,9600,scrape,.75),bake(.16,9700,v=>hitTick(v,false),.9),bake(.26,9710,v=>hitTick(v,true),.9),bake(1.7,9720,sniperLayer,.9)])
   ]);
-  const [ric,whz,cas,hel,dry,magout,magin,bolt,slide,cloth,draw,swish,flash,explosion,bombBeep,heart,radioClick,win,lose,killChime]=rest;
+  const [ric,whz,cas,hel,dry,magout,magin,bolt,slide,cloth,draw,swish,flash,explosion,bombBeep,heart,radioClick,win,lose,killChime,bladeScrape,tickBody,tickHead,sniperBoom]=rest;
   this.banks={guns,mechs,steps:Object.fromEntries(surfaces.map((s,i)=>[s,steps[i]])),lands:Object.fromEntries(surfaces.map((s,i)=>[s,lands[i]])),impacts:Object.fromEntries(materials.map((m,i)=>[m,impacts[i]])),
-   ricochet:ric,whiz:whz,casing:cas,helmet:hel,dry,foley:{magout,magin,bolt,slide,cloth,draw,swish},flash,explosion,beep:bombBeep,heart,radio:radioClick,win,lose,kill:killChime};
+   ricochet:ric,whiz:whz,casing:cas,helmet:hel,dry,foley:{magout,magin,bolt,slide,cloth,draw,swish},flash,explosion,beep:bombBeep,heart,radio:radioClick,win,lose,kill:killChime,scrape:bladeScrape,hit:{body:tickBody,head:tickHead},sniper:sniperBoom};
   this.bakeMs=Math.round(performance.now()-started);
  }
  // Called from a user gesture; browsers keep audio suspended until then.
@@ -173,13 +193,16 @@ export class AudioEngine{
   this.master=c.createGain();this.master.gain.value=this.volume;
   this.hearing=c.createBiquadFilter();this.hearing.type='lowpass';this.hearing.frequency.value=20000;this.hearing.Q.value=.4;
   this.compressor=c.createDynamicsCompressor();Object.assign(this.compressor,{});this.compressor.threshold.value=-12;this.compressor.knee.value=10;this.compressor.ratio.value=4.5;this.compressor.attack.value=.003;this.compressor.release.value=.22;
-  this.dry=c.createGain();this.ambienceBus=c.createGain();this.ambienceBus.gain.value=.0;
+  this.dryBus=c.createGain();this.ambienceBus=c.createGain();this.ambienceBus.gain.value=.0;
   this.send=c.createGain();this.outdoorSend=c.createGain();this.indoorSend=c.createGain();this.outdoor=c.createConvolver();this.indoor=c.createConvolver();this.returnGain=c.createGain();this.returnGain.gain.value=.9;
   this.send.connect(this.outdoorSend).connect(this.outdoor).connect(this.returnGain);this.send.connect(this.indoorSend).connect(this.indoor).connect(this.returnGain);
-  for(const n of [this.dry,this.returnGain,this.ambienceBus])n.connect(this.hearing);
+  for(const n of [this.dryBus,this.returnGain,this.ambienceBus])n.connect(this.hearing);
   this.hearing.connect(this.master).connect(this.compressor).connect(c.destination);
   this.setMap(this.map,true);
  }
+ // A hidden page keeps playing the online match: nothing of it should be heard from a background tab,
+ // neither new sounds nor the ambience loops, which fade out and come back at the level the game last set.
+ silence(on){this.silent=!!on;this.fadeAmbience();}
  setVolume(v){this.volume=Math.max(0,Math.min(1,v));if(this.master)this.master.gain.setTargetAtTime(this.volume,this.ctx.currentTime,.05);try{localStorage.setItem('ob-volume-v28',String(this.volume));}catch{}}
  setMap(map,force=false){
   if(!force&&map===this.map&&this.outdoor?.buffer)return;this.map=SPACES[map]?map:'caldera';if(!this.ctx)return;
@@ -198,7 +221,8 @@ export class AudioEngine{
   else if(kind==='alpine'){loop(pink,.035,[['bandpass',1800,.5]]);loop(brown,.08,[['lowpass',110,.6]],{gainRate:.2,gain:.15});loop(pink,.04,[['bandpass',480,.6]],{rate:.05,depth:180,gainRate:.06,gain:.6});}
   else{loop(brown,.06,[['lowpass',220,.5]]);loop(pink,.018,[['bandpass',900,.8]],{rate:.04,depth:120});for(const [f,g]of [[55,.012],[110,.008],[165,.004]]){const o=c.createOscillator();o.frequency.value=f;const gg=c.createGain();gg.gain.value=g;o.connect(gg).connect(bus);o.start();this.ambient.push(o);}}
  }
- setAmbience(level){if(this.ambienceBus)this.ambienceBus.gain.setTargetAtTime(level,this.ctx.currentTime,.8);}
+ setAmbience(level){this.ambienceLevel=level;this.fadeAmbience();}
+ fadeAmbience(){if(this.ambienceBus)this.ambienceBus.gain.setTargetAtTime(this.silent?0:this.ambienceLevel||0,this.ctx.currentTime,this.silent?.05:.8);}
  listen(camera,enclosure=0){
   if(!this.ctx)return;const l=this.ctx.listener,p=camera.position,t=this.ctx.currentTime,f=this.forward??={x:0,y:0,z:-1};
   const e=camera.matrixWorld.elements;f.x=-e[8];f.y=-e[9];f.z=-e[10];
@@ -210,12 +234,12 @@ export class AudioEngine{
  }
  pick(list){return Array.isArray(list)?list[Math.floor(this.rand()*list.length)]:list;}
  play(buffer,{position=null,gain=1,rate=1,delay=0,lowpass=20000,reverb=.15,model='HRTF',ref=2,rolloff=1,priority=1,at=null}={}){
-  const c=this.ctx;if(!c||c.state!=='running'||!buffer||(this.voices>=56&&priority<2)||this.voices>=72)return null;
+  const c=this.ctx;if(!c||this.silent||c.state!=='running'||!buffer||(this.voices>=56&&priority<2)||this.voices>=72)return null;
   const src=c.createBufferSource();src.buffer=buffer;src.playbackRate.value=rate;let node=src;const nodes=[src];
   if(lowpass<19000){const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=Math.max(120,lowpass);f.Q.value=.5;node.connect(f);node=f;nodes.push(f);}
   const g=c.createGain();g.gain.value=gain;node.connect(g);nodes.push(g);let out=g;
   if(position){const p=c.createPanner();p.panningModel=model;p.distanceModel='inverse';p.refDistance=ref;p.rolloffFactor=rolloff;p.maxDistance=10000;if(p.positionX){p.positionX.value=position[0];p.positionY.value=position[1];p.positionZ.value=position[2];}else p.setPosition(...position);g.connect(p);out=p;nodes.push(p);}
-  out.connect(this.dry);if(reverb>0){const s=c.createGain();s.gain.value=reverb;out.connect(s).connect(this.send);nodes.push(s);}
+  out.connect(this.dryBus);if(reverb>0){const s=c.createGain();s.gain.value=reverb;out.connect(s).connect(this.send);nodes.push(s);}
   this.voices++;src.onended=()=>{this.voices--;for(const n of nodes)n.disconnect();};src.start(at??c.currentTime+Math.max(0,delay));return src;
  }
  distance(position){const l=this.listener;return l?Math.hypot(position[0]-l.x,position[1]-l.y,position[2]-l.z):0;}
@@ -223,11 +247,13 @@ export class AudioEngine{
  // Air absorption: high frequencies decay with range; occlusion (0–1, V31: by the
  // thickness of cover between source and listener) lowpasses and quietens through walls.
  air(distance,muffled){const m=Math.min(1,Math.max(0,Number(muffled)||0));return Math.min(19500,Math.max(1300,19000*Math.exp(-distance/48)))*(1-.84*m);}
- shot({weapon=3,position=null,local=false,muffled=false}){
-  const b=this.banks;if(!b||!b.guns[weapon])return;
-  if(local){this.play(this.pick(b.guns[weapon]),{gain:.82,rate:.98+this.rand()*.04,reverb:.34,priority:3});this.play(b.mechs[weapon],{gain:.32,rate:.97+this.rand()*.06,reverb:0,priority:2});return;}
+ // `tone` [rate, gain]: a design that is a weapon of its own (weapon-stats.js) sounds higher and snappier or deeper.
+ shot({weapon=3,position=null,local=false,muffled=false,tone=null}){
+  const b=this.banks;if(!b||!b.guns[weapon])return;const tr=tone?.[0]||1,tg=tone?.[1]||1;
+  if(local){this.play(this.pick(b.guns[weapon]),{gain:.82*tg,rate:(.98+this.rand()*.04)*tr,reverb:.34,priority:3});this.play(b.mechs[weapon],{gain:.32,rate:(.97+this.rand()*.06)*tr,reverb:0,priority:2});if(weapon===4&&b.sniper)this.play(b.sniper,{gain:this.gains.sniper,rate:.97+this.rand()*.05,reverb:.4,priority:3});return;}
   const d=this.distance(position),m=Math.min(1,Math.max(0,Number(muffled)||0));
-  this.play(this.pick(b.guns[weapon]),{position,gain:1-.45*m,rate:.96+this.rand()*.07,delay:d/SPEED_OF_SOUND,lowpass:this.air(d,m),reverb:.22+Math.min(.6,d/65)-.15*m,ref:5,rolloff:.8,priority:2});
+  this.play(this.pick(b.guns[weapon]),{position,gain:(1-.45*m)*tg,rate:(.96+this.rand()*.07)*tr,delay:d/SPEED_OF_SOUND,lowpass:this.air(d,m),reverb:.22+Math.min(.6,d/65)-.15*m,ref:5,rolloff:.8,priority:2});
+  if(weapon===4&&b.sniper)this.play(b.sniper,{position,gain:(1-.45*m)*this.gains.sniper,delay:d/SPEED_OF_SOUND,lowpass:Math.min(2400,this.air(d,m)),reverb:.3+Math.min(.5,d/65),ref:8,rolloff:.6,priority:2});
  }
  footstep({position=null,surface='stone',local=false,heavy=false,muffled=false,volume=1}){
   const b=this.banks;if(!b)return;const list=(heavy?b.lands:b.steps)[surface]||b.steps.stone;
@@ -241,17 +267,20 @@ export class AudioEngine{
   if(ricochet&&(material==='metal'||material==='stone')&&this.rand()<.18)this.play(this.pick(b.ricochet),{position,gain:.45,rate:.85+this.rand()*.3,delay:d/SPEED_OF_SOUND,reverb:.25,ref:3,rolloff:1,priority:0});
  }
  whiz(position){const b=this.banks;if(!b)return;this.play(this.pick(b.whiz),{position,gain:.75,rate:.9+this.rand()*.25,reverb:.05,ref:1,rolloff:1.4,priority:2});}
- casing(position,local=false){const b=this.banks;if(!b)return;if(local)this.play(this.pick(b.casing),{gain:.08,rate:.92+this.rand()*.16,reverb:.05,delay:.32+this.rand()*.18,priority:0});else{if(this.distance(position)>8)return;this.play(this.pick(b.casing),{position,gain:.35,rate:.9+this.rand()*.2,delay:.32+this.rand()*.18,ref:.8,rolloff:1.5,model:'equalpower',priority:0});}}
- hitConfirm({headshot=false,helmet=false}={}){const b=this.banks;if(!b)return;if(headshot&&helmet)this.play(b.helmet,{gain:.34,rate:.97+this.rand()*.05,reverb:.06,priority:3});else this.play(this.pick(b.impacts.flesh),{gain:headshot?.42:.28,rate:headshot?1.15:1,reverb:.03,priority:3});}
- // Whole-tone steps per kill in the round (Valorant practice), capped at the fifth.
+ casing(position,local=false,delay=null){const b=this.banks;if(!b)return;if(local)this.play(this.pick(b.casing),{gain:.08,rate:.92+this.rand()*.16,reverb:.05,delay:delay??.32+this.rand()*.18,priority:0});else{if(this.distance(position)>8)return;this.play(this.pick(b.casing),{position,gain:.35,rate:.9+this.rand()*.2,delay:.32+this.rand()*.18,ref:.8,rolloff:1.5,model:'equalpower',priority:0});}}
+ // One confirmation per 60 ms: a spray that connects ticks, it does not buzz.
+ hitConfirm({headshot=false,helmet=false}={}){const b=this.banks;if(!b||!this.ctx)return;const t=this.ctx.currentTime;if(t-(this.hitAt||-1)<.06&&!headshot)return;this.hitAt=t;const G=this.gains;
+  this.play(headshot?b.hit.head:b.hit.body,{gain:headshot?G.head:G.body,rate:.98+this.rand()*.04,reverb:.03,priority:3});if(headshot&&helmet)this.play(b.helmet,{gain:.3,rate:.97+this.rand()*.05,reverb:.06,delay:.004,priority:3});}
+ // Whole-tone steps per kill in the round, capped at the fifth.
  kill({streak=1,headshot=false}={}){const b=this.banks;if(!b)return;this.play(b.kill,{gain:headshot?.3:.24,rate:Math.pow(2,Math.min(4,Math.max(0,streak-1))/6),reverb:.04,delay:.03,priority:3});}
  hurt(heavy=false){const b=this.banks;if(!b)return;this.play(this.pick(b.impacts.flesh),{gain:heavy?.75:.55,rate:.75+this.rand()*.1,lowpass:2200,reverb:.02,priority:3});}
  dry(){if(this.banks)this.play(this.banks.dry,{gain:.35,reverb:.05,priority:2});}
  equip(melee=false){const b=this.banks;if(!b)return;this.play(b.foley.draw,{gain:melee?.25:.3,rate:melee?1.25:.95+this.rand()*.1,reverb:.06,priority:1});}
  knife({heavy=false,hit=false}={}){const b=this.banks;if(!b)return;this.play(b.foley.swish,{gain:heavy?.45:.35,rate:heavy?.8:1.05+this.rand()*.1,reverb:.05,priority:2});if(hit)this.play(this.pick(b.impacts.flesh),{gain:.55,rate:.85,reverb:.04,delay:.06,priority:2});}
+ scrape({position,material='stone'}={}){const b=this.banks;if(!b)return;const hard=material==='metal'||material==='stone',d=this.distance(position);this.play(hard?b.scrape:this.pick(b.impacts[material]||b.impacts.stone),{position,gain:hard?(material==='metal'?.6:.42):.4,rate:(hard?.94:1.15)+this.rand()*.12,delay:d/SPEED_OF_SOUND,reverb:.1,ref:1.6,rolloff:1.2,priority:2});}
  // Magazine weapons: release, magazine out, magazine seated, bolt release. Remote reloads are positional.
  reload(owner,weapon,duration,position=null){
-  const b=this.banks;if(!b||!this.ctx)return;this.cancelReload(owner);const t0=this.ctx.currentTime,f=b.foley,list=weapon===0?[[.05,f.cloth,.3],[.18,f.magout,.7],[.62,f.magin,.85],[.86,f.slide,.8]]:weapon===4?[[.05,f.cloth,.3],[.14,f.bolt,.6],[.4,f.magin,.7],[.62,f.magin,.6],[.82,f.bolt,.8]]:[[.04,f.cloth,.3],[.16,f.magout,.75],[.58,f.magin,.9],[.82,f.bolt,.85]];
+  const b=this.banks;if(!b||!this.ctx)return;this.cancelReload(owner);const t0=this.ctx.currentTime,f=b.foley,list=weapon===0?[[.05,f.cloth,.3],[.18,f.magout,.7],[.62,f.magin,.85],[.86,f.slide,.8]]:weapon===4?[[.05,f.cloth,.3],[.14,f.bolt,.6],[.4,f.magout,.7],[.62,f.magin,.75],[.82,f.bolt,.8]]:[[.04,f.cloth,.3],[.16,f.magout,.75],[.58,f.magin,.9],[.82,f.bolt,.85]];
   const d=position?this.distance(position):0;if(position&&d>22)return;
   const sources=list.map(([at,buffer,gain])=>this.play(buffer,{position,gain:gain*(position?.8:.42),at:t0+at*duration+(position?d/SPEED_OF_SOUND:0),reverb:.06,ref:1.2,rolloff:1.3,model:'equalpower',priority:1})).filter(Boolean);this.reloads.set(owner,sources);
  }

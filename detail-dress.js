@@ -1,7 +1,7 @@
 // V40 dressing: the lived-in layer of the three maps. Everything here is cosmetic and sits
 // where it cannot change play: above the 1.0–2.0 m head band, flush on a wall, flat on the
 // ground, or outside the playable boundary. Models are the V40 parts of street-props.js.
-import {blocked,groundHeight,wallDistance} from './shared.js?v=41.0';
+import {blocked,groundHeight,wallDistance} from './shared.js?v=42.0';
 const hash=(x,z)=>{const s=Math.sin(x*127.1+z*311.7)*43758.5453;return s-Math.floor(s);};
 // Point on a facade frame: u along the wall, out away from it.
 const onWall=(x,z,angle,u,out)=>[x+Math.cos(angle)*u+Math.sin(angle)*out,z-Math.sin(angle)*u+Math.cos(angle)*out];
@@ -60,7 +60,7 @@ export function calderaDress(sp,map,{rimAt}){
  sp.add('gru',{x:-112,y:-1.2,z:-92,yaw:2.1,scale:.82,tag:'far'});sp.add('gru',{x:-138,y:-1.2,z:-70,yaw:2.5,scale:.82,tag:'far'});
  sp.add('molo',{x:-125,y:-3,z:-81,yaw:-.72,fit:{w:18,d:64,h:3.2},tag:'far'});
  sp.add('isola',{x:-86,y:-3,z:22,yaw:.6,fit:{w:24,d:22,h:8},tag:'far'});sp.add('faro',{x:-86,y:3.6,z:22,scale:14,tag:'far'});
- for(const a of [.3,.5,.7,.88,1.02,-.4,-.7]){const {x,z,y}=rimAt(a);sp.add('turbina',{x,y:y-1,z,yaw:-a+Math.PI/2,scale:2.1,tag:'far'});}
+ for(const a of [.3,.5,.7,.88,-.4,-.7]){const {x,z,y}=rimAt(a);sp.add('turbina',{x,y:y-1,z,yaw:-a+Math.PI/2,scale:2.1,tag:'far'});}
  for(const [x,z,k] of [[-44,8,1.5],[-58,28,1.7],[-36,44,1.4],[14,58,1.6],[-70,-18,1.8]])sp.add('boa',{x,y:-1.5,z,yaw:x,scale:k,tag:'far'});
  // Lifebuoys hang on the inner side of the sea rail, one every eleven metres.
  for(const [x0,x1,z0,z1] of map.parapets||[]){const alongX=x1-x0>=z1-z0,cx=(x0+x1)/2,cz=(z0+z1)/2,len=alongX?x1-x0:z1-z0;
@@ -72,13 +72,11 @@ export const FORGE_PYLONS=[[-74,-46],[-30,-84],[24,-92],[78,-62]];
 export function forgeDress(sp,{terrainAt}){
  for(let i=0;i<64;i++){const a=i*2.39996+.3,r=38+hash(i,3.1)*58,x=Math.cos(a)*r,z=Math.sin(a)*r;sp.add('abete',{x,y:terrainAt(x,z)-.4,z,yaw:i*1.9,scale:.19+hash(i,7.7)*.1,tag:'pine'});}
  FORGE_PYLONS.forEach(([x,z],i,all)=>{const n=all[Math.min(i+1,all.length-1)],p=all[Math.max(i-1,0)];sp.add('traliccio',{x,y:terrainAt(x,z)-.5,z,yaw:Math.atan2(n[0]-p[0],n[1]-p[1])+Math.PI/2,scale:.0145,tag:'far'});});
- // Ventilation trunk along the north and south walls, broken by the station name plate.
- for(const side of [-1,1])for(let u=-15.7;u<16;u+=1.71){if(Math.abs(u)<5.2)continue;sp.add('condotto',{x:u,y:5,z:side*(19.5-.3),yaw:0,scale:.0035,tag:'facade'});}
  for(const [x,y,z,a,k] of [[-17.44,2.75,11,Math.PI/2,1.2],[17.44,2.75,-7,-Math.PI/2,1.2],[-9,2.75,-19.44,0,1.2],[9,2.75,19.44,Math.PI,1.2]])sp.add('scala',{x,y,z,yaw:a,scale:k,tag:'facade'});
  // Each turbine hall gets an extinguisher by the door, a camera and two isolating valves.
  for(const [hx,hz] of [[-12,-12],[12,-12],[-12,12],[12,12]])for(const side of [-1,1]){
   const f={x:hx,z:hz+side*4.5,angle:side>0?0:Math.PI};
-  wallProp(sp,'estintore',f,1.5,.6,.1,.008);wallProp(sp,'telecamera',f,-2.4,3.1,.14,.2);
+  wallProp(sp,'estintore',f,1.5,.6,.1,.008);wallProp(sp,'telecamera',f,-2.4,2.72,.14,.2);
   wallProp(sp,'valvola',f,2.2,2.62,.11,.2);wallProp(sp,'valvola',f,-1.6,2.62,.11,.16);
  }
 }

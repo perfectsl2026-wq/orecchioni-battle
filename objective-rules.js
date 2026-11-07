@@ -1,9 +1,10 @@
-import {MAPS,wallDistance,groundHeight} from './shared.js?v=41.0';
-import {eyeHeight} from './player-feel.js?v=41.0';
-import {bloom} from './smoke-rules.js?v=41.0';
-import {detonate} from './blast-rules.js?v=41.0';
-import {ECONOMY,economyOn,give} from './economy.js?v=41.0';
-export const BOMB={plantMs:3000,defuseMs:5000,fuseMs:40000,reach:2.5};
+import {MAPS,wallDistance,groundHeight} from './shared.js?v=42.0';
+import {eyeHeight} from './player-feel.js?v=42.0';
+import {bloom} from './smoke-rules.js?v=42.0';
+import {detonate} from './blast-rules.js?v=42.0';
+import {ECONOMY,economyOn,give} from './economy.js?v=42.0';
+import {tossSpot} from './pickups.js?v=42.0';
+export const BOMB={plantMs:3000,defuseMs:5000,fuseMs:40000,reach:2.5,blastRadius:20,blastMax:200,weapon:8};
 export const objectiveEnabled=s=>!!MAPS[s.map]?.sites?.length&&s.mode==='demolition'&&!s.preview;
 export const flashEnabled=s=>!!MAPS[s.map]?.utility;
 // Sides swap at half time: after six rounds of a first-to-seven, eight of a first-to-nine.
@@ -14,27 +15,51 @@ export function resetObjective(state){
  state.grenades=[];state.smokes=[];state.fires=[];state.drops=[];state.utilitySerial=state.utilitySerial||0;
  if(!objectiveEnabled(state)){state.objective=null;return;}
  state.attackTeam=attackFor(state);
- const carrier=Object.values(state.players).filter(p=>!p.loading&&p.hp>0&&p.team===state.attackTeam).sort((a,b)=>Number(!!a.bot)-Number(!!b.bot)||a.id.localeCompare(b.id))[0];
+ const carrier=Object.values(state.players).filter(p=>!p.loading&&!p.away&&p.hp>0&&p.team===state.attackTeam).sort((a,b)=>Number(!!a.bot)-Number(!!b.bot)||a.id.localeCompare(b.id))[0];
  state.objective={status:carrier?'carried':'dropped',carrierId:carrier?.id||null,x:carrier?.x||0,z:carrier?.z||0,site:null,actorId:null,actionStarted:0,progress:0,explodeAt:0};
 }
 function interrupt(o){o.actorId=null;o.actionStarted=0;o.progress=0;}
-export function updateObjective(state,now){
+// True while holding E here means planting or defusing, so nothing else may take the key.
+export function onObjective(state,p){
+ const o=state.objective;if(!objectiveEnabled(state)||state.phase!=='live'||!o||!p)return false;
+ if(o.actorId===p.id)return true;
+ if(o.status==='defused'||o.status==='exploded')return true;
+ if(o.status==='planted')return p.team!==state.attackTeam&&Math.hypot(distance(p,o),(p.y||0)-groundHeight(o.x,o.z))<=BOMB.reach;
+ return o.status==='carried'&&o.carrierId===p.id&&sitesOf(state).some(s=>distance(p,s)<=s.radius);
+}
+// The carrier can hand the bomb over: it lands ahead and they cannot re-take it until they step away.
+export function dropBomb(state,p){
+ const o=state.objective;if(!objectiveEnabled(state)||state.phase!=='live'||o?.status!=='carried'||o.carrierId!==p.id)return false;
+ const spot=tossSpot(p);o.status='dropped';o.carrierId=null;o.x=spot.x;o.z=spot.z;o.droppedBy=p.id;interrupt(o);return true;
+}
+// Blast at a body: linear falloff, halved through a solid, reduced by armour.
+export function bombDamage(o,p){
+ const ground=groundHeight(o.x,o.z),chest=[p.x,eyeHeight(p)-.35,p.z],from=[o.x,ground+.6,o.z],v=chest.map((c,i)=>c-from[i]),d=Math.hypot(...v);if(d>BOMB.blastRadius)return 0;
+ const raw=BOMB.blastMax*Math.max(0,1-Math.max(0,d-1.5)/(BOMB.blastRadius-1.5)),sheltered=d>.3&&wallDistance(from,v.map(c=>c/d),d)<d-.1;
+ return Math.round(raw*(sheltered?.5:1)*((p.armor||0)>0?.6:1));
+}
+// `hurt` lands the blast in the tick the bomb goes off, while the round is still live; the
+// status is already 'exploded', so the result cannot change, and the victim owns the damage.
+export function updateObjective(state,now,hurt=null){
  if(!objectiveEnabled(state)||state.phase!=='live')return;const o=state.objective;if(!o)return;
- if(o.status==='planted'&&now>=o.explodeAt){o.status='exploded';interrupt(o);return;}
- const players=Object.values(state.players).filter(p=>!p.loading&&p.hp>0);
+ if(o.status==='planted'&&now>=o.explodeAt){o.status='exploded';interrupt(o);if(hurt)for(const p of Object.values(state.players)){if(p.hp<=0||p.loading)continue;const damage=bombDamage(o,p);if(damage>0)hurt(p,p.id,damage,BOMB.weapon,[o.x,groundHeight(o.x,o.z),o.z]);}return;}
+ const players=Object.values(state.players).filter(p=>!p.loading&&!p.away&&p.hp>0);
  if(o.status==='carried'){
   const carrier=players.find(p=>p.id===o.carrierId);
   if(carrier){o.x=carrier.x;o.z=carrier.z;}else{o.status='dropped';o.carrierId=null;interrupt(o);}
  }
  if(o.status==='dropped'){
-  const p=players.find(p=>p.team===state.attackTeam&&distance(p,o)<1.4);
+  if(o.droppedBy){const by=state.players[o.droppedBy];if(!by||by.hp<=0||distance(by,o)>2)o.droppedBy=null;}
+  const p=players.find(p=>p.team===state.attackTeam&&p.id!==o.droppedBy&&distance(p,o)<1.4);
   if(p){o.status='carried';o.carrierId=p.id;o.x=p.x;o.z=p.z;}
  }
- const actor=players.find(p=>p.input?.interact&&!p.input.fire&&!p.input.secondary&&now-(p.lastShot??-Infinity)>120&&!p.reload&&(p.speed||0)<.5&&(p.y||0)-(p.groundY||0)<.05&&now>=(p.equipUntil||0)&&
-  (o.status==='carried'?p.id===o.carrierId&&sitesOf(state).some(s=>distance(p,s)<=s.radius):o.status==='planted'&&p.team!==state.attackTeam&&Math.hypot(distance(p,o),(p.y||0)-groundHeight(o.x,o.z))<=BOMB.reach&&wallDistance([p.x,eyeHeight(p),p.z],direction(p,o),Math.hypot(distance(p,o),eyeHeight(p)-(groundHeight(o.x,o.z)+.18)))>=Math.hypot(distance(p,o),eyeHeight(p)-(groundHeight(o.x,o.z)+.18))-.05));
+ const valid=p=>p.input?.interact&&!p.input.fire&&!p.input.secondary&&now-(p.lastShot??-Infinity)>120&&!p.reload&&(p.speed||0)<.5&&(p.y||0)-(p.groundY||0)<.05&&now>=(p.equipUntil||0)&&
+  (o.status==='carried'?p.id===o.carrierId&&sitesOf(state).some(s=>distance(p,s)<=s.radius):o.status==='planted'&&p.team!==state.attackTeam&&Math.hypot(distance(p,o),(p.y||0)-groundHeight(o.x,o.z))<=BOMB.reach&&wallDistance([p.x,eyeHeight(p),p.z],direction(p,o),Math.hypot(distance(p,o),eyeHeight(p)-(groundHeight(o.x,o.z)+.18)))>=Math.hypot(distance(p,o),eyeHeight(p)-(groundHeight(o.x,o.z)+.18))-.05);
+ // Whoever already holds the action keeps it: a teammate arriving cannot reset the progress.
+ const actor=players.find(p=>p.id===o.actorId&&valid(p))||players.find(valid);
  if(!actor){interrupt(o);return;}
  if(o.actorId!==actor.id){o.actorId=actor.id;o.actionStarted=now;o.progress=0;}
- // A defuse kit halves the defuse, as in CS.
+ // A defuse kit halves the defuse.
  const duration=o.status==='carried'?BOMB.plantMs:actor.kit?BOMB.defuseMs/2:BOMB.defuseMs;o.progress=Math.min(1,(now-o.actionStarted)/duration);
  if(o.progress<1)return;
  if(o.status==='carried'){o.status='planted';o.site=sitesOf(state).find(s=>distance(actor,s)<=s.radius).id;o.x=actor.x;o.z=actor.z;o.carrierId=null;o.plantedAt=now;o.explodeAt=now+BOMB.fuseMs;if(economyOn(state))give(actor,ECONOMY.plant);}
@@ -128,7 +153,7 @@ export function botObjectiveOrder(state,p){
  }else{
   if(o.status==='planted')return {goal:distance(p,o)<1.8?null:{x:o.x,z:o.z},interact:distance(p,o)<1.8};
   // Each defender holds its angle and checks the site's other entrances in turn.
-  const site=sites[number%sites.length],h=site.holds?.[(number>>1)%site.holds.length],hold=h?{x:h[0],z:h[1]}:site;
+  const multi=sites.length>1,mates=multi?Object.values(state.players).filter(q=>q.team===p.team).map(q=>q.id).sort():null,rank=multi?mates.indexOf(p.id):number,midHold=multi&&mates.length%2===1&&rank===mates.length-1?MAPS[state.map]?.midHold:null,site=multi&&mates.length===1?roundPlan(state).site:midHold?{holds:[midHold]}:sites[rank%sites.length],h=site.holds?.[(rank>>1)%site.holds.length],hold=h?{x:h[0],z:h[1]}:site;
   const watch=h?[[h[2],h[3]],[h[2],h[3]],...(site.watch||[])]:[],look=watch[Math.floor(((state.now||0)+number*733)/2400)%Math.max(1,watch.length)];
   return {goal:distance(p,hold)<(h?1.2:3)?null:hold,face:look?{x:look[0],z:look[1]}:null,interact:false};
  }

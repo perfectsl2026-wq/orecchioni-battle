@@ -1,18 +1,19 @@
 import * as T from './vendor/three.module.js';
-import {WALLS,MAPS,groundHeight} from './shared.js?v=41.0';
-import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=41.0';
-import {metricBlock as block,beam,ring,panel} from './caldera-architecture.js?v=41.0';
-import {createAtmosphere} from './atmosphere.js?v=41.0';
-import {layeredWear,toneAlbedo} from './surface-detail.js?v=41.0';
-import {decorateFacade,decalMaterial} from './decals.js?v=41.0';
-import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=41.0';
-import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=41.0';
-import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=41.0';
-import {siteMarkings} from './site-markings.js?v=41.0';
-import {calderaSiteProps} from './site-props.js?v=41.0';
-import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=41.0';
-import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin,reskin,calderaBoats} from './street-props.js?v=41.0';
-import {stationFixtures,calderaDress,manholes} from './detail-dress.js?v=41.0';
+import {WALLS,MAPS,groundHeight} from './shared.js?v=42.0';
+import {box,cyl,label,mergeStatic,cable} from './graphics.js?v=42.0';
+import {metricBlock as block,beam,ring,panel} from './caldera-architecture.js?v=42.0';
+import {createAtmosphere} from './atmosphere.js?v=42.0';
+import {layeredWear,toneAlbedo} from './surface-detail.js?v=42.0';
+import {decorateFacade,decalMaterial} from './decals.js?v=42.0';
+import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=42.0';
+import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=42.0';
+import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=42.0';
+import {siteMarkings} from './site-markings.js?v=42.0';
+import {calderaSiteProps,calderaPier} from './site-props.js?v=42.0';
+import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=42.0';
+import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin,reskin,calderaBoats} from './street-props.js?v=42.0';
+import {stationFixtures,calderaDress,manholes} from './detail-dress.js?v=42.0';
+import {addHorizon,seaSurface,liteWorld} from './horizon.js?v=42.0';
 // CALDERA / 07: a coastal research station on a volcanic headland. Cast concrete and
 // white render over a basalt plinth, teal metal fascias, ribbon glazing above head
 // height, a timber jetty, a sea wall with open water beyond, and a heliostat over A.
@@ -21,7 +22,7 @@ export function createCaldera(scene,renderer){
  const mat=(color,roughness=.86,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
  const substrate=layer('v28/rough_plasterbrick_05');
  const render=color=>layeredWear(surface('v28/painted_plaster_wall',color,.84,.012,{amount:.1}),substrate,{edge:.3,base:.5,top:.16,scale:.8,tint:0xd8cfbf,strength:.85});
- const p={crateStamp:'CALDERA 07',concrete:surface('v28/concrete_wall_008',0xece6d8,.8,.02,{amount:.1}),chalk:render(0xf2eee4),chalkWarm:render(0xeee2cf),
+ const p={crateStamp:'CALDERA 07',concrete:surface(liteWorld()?'v28/concrete_wall_008':'v44/caldera_concrete',0xece6d8,.8,.02,{amount:.1}),chalk:render(0xf2eee4),chalkWarm:render(0xeee2cf),
   basalt:surface('v14/rock_face_03',0x8e8f88,.72,.02,{amount:.06,normal:.55}),stone:surface('v5/sandstone_blocks_05',0xd9d0bd,.78,.025,{amount:.08}),
   paving:toneAlbedo(surface('v13/stone_tiles_02',0xf0eadc,.58,.06,{floor:true}),{saturation:.72,gain:1.5}),quay:surface('v28/concrete_floor_worn_001',0xdcd7ca,.8,.02,{floor:true,amount:.08}),
   deck:surface('v13/weathered_planks',0xcaa883,.62,.02,{floor:true,normal:.35}),teal:surface('v14/blue_metal_plate',0xaad5c8,.85,.02,{amount:.06,normal:.17}),
@@ -40,7 +41,7 @@ export function createCaldera(scene,renderer){
  const map=MAPS.caldera,zone=(x,z)=>map.walk.find(r=>x>=r[0]&&x<=r[1]&&z>=r[2]&&z<=r[3])?.[4];
  // Surfaces: timber jetty, worn concrete on the quay and in the halls, stone paving
  // in the court, the belvedere and the site. Nothing is drawn over the open water.
- const DECK=new Set(['MOLO']),QUAY=new Set(['BANCHINA','PORTONE','USCITA OVEST','USCITA EST','BASE CT','ACCESSO CT']);
+ const DECK=new Set(['MOLO']),QUAY=new Set(['BANCHINA','PORTONE','USCITA OVEST','USCITA EST','BASE DIFESA','ACCESSO DIFESA']);
  const walk=(x,z)=>calderaWalkable(x,z),indoor=(x,z)=>walk(x,z)&&!!calderaInterior(x,z);
  terrainMeshes(root,WALLS,{stairAt:calderaStairAt,range:[-36,36,-40,40],surfaces:[
   [p.deck,(x,z)=>walk(x,z)&&DECK.has(zone(x,z))],[p.quay,(x,z)=>walk(x,z)&&(indoor(x,z)||QUAY.has(zone(x,z)))&&!calderaStairAt(x,z)],
@@ -48,6 +49,8 @@ export function createCaldera(scene,renderer){
  // Facade relief: pilasters, deep sills and window heads, door canopies, formwork joints
  // and roof plant. All of it is proud of the solid wall, so it is cosmetic for shots,
  // and everything deeper than 4 cm stays above head height or within a body radius.
+ // V44b: wall edges from metricBlock's face metres (no seams at texture repeats).
+ Object.assign(p.concrete.userData,{faceWear:true,layered:true});
  const relief={concrete:cosmetic(p.concrete),chalk:cosmetic(p.chalk),warm:cosmetic(p.chalkWarm),trim:cosmetic(p.trim),steel:cosmetic(p.steel),dark:cosmetic(p.dark),teal:cosmetic(p.teal)};
  const stationFacade=(x,z,width,h,angle,serial)=>{
   const face=new T.Group();face.position.set(x,0,z);face.rotation.y=angle;root.add(face);
@@ -89,10 +92,11 @@ export function createCaldera(scene,renderer){
   feature:(root,p,role,x,z,w,d,h,base)=>{
    if(role!=='parapet')return desertFeature(root,p,role,x,z,w,d,h,base);
    // Sea wall: cast concrete on a basalt face down to the water, with a light rail.
-   block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.2);box(root,p.deck||p.concrete,x,h-.05,z,w+.04,.1,d+.04);
-   const rail=cosmetic(p.steel),alongX=w>=d,len=alongX?w:d;
-   for(let u=-len/2+.4;u<len/2;u+=1.6)cyl(root,rail,x+(alongX?u:0),h+.48,z+(alongX?0:u),.025,.86,'y',.025,6);
-   box(root,rail,x,h+.92,z,alongX?w:.05,.05,alongX?.05:d);box(root,rail,x,h+.5,z,alongX?w:.03,.03,alongX?.03:d);
+   block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.2);box(root,p.deck||p.concrete,x,h-.045,z,w+.04,.1,d+.04);
+   // V42: the rail stands on the land-side edge, where the wall actually stops you, not mid-deck (it read as an invisible wall).
+   const rail=cosmetic(p.steel),alongX=w>=d,len=alongX?w:d,rx=alongX?x:x-Math.sign(x)*(w/2-.06),rz=alongX?z-Math.sign(z)*(d/2-.06):z;
+   for(let u=-len/2+.4;u<len/2;u+=1.6)cyl(root,rail,rx+(alongX?u:0),h+.48,rz+(alongX?0:u),.025,.86,'y',.025,6);
+   box(root,rail,rx,h+.92,rz,alongX?w:.05,.05,alongX?.05:d);box(root,rail,rx,h+.5,rz,alongX?w:.03,.03,alongX?.03:d);
   },
   annex:(root,p,x,z,w,d,h,base)=>block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.8),
   car:desertCar,crate:(root,p,x,z,w,d,top,base,metal)=>{if(reskin(sp,'caldera',x,z,w,d,top,base))return;coverSkin(sp,metal?'pod':'crate',{x,z,w,d,top,base,fallback:()=>desertCrate(root,p,x,z,w,d,top,base,metal)});},
@@ -110,12 +114,12 @@ export function createCaldera(scene,renderer){
  desertDoors(root,p,map.movementBoxes);
  slabs(root,p,map.ballisticBoxes,{interiorAt:calderaInterior,beam:p.steel,slab:'concrete',light:{color:0xe8f0ee,emissive:0xd9ece8,intensity:.6}});
  // Open water around the headland: one plane below the quay; buildings hide it elsewhere.
- const sea=new T.Mesh(new T.PlaneGeometry(900,900,1,1),p.water);sea.rotation.x=-Math.PI/2;sea.position.y=-1.25;sea.receiveShadow=true;root.add(sea);
- siteMarkings(root,map.sites);heliostat(root,p,map);calderaSiteProps(root,map.sites[0]);
+ seaSurface(p.water);addHorizon(scene,'caldera');const sea=new T.Mesh(new T.PlaneGeometry(900,900,1,1),p.water);sea.rotation.x=-Math.PI/2;sea.position.y=-1.25;sea.receiveShadow=true;root.add(sea);
+ siteMarkings(root,map.sites);heliostat(root,p,map);calderaSiteProps(root,map.sites[0]);calderaPier(root,{y:groundHeight(0,26)});
  // V38 street dressing: roof clutter, wall condensers, boats on the water; cover re-skins are drawn by the hooks above.
  roofClutter(sp,MAPS.caldera,{walkable:(x,z)=>calderaWalkable(x,z)&&!calderaInterior(x,z),maxHeight:10,chance:.85,recipes:['solari','parabole','impianto','solari','generatore','cisterne','barili','parabole'],cap:w=>w[2]>=5&&w[3]>=5?.16:0,seed:5});calderaBoats(sp);backdrop(root,p,sp);manholes(sp,MAPS.caldera.walk,3,{limit:7,skip:(x,z)=>!!calderaInterior(x,z)});pending.push(sp.build(root));
- // Station identity on the CT block facing the site, and lane wayfinding.
- label(root,'CALDERA  /  STATION 07',0,6.62,-19.94,7.2,.66,0,{background:'#b9b49e',color:'#34494b',font:90});
+ // Station identity on the defenders' block facing the site, and lane wayfinding.
+ label(root,'CALDERA  /  STAZIONE 07',0,6.62,-19.94,7.2,.66,0,{background:'#b9b49e',color:'#34494b',font:90});
  for(const [text,x,y,z,yaw]of [['A  ↑',-17,2.6,-11.94,0],['A  ↑',12.06,3.6,-.5,Math.PI/2],['A  ↑',-12.06,2.5,14,-Math.PI/2],['←  A',16,2.5,-17.94,0]])label(root,text,x,y,z,1.8,.62,yaw,{background:'#345f61',color:'#e7dfcd',font:120});
  const wire=cosmetic(p.dark);cable(root,[[-22,6.6,2],[-17,5.8,2.2],[-12,6.6,2]],wire,.02);cable(root,[[12,7,10],[17,6.2,10.3],[22,6.9,10]],wire,.02);
  mergeStatic(root);root.userData.materials=p;root.userData.ready=Promise.all(pending);return root;
@@ -140,8 +144,10 @@ function backdrop(root,p,sp){
  const pos=[],uv=[],index=[],segments=160;
  const ridge=a=>{const n=Math.sin(a*3.1)*.5+Math.sin(a*7.3+1.2)*.3+Math.sin(a*13.7+.4)*.2;return {r:190+n*24,h:18+n*9+Math.max(0,Math.cos(a-.3))*12};};
  for(let i=0;i<=segments;i++){const a=-Math.PI*.94+i/segments*Math.PI*1.28,{r,h}=ridge(a),c=Math.cos(a),sn=Math.sin(a);
-  for(const [k,rr,yy]of [[0,r-60,-3],[1,r-14,h*.55],[2,r,h],[3,r+30,h*.7]]){pos.push(c*rr,yy,sn*rr);uv.push(i*.22,k*1.4);}
-  if(i<segments)for(let k=0;k<3;k++){const n=i*4+k;index.push(n,n+4,n+1,n+1,n+4,n+5);}}
+  // The two ends taper into the sea as headlands, and the outer row reaches the water.
+  const t=Math.min(1,Math.min(i,segments-i)/6),lift=v=>-3+(v+3)*t;
+  for(const [k,rr,yy]of [[0,r-60,-3],[1,r-14,lift(h*.55)],[2,r,lift(h)],[3,r+30,lift(h*.7)],[4,r+70,-3]]){pos.push(c*rr,yy,sn*rr);uv.push(i*.22,k*1.4);}
+  if(i<segments)for(let k=0;k<4;k++){const n=i*5+k;index.push(n,n+5,n+1,n+1,n+5,n+6);}}
  const rim=new T.BufferGeometry();rim.setAttribute('position',new T.Float32BufferAttribute(pos,3));rim.setAttribute('uv',new T.Float32BufferAttribute(uv,2));rim.setIndex(index);rim.computeVertexNormals();
  // The rim takes its own aerial perspective (a hazy tint) instead of scene fog, so the
  // ridge keeps its texture and silhouette at 150 m.

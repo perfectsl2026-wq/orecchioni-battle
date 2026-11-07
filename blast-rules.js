@@ -1,16 +1,21 @@
 // HE grenade and incendiary. Both fly like the flashbang (objective-rules moves every
 // grenade); on detonation the HE deals damage through open air within 6 m, the
 // incendiary leaves a fire patch that burns whoever stands in it for 7 s. A smoke
-// cloud put down on a fire extinguishes it, as in CS. Damage is applied by the host
+// cloud put down on a fire extinguishes it. Damage is applied by the host
 // through the callback, so kills and assists go through the usual path.
-import {groundHeight,wallDistance} from './shared.js?v=41.0';
-import {eyeHeight} from './player-feel.js?v=41.0';
-import {ACTIVE as SMOKES} from './smoke-rules.js?v=41.0';
+import {groundHeight,wallDistance} from './shared.js?v=42.0';
+import {eyeHeight} from './player-feel.js?v=42.0';
+import {ACTIVE as SMOKES} from './smoke-rules.js?v=42.0';
 export const HE={radius:6,max:98,fuseMs:1600,armor:.6};
 export const FIRE={ms:7000,radius:3.3,dps:14,fuseMs:1400,tickMs:250};
 export const WEAPON_HE=6,WEAPON_FIRE=7;
 export const UTILITY_NAMES={[WEAPON_HE]:'GRANATA HE',[WEAPON_FIRE]:'INCENDIARIA'};
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
+// Fire reaches a body only through open air, like the HE; the same answer drives damage and the bots' flight.
+function fireReaches(f,p){
+ const from=[f.x,f.y+.4,f.z],v=[p.x-from[0],eyeHeight(p)-.35-from[1],p.z-from[2]],d=Math.hypot(...v);
+ return d<=.3||wallDistance(from,v.map(c=>c/d),d)>=d-.1;
+}
 export function throwUtility(state,p,now,kind,{eye,target=null,enabled=true}={}){
  const field=kind==='he'?'hes':'fires';
  if(!enabled||p.hp<=0||!(p[field]>0)||now<(p.flashReady||0)||p.reload||now<(p.equipUntil||0))return null;
@@ -51,7 +56,7 @@ export function updateFires(state,now,hurt,emit){
   if(SMOKES.some(s=>Math.hypot(s.x-f.x,s.z-f.z)<s.r+.8&&now-s.born>300)){fires.splice(n,1);emit({kind:'douse',point:[f.x,f.y,f.z],time:now});continue;}
   if(now<f.nextTick)continue;f.nextTick=now+FIRE.tickMs;
   for(const p of Object.values(state.players)){if(p.hp<=0||p.loading)continue;if(p.team===f.team&&p.id!==f.owner)continue;
-   if(distance(p,f)<=FIRE.radius&&Math.abs((p.y||0)-f.y)<1.2)hurt(p,f.owner,Math.round(FIRE.dps*FIRE.tickMs/1000),WEAPON_FIRE,[f.x,f.y,f.z]);}
+   if(distance(p,f)<=FIRE.radius&&Math.abs((p.y||0)-f.y)<1.2&&fireReaches(f,p))hurt(p,f.owner,Math.round(FIRE.dps*FIRE.tickMs/1000),WEAPON_FIRE,[f.x,f.y,f.z]);}
  }
 }
-export const inFire=(state,p)=>(state.fires||[]).some(f=>distance(p,f)<=FIRE.radius+.4&&Math.abs((p.y||0)-f.y)<1.2);
+export const inFire=(state,p)=>(state.fires||[]).some(f=>distance(p,f)<=FIRE.radius+.4&&Math.abs((p.y||0)-f.y)<1.2&&fireReaches(f,p));

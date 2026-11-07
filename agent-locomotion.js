@@ -1,4 +1,4 @@
-import {groundHeight} from './shared.js?v=41.0';
+import {groundHeight} from './shared.js?v=42.0';
 // Foot plants are stored in world metres. Stance never advances with the body.
 const smooth=t=>t*t*(3-2*t);
 export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.124},dt){
@@ -7,7 +7,7 @@ export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.1
  if(reset){state.phase=0;state.life=life;state.feet=[null,null];state.direction={x:-Math.sin(yaw),z:-Math.cos(yaw)};}
  state.x=x;state.z=z;
  if(distance>.00001){state.direction.x=dx/distance;state.direction.z=dz/distance;}
- const stride=.28+Math.min(1,speed/4.3)*.12;
+ const stride=.28+Math.min(1,speed/5)*.12;
  state.phase+=distance/(4*stride);
  const direction=state.direction,c=Math.cos(yaw),s=Math.sin(yaw),moving=speed>.12&&distance>.00001,airborne=y-groundY>.065;
  const result=state.feet.map((f,n)=>{
@@ -22,7 +22,7 @@ export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.1
    const t=(phase-.5)*2,blend=smooth(t);
    f.x=f.startX+(centre.x+direction.x*stride-f.startX)*blend;
    f.z=f.startZ+(centre.z+direction.z*stride-f.startZ)*blend;
-   lift=Math.sin(Math.PI*t)**2*(.065+Math.min(1,speed/4.3)*.05);
+   lift=Math.sin(Math.PI*t)**2*(.065+Math.min(1,speed/5)*.05);
   }else {
    if(f.swing||!state.wasMoving){f.x=centre.x+direction.x*stride*(1-4*phase);f.z=centre.z+direction.z*stride*(1-4*phase);}
    f.swing=false;

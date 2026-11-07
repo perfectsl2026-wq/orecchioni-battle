@@ -2,9 +2,10 @@ import * as THREE from './vendor/three.module.js';
 // V31 sky life: a flock circling high over the district, drawn as one geometry whose
 // vertex shader moves and flaps every bird. Silhouettes only (unlit, fogged), so they
 // read as distant life against the sky and never as targets. Sahra gets desert
-// kites in a slow thermal, Caldera gulls working the sea wind; Forge has none.
+// kites in a slow thermal, Caldera gulls working the sea wind, Forge choughs over the crags.
 const FLOCKS={
  sahra:{count:16,center:[4,38,-6],radius:[14,30],speed:[.08,.14],span:1.5,color:0x2a2420,wing:[1.4,2.2]},
+ forge:{count:9,center:[0,42,-20],radius:[18,34],speed:[.1,.16],span:1.2,color:0x2b2f33,wing:[1.6,2.4]},
  caldera:{count:11,center:[-6,24,22],radius:[10,22],speed:[.14,.22],span:1.1,color:0xe8e4da,wing:[2.6,3.6]}
 };
 const VERTEX=`attribute vec4 bird;attribute vec2 wing;uniform float time;uniform vec3 center;

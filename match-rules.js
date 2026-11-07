@@ -1,10 +1,11 @@
-import {resetObjective,objectiveResult,objectiveEnabled,attackFor} from './objective-rules.js?v=41.0';
-import {MAPS} from './shared.js?v=41.0';
-import {teamCapacity} from './roster.js?v=41.0';
-import {ECONOMY,economyOn,carryRound,payRound,botBuy} from './economy.js?v=41.0';
-// V29 modes: bomb rounds (Competitivo on Sahra, Wingman on Caldera, with per-map
+import {resetObjective,objectiveResult,objectiveEnabled,attackFor} from './objective-rules.js?v=42.0';
+import {MAPS} from './shared.js?v=42.0';
+import {teamCapacity} from './roster.js?v=42.0';
+import {ECONOMY,economyOn,carryRound,payRound,botBuy,startEconomy} from './economy.js?v=42.0';
+import {releaseTakeovers} from './takeover-rules.js?v=42.0';
+// V29 modes: bomb rounds (Squadra on Sahra, Binomio on Caldera, with per-map
 // defaults) and team deathmatch with instant respawn for warm-up.
-export const MATCH_MODES={demolition:{label:'COMPETITIVO',target:7,roundMs:120000,freezeMs:4000,resultMs:4500},deathmatch:{label:'DEATHMATCH',target:30,durationMs:480000},corsa:{label:'CORSA ALLE ARMI',target:9999,durationMs:600000}};
+export const MATCH_MODES={demolition:{label:'SQUADRA',target:7,roundMs:120000,freezeMs:4000,resultMs:4500},deathmatch:{label:'DEATHMATCH',target:30,durationMs:480000},corsa:{label:'CORSA ALLE ARMI',target:9999,durationMs:600000}};
 export const isRoundMode=mode=>mode==='demolition';
 export const mapAllowsMode=(map,mode)=>Object.hasOwn(MATCH_MODES,mode)&&(MAPS[map]?.modes||Object.keys(MATCH_MODES)).includes(mode);
 // The first allowed mode is each map's showcase format.
@@ -15,10 +16,12 @@ export function cleanRules(mode,options={},map){if(mode==='corsa')return {target
 export const isRespawnMode=mode=>mode==='deathmatch'||mode==='corsa';
 export const allowedWeapons=mode=>modeRules(mode).weapons||[0,1,2,3,4,5];
 export const weaponAllowed=(mode,index)=>allowedWeapons(mode).includes(index);
-export const teamName=t=>t==='blue'?'VANGUARD':'OUTRIDERS';
+export const teamName=t=>t==='blue'?'SCOLTA':'RAZZIATORI';
 export function createMatch(mode,now,difficulty,map='sahra',options={}){mode=mapAllowsMode(map,mode)?mode:defaultMode(map);return {map,teamSize:teamCapacity(options.teamSize),fillBots:!!options.fillBots,botWeapon:[1,2,3,4].includes(Number(options.botWeapon))?Number(options.botWeapon):null,rules:cleanRules(mode,options,map),mode:Object.hasOwn(MATCH_MODES,mode)?mode:'demolition',difficulty,players:{},economy:mode==='demolition'&&options.economy!==false,lossStreak:{blue:0,orange:0},killEvents:[],history:[],grenades:[],smokes:[],utilitySerial:0,score:{blue:0,orange:0},started:now,now,ended:false,phase:'waiting',round:0,phaseUntil:0};}
 export function beginRound(state,now,spawn){
  // Half time comes after target-1 rounds: sides swap and the economy restarts.
+ // V42 b2: a bot taken over by a fallen player gets its body back before the round's carry is worked out.
+ releaseTakeovers(state);
  const half=Math.max(1,(matchRules(state).target||7)-1);carryRound(state,{halfTime:state.round>0&&state.round%half===0});
  state.round++;if(objectiveEnabled(state))state.attackTeam=attackFor(state);state.phase='freeze';state.phaseUntil=now+freezeMs(state);state.roundEnds=state.phaseUntil+matchRules(state).roundMs;state.roundWinner=null;state.roundReason='';
  for(const p of Object.values(state.players))if(!p.loading)spawn(p);
@@ -28,6 +31,15 @@ export function beginRound(state,now,spawn){
 // The buy phase replaces the short freeze when the economy is on.
 export const freezeMs=state=>economyOn(state)?ECONOMY.buyMs:MATCH_MODES.demolition.freezeMs;
 export function canAct(state){return !state.ended&&(isRespawnMode(state.mode)||state.phase==='live');}
+// Nobody acts during the result, but humans may walk until the next round.
+export const canMove=state=>canAct(state)||state.phase==='result'&&!state.ended;
+// A rematch is a new match: nobody keeps the credits, guns, streaks or ready marks of the last one.
+export function resetForRematch(state){
+ releaseTakeovers(state);for(const p of Object.values(state.players))delete p.drove;
+ if(economyOn(state)){state.lossStreak={blue:0,orange:0};for(const p of Object.values(state.players)){startEconomy(p);p.armor=0;p.helmet=false;}}
+ for(const p of Object.values(state.players))p.buyReady=0;
+ state.objective=null;
+}
 export function updateMatch(state,now,spawn,emit=()=>{}){
  if(state.ended)return;
  if(isRespawnMode(state.mode)){

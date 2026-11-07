@@ -1,12 +1,16 @@
 import * as THREE from './vendor/three.module.js';
 // Procedural decal atlas (4×4 cells of 256 px) generated from typed arrays: no image
 // files and no canvas, so map builds also run in Node checks. Storytelling detail in
-// the Riot sense: stains, cracks and torn posters, kept low-contrast in the
+// the sense of small story-telling marks: stains, cracks and torn posters, kept low-contrast in the
 // 1.0–2.0 m head band so silhouettes and peeks stay clean.
 const CELL=256,GRID=4,SIZE=CELL*GRID;
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 function hash(x,y){const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);}
-function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);const a=hash(ix,iy),b=hash(ix+1,iy),c=hash(ix,iy+1),d=hash(ix+1,iy+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
+// While the atlas is painted, noise corners (always whole numbers, shared by neighbouring pixels) are kept once
+// computed: same values, a quarter of the load time on a phone.
+let lattice=null;const LAT=384,LAT0=160;
+function corner(x,y){if(!lattice)return hash(x,y);const i=x+LAT0,j=y+LAT0;if(i<0||j<0||i>=LAT||j>=LAT)return hash(x,y);const k=j*LAT+i,c=lattice[k];return c===c?c:lattice[k]=hash(x,y);}
+function noise(x,y){const ix=Math.floor(x),iy=Math.floor(y),fx=x-ix,fy=y-iy,u=fx*fx*(3-2*fx),v=fy*fy*(3-2*fy);const a=corner(ix,iy),b=corner(ix+1,iy),c=corner(ix,iy+1),d=corner(ix+1,iy+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;}
 const fbm=(x,y)=>noise(x,y)*.5+noise(x*2.1,y*2.1)*.27+noise(x*4.3,y*4.3)*.15+noise(x*8.7,y*8.7)*.08;
 const smooth=(a,b,x)=>{const t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t);};
 // Each painter returns linear-ish [r,g,b,a] for cell-local coordinates u,v in 0..1 (v up).
@@ -19,7 +23,9 @@ const PAINTERS=[
  ...[0,1].map(k=>(u,v)=>{const d=Math.hypot(u-.5,v-.5)*2,n=fbm(u*5+k*3,v*5);return [.2,.18,.14,Math.max(0,1-d+(n-.5)*.9)*.45*(.6+.4*n)];}),
  // 6–8: cracks: branching dark fissures with a slightly lighter broken lip.
  ...[11,23,37].map(seed=>{const r=rng(seed),lines=[];for(let b=0;b<4;b++){let x=.5+(r()-.5)*.2,y=b?lines[(r()*lines.length)|0]?.y??.5:.95,a=-Math.PI/2+(r()-.5)*.9;const pts=[];for(let i=0;i<60;i++){pts.push([x,y]);a+=(r()-.5)*.55;x+=Math.cos(a)*.012;y+=Math.sin(a)*.012;if(x<.05||x>.95||y<.05||y>.95)break;}lines.push({pts,y,w:b?.006:.009});}
-  return (u,v)=>{let d=1;for(const l of lines)for(let i=0;i<l.pts.length;i+=2){const p=l.pts[i];d=Math.min(d,Math.hypot(u-p[0],v-p[1])/l.w);}const core=1-smooth(.5,1.1,d),lip=(1-smooth(1,2.6,d))*(1-core);return [.09+lip*.25,.08+lip*.23,.07+lip*.2,Math.min(1,core*.9+lip*.25)];};}),
+  // d never exceeds 1, so only points closer than their line width matter: they are binned at 1/64, wider than any width.
+  const bins=new Map();for(const l of lines)for(let i=0;i<l.pts.length;i+=2){const p=l.pts[i],k=Math.floor(p[1]*64)*64+Math.floor(p[0]*64);if(!bins.has(k))bins.set(k,[]);bins.get(k).push([p[0],p[1],l.w]);}
+  return (u,v)=>{let d=1;const gx=Math.floor(u*64),gy=Math.floor(v*64);for(let j=gy-1;j<=gy+1;j++)for(let i=gx-1;i<=gx+1;i++){const list=i>=0&&i<64&&j>=0&&j<64&&bins.get(j*64+i);if(list)for(const p of list)d=Math.min(d,Math.hypot(u-p[0],v-p[1])/p[2]);}const core=1-smooth(.5,1.1,d),lip=(1-smooth(1,2.6,d))*(1-core);return [.09+lip*.25,.08+lip*.23,.07+lip*.2,Math.min(1,core*.9+lip*.25)];};}),
  // 9–10: chipped paint spots exposing darker render.
  ...[5,9].map(seed=>(u,v)=>{const n=fbm(u*6+seed,v*6),d=Math.hypot(u-.5,v-.5)*2;const m=smooth(.42,.66,n+(.35-d*.45));return [.46,.4,.32,m*(1-smooth(.6,1,d))*.42];}),
  // 11–13: weathered paper posters with torn edges and faded print blocks.
@@ -31,8 +37,8 @@ const PAINTERS=[
 ];
 let atlas=null;
 function decalAtlas(){
- if(atlas)return atlas;const data=new Uint8Array(SIZE*SIZE*4);
- PAINTERS.forEach((paint,cell)=>{const cx=(cell%GRID)*CELL,cy=Math.floor(cell/GRID)*CELL;for(let y=0;y<CELL;y++)for(let x=0;x<CELL;x++){const c=paint((x+.5)/CELL,(y+.5)/CELL),i=((cy+y)*SIZE+cx+x)*4;for(let k=0;k<4;k++)data[i+k]=Math.max(0,Math.min(255,Math.round(Math.max(0,c[k])*255)));}});
+ if(atlas)return atlas;const data=new Uint8Array(SIZE*SIZE*4);lattice=new Float64Array(LAT*LAT).fill(NaN);
+ PAINTERS.forEach((paint,cell)=>{const cx=(cell%GRID)*CELL,cy=Math.floor(cell/GRID)*CELL;for(let y=0;y<CELL;y++)for(let x=0;x<CELL;x++){const c=paint((x+.5)/CELL,(y+.5)/CELL),i=((cy+y)*SIZE+cx+x)*4;for(let k=0;k<4;k++)data[i+k]=Math.max(0,Math.min(255,Math.round(Math.max(0,c[k])*255)));}});lattice=null;
  atlas=new THREE.DataTexture(data,SIZE,SIZE);atlas.colorSpace=THREE.SRGBColorSpace;atlas.generateMipmaps=true;atlas.minFilter=THREE.LinearMipmapLinearFilter;atlas.magFilter=THREE.LinearFilter;atlas.anisotropy=8;atlas.needsUpdate=true;return atlas;
 }
 export function decalMaterial(){const m=new THREE.MeshStandardMaterial({map:decalAtlas(),transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-1,polygonOffsetUnits:-4,roughness:.96,metalness:0});m.userData.decal=true;return m;}
@@ -65,4 +71,22 @@ export function driftField(walls,kinds=[0,1,4,5,6,8]){
  for(const w of walls){if(!kinds.includes(w[5]))continue;const r=2.6;for(let i=Math.floor((w[0]-w[2]/2-r)/cell);i<=Math.floor((w[0]+w[2]/2+r)/cell);i++)for(let j=Math.floor((w[1]-w[3]/2-r)/cell);j<=Math.floor((w[1]+w[3]/2+r)/cell);j++){const k=key(i,j);if(!buckets.has(k))buckets.set(k,[]);buckets.get(k).push(w);}}
  return (x,z)=>{const list=buckets.get(key(Math.floor(x/cell),Math.floor(z/cell)));if(!list)return 0;let near=9,second=9;for(const w of list){const d=Math.hypot(Math.max(0,Math.abs(x-w[0])-w[2]/2),Math.max(0,Math.abs(z-w[1])-w[3]/2));if(d<near){second=near;near=d;}else if(d<second)second=d;}
   const n=fbm(x*.35,z*.35),reach=.7+n*1.5,corner=1-smooth(.4,2.4,second);return Math.max(0,Math.min(1,(1-smooth(0,reach,near))*(.45+.55*fbm(x*1.3+5,z*1.3))+corner*.35*(1-smooth(0,reach*1.4,near))));};
+}
+// V44 floor decals: oil and damp stains, settled sand, cracked render and chipped paving laid
+// flat on level ground of the walkable spaces, all in one mesh (one draw call).
+export function floorDecals(root,{walk,ground,seed=5,count=150,skip=()=>false,avoid=[]}){
+ const r=rng(seed),pos=[],uv=[],index=[],cells=[4,5,4,5,15,15,6,7,8,3,9,10];let placed=0;
+ for(let n=0;n<count*6&&placed<count;n++){
+  const [x0,x1,z0,z1]=walk[(r()*walk.length)|0],cell=cells[(r()*cells.length)|0],w=(cell>=6&&cell<=8?1.2:.9)+r()*(cell===15?3:1.9),h=w*(.55+r()*.6);
+  if(x1-x0<w+.6||z1-z0<w+.6)continue;const x=x0+w/2+.3+r()*(x1-x0-w-.6),z=z0+w/2+.3+r()*(z1-z0-w-.6);
+  if(skip(x,z)||avoid.some(([ax,az,rad])=>Math.hypot(x-ax,z-az)<rad))continue;
+  const yaw=r()*Math.PI*2,c=Math.cos(yaw),s=Math.sin(yaw),corners=[[-w/2,-h/2],[w/2,-h/2],[-w/2,h/2],[w/2,h/2]].map(([u,v])=>[x+u*c+v*s,z-u*s+v*c]);
+  const ys=corners.map(([px,pz])=>ground(px,pz));if(Math.max(...ys)-Math.min(...ys)>.03||Math.abs(ground(x,z)-ys[0])>.03)continue;
+  const base=pos.length/3,cx=(cell%GRID)/GRID,cy=Math.floor(cell/GRID)/GRID;
+  corners.forEach(([px,pz],i)=>{pos.push(px,ys[i]+.012,pz);uv.push(cx+((i&1)*(CELL-4)+2)/SIZE,cy+((i>>1)*(CELL-4)+2)/SIZE);});
+  index.push(base,base+2,base+1,base+1,base+2,base+3);placed++;
+ }
+ if(!placed)return 0;const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+ g.setAttribute('normal',new THREE.Float32BufferAttribute(new Array(pos.length).fill(0).map((_,i)=>i%3===1?1:0),3));g.setIndex(index);g.computeBoundingSphere();
+ const m=new THREE.Mesh(g,decalMaterial());m.castShadow=false;m.receiveShadow=true;m.userData.cosmetic=true;m.userData.keep=true;m.name='floor decals';root.add(m);return placed;
 }

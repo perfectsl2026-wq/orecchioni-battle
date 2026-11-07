@@ -1,4 +1,23 @@
 import * as THREE from './vendor/three.module.js';
+import {liteWorld} from './horizon.js?v=42.0';
+// V44 anti-tiling (desktop): a second, rotated and rescaled read of the same albedo is
+// blended in by a slow noise field, so a scan never shows its repeat grid across a wall
+// or a square. Multiplicative, so every grade injected after the map read still applies.
+export function antiTile(material,{scale=.61,field=.23}={}){
+ if(liteWorld()||!material.map)return material;const previous=material.onBeforeCompile,previousKey=material.customProgramCacheKey?.()||'';
+ material.onBeforeCompile=function(shader,renderer){
+  previous?.call(this,shader,renderer);
+  shader.fragmentShader=`float atHash(vec2 p){return fract(sin(dot(p,vec2(41.3,289.1)))*43758.5453);}
+float atNoise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(atHash(i),atHash(i+vec2(1,0)),f.x),mix(atHash(i+vec2(0,1)),atHash(i+vec2(1,1)),f.x),f.y);}
+`+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+#ifdef USE_MAP
+{float atK=smoothstep(.32,.68,atNoise(vMapUv*${field.toFixed(3)})*.7+atNoise(vMapUv*${(field*3.1).toFixed(3)}+5.)*.3);
+ vec4 atAlt=texture2D(map,vec2(vMapUv.y,-vMapUv.x)*${scale.toFixed(3)}+vec2(.37,.71));
+ diffuseColor.rgb*=mix(vec3(1.),atAlt.rgb/max(sampledDiffuseColor.rgb,vec3(.004)),atK);}
+#endif`);
+ };
+ material.customProgramCacheKey=()=>previousKey+'-antitile44-'+scale+'-'+field;return material;
+}
 // World-space variation survives batching and does not change the collision map.
 export function weatherMaterial(material,{floor=false,amount=.16}={}){
  material.onBeforeCompile=shader=>{
@@ -70,7 +89,7 @@ roughnessFactor=clamp(roughnessFactor+(realHeight-.5)*${(roughness*2).toFixed(3)
  return material;
 }
 
-// V28.1 layered surfaces, after the Valve/Riot practice of tiling base materials
+// V28.1 layered surfaces: tiling base materials
 // plus a worn layer: render chips off at vertical edges, tops and a ragged base
 // band, exposing the substrate. Masks come from metricBlock's face-local metres,
 // so batching keeps them exact; meshes without the attribute show no wear.
@@ -107,9 +126,15 @@ roughnessFactor=mix(roughnessFactor,clamp(texture2D(wearRough,wearUV).g,.35,1.),
 vec3 mapN=mix(texture2D(normalMap,vNormalMapUv).xyz,texture2D(wearNormal,wearUV).xyz,wearBlend)*2.-1.;mapN.xy*=normalScale*(1.+wearBlend*.6);normal=normalize(tbn*mapN);
 #else
 #include <normal_fragment_maps>
-#endif`);
+#endif`+(liteWorld()?'':`
+// V44 bevel: within 3.5 cm of a face edge the shading normal rolls over the corner, so box walls catch a lit arris.
+if(vWear.z>0.){vec3 bq0=dFdx(-vViewPosition),bq1=dFdy(-vViewPosition);vec2 bs0=dFdx(vWear.xy),bs1=dFdy(vWear.xy);float bdet=bs0.x*bs1.y-bs0.y*bs1.x;
+ if(abs(bdet)>1e-12){vec3 dPs=normalize((bq0*bs1.y-bq1*bs0.y)/bdet),dPt=normalize((bq1*bs0.x-bq0*bs1.x)/bdet);
+  float es=min(vWear.x,vWear.z-vWear.x),et=min(vWear.y,vWear.w-vWear.y),near=1.-smoothstep(8.,30.,length(vViewPosition));
+  float ks=(1.-smoothstep(0.,.035,es))*near,kt=(1.-smoothstep(0.,.035,et))*near;
+  normal=normalize(normal+(dPs*(vWear.x<vWear.z*.5?-1.:1.)*ks+dPt*(vWear.y<vWear.w*.5?-1.:1.)*kt)*1.1);}}`));
  };
- material.customProgramCacheKey=()=>previousKey+'-wear281-'+[edge,base,top,scale,strength,tint].join('-');
+ material.customProgramCacheKey=()=>previousKey+'-wear281-'+[edge,base,top,scale,strength,tint].join('-')+(liteWorld()?'':'-bevel44');
  return material;
 }
 

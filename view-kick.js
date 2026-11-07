@@ -19,9 +19,10 @@ export class ViewKick{
   this.camPitch=new Spring(220,22);this.camYaw=new Spring(200,22);this.camRoll=new Spring(160,14);
   this.shakeAmount=0;this.shakeTime=0;this.gun={x:0,y:0,z:0,pitch:0,yaw:0,roll:0};this.camera={pitch:0,yaw:0,roll:0};
  }
- fire(weapon){const k=IMPULSES[weapon]||IMPULSES[3],r=()=>Math.random()-.5;
-  this.gunZ.v+=k.back;this.gunY.v+=k.back*.18;this.gunPitch.v+=k.rise*(.85+Math.random()*.3);this.gunYaw.v+=r()*k.yaw;this.gunRoll.v+=r()*k.roll;
-  this.camPitch.v+=k.cam*(.8+Math.random()*.4);this.camYaw.v+=r()*k.cam*.6;this.camRoll.v+=r()*k.camRoll;}
+ // `scale`: a design that is a weapon of its own kicks lighter or harder than its class (weapon-stats.js `view`).
+ fire(weapon,scale=1){const k=IMPULSES[weapon]||IMPULSES[3],r=()=>Math.random()*scale-.5*scale;
+  this.gunZ.v+=k.back*scale;this.gunY.v+=k.back*.18*scale;this.gunPitch.v+=k.rise*scale*(.85+Math.random()*.3);this.gunYaw.v+=r()*k.yaw;this.gunRoll.v+=r()*k.roll;
+  this.camPitch.v+=k.cam*scale*(.8+Math.random()*.4);this.camYaw.v+=r()*k.cam*.6;this.camRoll.v+=r()*k.camRoll;}
  // Direction is the shot ray; the view snaps away from the side that was hit.
  hurt(direction,yaw=0,heavy=false){const s=heavy?1.5:1;let side=0;if(Array.isArray(direction)){const rx=Math.cos(yaw),rz=-Math.sin(yaw);side=-(direction[0]*rx+direction[2]*rz);}
   this.camPitch.v+=.35*s;this.camYaw.v+=side*.2*s;this.camRoll.v+=side*.35*s+(Math.random()-.5)*.1;this.gunY.v-=.25*s;this.gunRoll.v+=side*.6*s;}

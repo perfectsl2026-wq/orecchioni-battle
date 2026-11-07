@@ -1,13 +1,13 @@
 // Frame pacing: keeps the cadence even instead of letting the GPU hover around the
 // display budget, which shows as micro-stutter. Only the interval between frames is
 // used: it is what the player sees, while GPU timers overlap work on Apple GPUs and
-// overstate the cost. Two levers, in order: the render scale (a multiplier on the
-// native pixel ratio, in steps) and, on fast displays that cannot be held even at
-// the smallest scale, a half-rate cadence (every second vsync, so a steady 60 on 120).
+// overstate the cost. Two levers, in order: on fast displays a half-rate cadence (every
+// second vsync, so a steady 60 on 120), which keeps every pixel, then the render scale
+// (a multiplier on the native pixel ratio, in steps). Raising undoes them in reverse.
 const RATES=[60,75,90,120,144,165,240];
 export class FramePacing{
  constructor({steps=[1,.9,.8,.7,.6],settleMs=700,windowMs=500,upAfterMs=5000,missRatio=1.6,start=0}={}){
-  this.steps=steps;this.settleMs=settleMs;this.windowMs=windowMs;this.upAfterMs=this.baseUpAfterMs=upAfterMs;this.missRatio=missRatio;this.fast=0;this.lastDown=-Infinity;this.failedRaises=0;this.ceiling=0;this.cleanStreak=0;this.badWindows=0;this.unlockMs=60000;this.locks=0;
+  this.steps=steps;this.settleMs=settleMs;this.windowMs=windowMs;this.upAfterMs=this.baseUpAfterMs=upAfterMs;this.missRatio=missRatio;this.fast=0;this.lastDown=-Infinity;this.failedRaises=0;this.ceiling=0;this.halfLocked=false;this.raisedHalf=false;this.cleanStreak=0;this.badWindows=0;this.unlockMs=60000;this.locks=0;
   this.step=Math.max(0,Math.min(steps.length-1,start|0));this.half=false;this.refresh=0;this.budget=1000/60;
   this.onChange=null;this.enabled=true;this.samples=[];this.lastAccepted=-1;this.lastChange=-Infinity;this.lastUp=-Infinity;this.windowStart=-1;this.frames=0;this.misses=0;this.cleanMs=0;this.tick=0;this.changes=0;
  }
@@ -38,21 +38,21 @@ export class FramePacing{
   this.badWindows=0;
   this.cleanMs+=this.windowMs;this.cleanStreak+=this.windowMs;
   // A clean stretch lifts the lock: the heavy zone is behind us.
-  if(this.cleanStreak>=this.unlockMs&&this.ceiling){this.ceiling=0;this.failedRaises=0;this.upAfterMs=this.baseUpAfterMs;}
+  if(this.cleanStreak>=this.unlockMs&&(this.ceiling||this.halfLocked)){this.ceiling=0;this.halfLocked=false;this.failedRaises=0;this.upAfterMs=this.baseUpAfterMs;}
   if(this.cleanMs>=this.upAfterMs){this.cleanMs=0;this.up(t);}
   return true;
  }
  down(t){
   // A drop right after a raise means that level is not sustainable: wait longer next time,
   // and after two failed raises stop trying that level for a while (a minute, then longer each time).
-  if(t-this.lastUp<6000){this.upAfterMs=Math.min(30000,this.upAfterMs*2);if(++this.failedRaises>=2&&!this.ceiling){this.ceiling=this.half?this.steps.length:this.step+1;if(this.locks++)this.unlockMs=Math.min(600000,this.unlockMs*2);}}
-  if(this.step<this.steps.length-1)this.step++;else if(!this.half&&this.refresh>=100)this.half=true;else return;
+  if(t-this.lastUp<6000){this.upAfterMs=Math.min(30000,this.upAfterMs*2);if(++this.failedRaises>=2&&!this.ceiling&&!this.halfLocked){if(this.raisedHalf)this.halfLocked=true;else this.ceiling=this.step+1;if(this.locks++)this.unlockMs=Math.min(600000,this.unlockMs*2);}}
+  if(!this.half&&this.refresh>=100)this.half=true;else if(this.step<this.steps.length-1)this.step++;else return;
   this.lastChange=this.lastDown=t;this.changes++;this.onChange?.(this);
  }
  up(t){
   // A long clean stretch earns back the base raise delay.
   if(t-(this.lastDown??-Infinity)>20000){this.upAfterMs=this.baseUpAfterMs;this.failedRaises=0;}
-  if(this.half&&this.ceiling<=this.steps.length-1)this.half=false;else if(!this.half&&this.step>this.ceiling)this.step--;else return;
+  if(this.step>this.ceiling){this.step--;this.raisedHalf=false;}else if(this.half&&!this.halfLocked){this.half=false;this.raisedHalf=true;}else return;
   this.lastChange=this.lastUp=t;this.changes++;this.onChange?.(this);
  }
  describe(){return Math.round(this.scale*100)+'%'+(this.half?' · '+(this.refresh/2)+' Hz':this.refresh?' · '+this.refresh+' Hz':'');}

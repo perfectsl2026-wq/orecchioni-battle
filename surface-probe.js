@@ -13,8 +13,10 @@ export function buildProbe(root){
   if(!o.isMesh||o.isSkinnedMesh||o.isSprite||!o.visible)return;const materials=Array.isArray(o.material)?o.material:[o.material];
   if(materials.some(m=>!m||m.transparent||m.userData?.decal||m.userData?.mark))return;
   const g=o.geometry,pos=g.attributes.position;if(!pos)return;const index=g.index,n=index?index.count:pos.count;
+  // Each vertex is moved to world space once, not once per triangle that shares it (same numbers, a third of the work).
+  const world=new Float64Array(pos.count*3);for(let i=0;i<pos.count;i++){v[0].fromBufferAttribute(pos,i).applyMatrix4(o.matrixWorld);world[i*3]=v[0].x;world[i*3+1]=v[0].y;world[i*3+2]=v[0].z;}
   for(let i=0;i<n;i+=3){
-   for(let k=0;k<3;k++){const vi=index?index.getX(i+k):i+k;v[k].fromBufferAttribute(pos,vi).applyMatrix4(o.matrixWorld);}
+   for(let k=0;k<3;k++){const vi=(index?index.getX(i+k):i+k)*3;v[k].set(world[vi],world[vi+1],world[vi+2]);}
    const t=tris.length;tris.push(v[0].x,v[0].y,v[0].z,v[1].x,v[1].y,v[1].z,v[2].x,v[2].y,v[2].z);count++;
    const x0=Math.floor(Math.min(v[0].x,v[1].x,v[2].x)/CELL),x1=Math.floor(Math.max(v[0].x,v[1].x,v[2].x)/CELL),y0=Math.floor(Math.min(v[0].y,v[1].y,v[2].y)/CELL),y1=Math.floor(Math.max(v[0].y,v[1].y,v[2].y)/CELL),z0=Math.floor(Math.min(v[0].z,v[1].z,v[2].z)/CELL),z1=Math.floor(Math.max(v[0].z,v[1].z,v[2].z)/CELL);
    // A facade face spans 20 × 8 m (160 cells); only sheets far larger than that are left out.

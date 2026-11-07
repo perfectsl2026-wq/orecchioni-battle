@@ -8,4 +8,6 @@ export class SimulationClock{
   return count;
  }
  pause(){this.accumulator=0;}
+ // Guest: keeps this label on host time without touching the fixed steps.
+ slew(target){const lead=target-this.time;this.time+=Math.abs(lead)>1500?lead:lead*.1;}
 }

@@ -1,0 +1,177 @@
+ORECCHIONI BATTLE - THIRD-PARTY NOTICES
+
+Software and textures distributed with this game. Art models and their
+licences are listed in assets/CREDITS.md.
+
+COMPONENTS UNDER THE MIT LICENSE (full text below)
+
+Three.js r169, with GLTFLoader, SkeletonUtils, BufferGeometryUtils
+  vendor/three.module.js, vendor/addons/
+  Copyright (c) 2010-2024 Three.js Authors
+  https://github.com/mrdoob/three.js
+
+meshoptimizer decoder
+  vendor/addons/libs/meshopt_decoder.module.js
+  Copyright (c) 2016-2022 Arseny Kapoulkine
+
+PeerJS 1.5.4
+  vendor/peerjs.min.js
+  Copyright (c) 2015 Michelle Bu and Eric Zhang
+  https://github.com/peers/peerjs
+
+Bundled inside vendor/peerjs.min.js:
+  peerjs-js-binarypack, Copyright (c) 2012 Eric Zhang
+  eventemitter3, Copyright (c) 2014 Arnout Kazemier
+  sdp, Copyright (c) 2017 Philipp Hancke
+
+Operation Steel Tide textures (in assets/models/v4/roncola.glb)
+  Copyright (c) 2026 AetherRadar
+  https://github.com/AetherRadar/operation-steel-tide
+
+ART MODELS UNDER CC BY 4.0 (also listed in assets/CREDITS.md)
+Licence of each: Creative Commons Attribution 4.0, https://creativecommons.org/licenses/by/4.0/
+Each file below also has a phone copy at the same path under assets/mobile/.
+Modified for the game (V44): unused parts and geometry hidden under helmets removed, polygons
+reduced, re-weighted and re-posed on the game's operator skeleton, team-colour areas added in
+the game, textures resized and re-encoded as WebP, meshopt compression.
+
+SCI-FI SuperSoldier - Game-ready [ANIMATED], by SihaGames (sihagames)
+  assets/models/v44/onice.glb
+  https://sketchfab.com/3d-models/09e0bd9c9715463584cd847d9b30a140
+  Includes the helmet "Sci-Fi Helmet" by udonsan (CC BY 4.0),
+  https://sketchfab.com/3d-models/785f5cfd848940b1a4a0b8ddeefc9ef1
+
+SciFi Character Model - FastLane, by guhselukas
+  assets/models/v44/saetta.glb
+  https://sketchfab.com/3d-models/e04d4f8606854c858ec6771d044b5693
+
+Tantalus Pilot R.E.D (rigged), by tegnemaskin
+  assets/models/v44/astore.glb
+  https://sketchfab.com/3d-models/b3143e1303014f0d85c91347659d2524
+
+Tantalus Pilot (rigged), by tegnemaskin
+  assets/models/v44/corvo.glb
+  https://sketchfab.com/3d-models/7c02e58adc654904a686095dee29c362
+
+Sci-fi armor, by mrdark836
+  assets/models/v44/lince.glb
+  https://sketchfab.com/3d-models/abfde32064a24635bd0648f8da90f146
+
+MIT LICENSE (full text below)
+
+Three.js r169, with GLTFLoader, SkeletonUtils, BufferGeometryUtils
+  vendor/three.module.js, vendor/addons/
+  Copyright (c) 2010-2024 Three.js Authors
+  https://github.com/mrdoob/three.js
+
+meshoptimizer decoder
+  vendor/addons/libs/meshopt_decoder.module.js
+  Copyright (c) 2016-2022 Arseny Kapoulkine
+
+PeerJS 1.5.4
+  vendor/peerjs.min.js
+  Copyright (c) 2015 Michelle Bu and Eric Zhang
+  https://github.com/peers/peerjs
+
+Bundled inside vendor/peerjs.min.js:
+  peerjs-js-binarypack, Copyright (c) 2012 Eric Zhang
+  eventemitter3, Copyright (c) 2014 Arnout Kazemier
+  sdp, Copyright (c) 2017 Philipp Hancke
+
+Operation Steel Tide textures (in assets/models/v4/roncola.glb)
+  Copyright (c) 2026 AetherRadar
+  https://github.com/AetherRadar/operation-steel-tide
+
+ART MODEL UNDER CC BY 4.0 (also listed in assets/CREDITS.md)
+
+Silver Soldier (Animated), by Jungle Jim
+  assets/models/v42/corazza.glb
+  (and the half-size copies in assets/mobile/)
+  https://sketchfab.com/3d-models/silver-soldier-animated-a8f0d843735047b2999fbe4a9d7a1245
+  Licence: Creative Commons Attribution 4.0, https://creativecommons.org/licenses/by/4.0/
+  Marked "Generated with AI" on Sketchfab.
+  Modified: pistols and animation removed, helmet fixed to the head, reduced
+  to about 32,000 triangles (25,000 on phones), re-weighted and re-posed on the game's operator
+  skeleton, arms slightly slimmed (by a tenth since V42 bO), albedo cleaned, team colours and energy lines added
+  in the game, textures re-encoded as WebP, meshopt compression.
+
+MIT LICENSE
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+COMPONENT UNDER THE ISC LICENSE
+
+@msgpack/msgpack, bundled inside vendor/peerjs.min.js
+Copyright 2019 The MessagePack Community.
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted, provided that the above
+copyright notice and this permission notice appear in all copies.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND
+FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.
+
+COMPONENT UNDER THE BSD 3-CLAUSE LICENSE
+
+webrtc-adapter, bundled inside vendor/peerjs.min.js
+Copyright (c) 2014, The WebRTC project authors. All rights reserved.
+Copyright (c) 2018, The adapter.js project authors. All rights reserved.
+
+Redistribution and use in source and binary forms, with or without
+modification, are permitted provided that the following conditions are met:
+
+  * Redistributions of source code must retain the above copyright notice,
+    this list of conditions and the following disclaimer.
+
+  * Redistributions in binary form must reproduce the above copyright notice,
+    this list of conditions and the following disclaimer in the documentation
+    and/or other materials provided with the distribution.
+
+  * Neither the name of Google nor the names of its contributors may be used
+    to endorse or promote products derived from this software without specific
+    prior written permission.
+
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE LIABLE
+FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+FONT
+
+Barlow and Barlow Condensed are included in assets/fonts/ (latin subset,
+unmodified). Copyright 2017 The Barlow Project Authors, licensed under the
+SIL Open Font License 1.1. The gold weapon marks in assets/models/v42/*-fx.webp
+are drawn with Barlow Condensed Bold.
+
+
+Barlow, Barlow Condensed
+Copyright 2017 The Barlow Project Authors (https://github.com/jpt/barlow)
+Licensed under the SIL Open Font License, Version 1.1: https://openfontlicense.org
+Files: assets/fonts/*.woff2 (latin subset, unmodified, as distributed by Google Fonts)

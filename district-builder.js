@@ -1,9 +1,9 @@
 import * as T from './vendor/three.module.js';
-import {blocked,groundHeight} from './shared.js?v=41.0';
-import {box} from './graphics.js?v=41.0';
-import {metricBlock as block} from './caldera-architecture.js?v=41.0';
-import {cosmetic} from './trim-kit.js?v=41.0';
-import {readableAlbedo,weatherMaterial} from './surface-detail.js?v=41.0';
+import {blocked,groundHeight} from './shared.js?v=42.0';
+import {box} from './graphics.js?v=42.0';
+import {metricBlock as block} from './caldera-architecture.js?v=42.0';
+import {cosmetic} from './trim-kit.js?v=42.0';
+import {readableAlbedo,weatherMaterial,antiTile} from './surface-detail.js?v=42.0';
 // Shared builder for route-graph districts (Sahra, Caldera). A map supplies its
 // walkable rectangles, height field and solids; a style supplies materials and the
 // architecture for each solid kind. Everything drawn here follows the shared solids.
@@ -20,7 +20,7 @@ export function materialLibrary(){
   if(!entry){let yes,no;const promise=new Promise((a,b)=>{yes=a;no=b;});const t=loader.load('./assets/textures/'+path,()=>yes(t),undefined,e=>{textureCache.delete(path);no(e);});t.wrapS=t.wrapT=T.RepeatWrapping;t.anisotropy=16;if(color)t.colorSpace=T.SRGBColorSpace;entry={texture:t,promise};textureCache.set(path,entry);}
   pending.push(entry.promise);return entry.texture;
  }
- const surface=(family,color,contrast=.78,lift=.025,{amount=.15,floor=false,normal=.25}={})=>readableAlbedo(weatherMaterial(new T.MeshStandardMaterial({color,map:texture(family+'_diff.webp',true),normalMap:texture(family+'_nor_gl.webp'),roughnessMap:texture(family+'_rough.webp'),normalScale:new T.Vector2(normal,normal),roughness:.94}),{amount,floor}),{contrast,lift});
+ const surface=(family,color,contrast=.78,lift=.025,{amount=.15,floor=false,normal=.25}={})=>antiTile(readableAlbedo(weatherMaterial(new T.MeshStandardMaterial({color,map:texture(family+'_diff.webp',true),normalMap:texture(family+'_nor_gl.webp'),roughnessMap:texture(family+'_rough.webp'),normalScale:new T.Vector2(normal,normal),roughness:.94}),{amount,floor}),{contrast,lift}));
  const layer=family=>({map:texture(family+'_diff.webp',true),normalMap:texture(family+'_nor_gl.webp'),roughnessMap:texture(family+'_rough.webp')});
  return {pending,texture,surface,layer};
 }
@@ -73,8 +73,8 @@ export function wallMeshes(root,p,walls,style){
   style.roofCap?.(root,p,x,z,w,d,h);
  }
 }
-// Elliptical arch panel: solid above an elliptical opening that reaches the floor.
-export function arched(width,spring,rise,height,depth){const s=new T.Shape();s.moveTo(-width/2,0);s.lineTo(width/2,0);s.lineTo(width/2,height);s.lineTo(-width/2,height);s.closePath();const h=new T.Path();h.moveTo(-width/2,0);h.lineTo(-width/2,spring);h.absellipse(0,spring,width/2,rise,Math.PI,0,true);h.lineTo(width/2,0);h.closePath();s.holes.push(h);const g=new T.ExtrudeGeometry(s,{depth,bevelEnabled:false,curveSegments:24});g.translate(0,0,-depth/2);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/2.2,uv.getY(i)/2.2);return g;}
+// Elliptical arch panel: one contour, so nothing is left on the floor under the opening.
+export function arched(width,spring,rise,height,depth){const s=new T.Shape();s.moveTo(-width/2,spring);s.absellipse(0,spring,width/2,rise,Math.PI,0,true);s.lineTo(width/2,height);s.lineTo(-width/2,height);s.closePath();const g=new T.ExtrudeGeometry(s,{depth,bevelEnabled:false,curveSegments:24});g.translate(0,0,-depth/2);const uv=g.attributes.uv;for(let i=0;i<uv.count;i++)uv.setXY(i,uv.getX(i)/2.2,uv.getY(i)/2.2);return g;}
 // Arches carry absolute springing heights; vaults use their own closed geometry.
 export function portals(root,p,arches,{material,vault,trim}){
  for(const a of arches){const geometry=a.vault?vault(a):arched(a.width,a.spring-(a.base||0),a.rise,a.height-(a.base||0),a.depth),portal=new T.Mesh(geometry,material);portal.position.set(a.x,a.vault?0:a.base||0,a.z);if(a.axis==='x')portal.rotation.y=Math.PI/2;portal.castShadow=portal.receiveShadow=true;root.add(portal);trim?.(root,p,a);}

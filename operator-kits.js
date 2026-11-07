@@ -1,37 +1,62 @@
-// V35 operators, V37 photographed gear. Every player picks a kit (silhouette and gear), an
+// V35 operators, V37 third-party gear. Every player picks a kit (silhouette and gear), an
 // accent colour and a few toggles; bots get varied kits. The body, its team tint and the
-// rig never change. The gear is photographed (Sketchfab CC-BY models, credits in
+// rig never change. The gear is third-party (Sketchfab CC-BY models, credits in
 // assets/CREDITS.md) and fitted around the skeleton's own anchors (head, chest, shoulders)
 // in the rest pose; the team's cloth tags and accent trims stay procedural so friend or foe
 // reads at a glance: the team tint owns the body, the accent only the trims.
 // Materials are shared per team and accent (V34 batching) and per model, never per operator.
+import {cleanTint} from './smoke-rules.js?v=42.0';
 import * as T from './vendor/three.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
-import {PAINTS} from './weapon-finish.js?v=41.0';
+import {PAINTS} from './weapon-finish.js?v=42.0';
+// V44 GIRO 1: eight operators. ASSALTO, SFONDAMENTO and (V44 op2) MASTINO keep the soldier's body with their own cut
+// (operator-wear.js); the other five are whole bodies from CC BY 4.0 models (BODIES below, assets/CREDITS.md) drawn on the operator's own skeleton,
+// at the same head height and with the same hit zones (combat-rules.js never reads the body). RICOGNIZIONE, TIRATORE,
+// CORAZZA and BOREA went to archivio/v44-operatori/ (code and models); an old saved or received id becomes the nearest kit.
 export const KITS=[
- {id:'assalto',name:'ASSALTO',tag:'LINEA',toggles:{visor:'Visore notturno',mask:'Maschera facciale',pack:'Zaino d’assalto'},desc:'Casco balistico con occhiali e cuffia, maschera facciale a scelta, visore notturno a quattro tubi. L’operatore che entra per primo.'},
- {id:'ricognizione',name:'RICOGNIZIONE',tag:'LEGGERO',toggles:{visor:'Occhiali',mask:'Shemagh sul volto',pack:'Zaino leggero'},desc:'Berretto e cuffia radio, binocolo al petto; a scelta lo shemagh che avvolge la testa. Sagoma bassa, passo lungo.'},
- {id:'sfondamento',name:'SFONDAMENTO',tag:'PESANTE',toggles:{visor:null,mask:'Respiratore a doppio filtro',pack:'Zaino largo'},desc:'Casco con cuffie integrate, maschera balistica o respiratore a doppio filtro, zaino largo. Il muro che avanza.'},
- {id:'tiratore',name:'TIRATORE',tag:'OMBRA',toggles:{visor:'Occhiali da tiro',mask:'Maschera teschio',pack:'Zaino leggero'},desc:'Passamontagna a coste e occhiali da tiro; a scelta il cappuccio con il teschio. Visto solo dopo.'}
+ {id:'assalto',name:'ASSALTO',tag:'LINEA',toggles:{visor:'Visore notturno',mask:'Maschera facciale',pack:'Zaino d’assalto'},desc:'Entra per primo. Il braccio sinistro, quello che apre la porta, è protetto da una guardia nel colore della squadra; il giubbotto scuro è tagliato in diagonale e una cinghia di caricatori lo attraversa dal fianco alla spalla. Il braccio destro resta libero per sparare.'},
+ {id:'sfondamento',name:'SFONDAMENTO',tag:'PESANTE',toggles:{visor:null,mask:'Respiratore a doppio filtro',pack:'Zaino largo'},desc:'Il muro che avanza. Tutta la protezione è davanti: una grande piastra sul petto con una fascia nel colore della squadra, collo alto, pancia coperta da tre piastre, gambe corazzate. Spalle strette al corpo, per non sembrare più largo di quello che è.'},
+ {id:'mastino',name:'MASTINO',tag:'ASSALTO',toggles:{},desc:'Fanteria corazzata. Piastre a segmenti su tutto il corpo, casco chiuso con la visiera stretta: le piastre grandi prendono il colore della squadra, sotto una tuta nera.'},
+ {id:'saetta',name:'SAETTA',tag:'RICOGNIZIONE',toggles:{},desc:'Corre davanti a tutti. Armatura leggera a placche chiare sopra una tuta scura, casco aerodinamico con visiera avvolgente e cresta, strisce luminose nel colore della squadra lungo braccia e gambe.'},
+ {id:'onice',name:'ONICE',tag:'PESANTE',toggles:{},desc:'Una tuta da combattimento nera con le nervature nel colore della squadra, il casco con il visore a fessura. Il simbolo sul petto e il visore si accendono nel colore della squadra.'},
+ {id:'astore',name:'ASTORE',tag:'SUPPORTO',toggles:{},desc:'Pilota di soccorso. Tuta da volo imbottita nel colore della squadra, casco tondo con la visiera dorata, stivali e guanti scuri.'},
+ {id:'corvo',name:'CORVO',tag:'TIRATORE',toggles:{},desc:'Tuta da volo scura e casco con la visiera fumé, zaino leggero sulla schiena. Spalle e braccia nel colore della squadra, il resto si perde nell’ombra.'},
+ {id:'lince',name:'LINCE',tag:'INCURSORE',toggles:{},desc:'Incursore silenzioso: tuta leggera nel colore della squadra, spallacci a piastre, cappuccio scuro e piastra facciale con fessura luminosa per gli occhi.'}
 ];
-export const DEFAULT_OPERATOR={kit:'assalto',accent:'graphite',visor:0,mask:0,pack:0};
+// The five whole bodies: file (phones load the copy under assets/mobile/), how much of the team dye the "_Team" parts take (mix,
+// default 1). V44 op3: each one IS the soldier's body (the ASSALTO/SFONDAMENTO build, his skin weights): the operator's own model is
+// baked onto his suit as colour, surface relief, glow and team mask (art/source/v44/agenti/build/bake.py) and only its helmet stays
+// its own geometry, rigid on the head; so shoulders, chest, arms, hips, legs and feet are his, measured equal by tools/check_operators.mjs.
+// detail (V44 op6b, SAETTA and LINCE): the team dye follows the texture's brightness more steeply (lum^.75 instead of its square
+// root, same mean), so seams and stitching still read at game distance; 0 or absent: as before.
+// gloves and boots: the soldier's own (fingers closed on the weapon), cut from his suit in the game (assets.js skinPart).
+export const BODIES={
+ saetta:{file:'./assets/models/v44/saetta.wasm',gloves:1,boots:1,detail:1},
+ onice:{file:'./assets/models/v44/onice.wasm',gloves:1,boots:1},
+ astore:{file:'./assets/models/v44/astore.wasm',gloves:1,boots:1},
+ corvo:{file:'./assets/models/v44/corvo.wasm',gloves:1,boots:1},
+ lince:{file:'./assets/models/v44/lince.wasm',gloves:1,boots:1,detail:1}
+};
+// Ids of operators that are no longer offered: an old saved choice or an old peer's choice is dressed as the nearest kit.
+export const RETIRED_KITS={ricognizione:'saetta',tiratore:'corvo',corazza:'onice',borea:'assalto'};
+export const DEFAULT_OPERATOR={kit:'assalto',accent:'graphite',visor:0,mask:0,pack:0,smoke:0,glow:1};
 export const kitFor=id=>KITS.find(k=>k.id===id)||null;
 // Masks and hoods were modelled on a smaller head: the base head shrinks under them, so nothing
 // pokes through; gear parented to the head bone is compensated in dressOperator.
-export function headScale(operator){const o=cleanOperator(operator);return o.kit==='tiratore'?.84:o.kit==='sfondamento'?.86:o.kit==='ricognizione'&&o.mask?.86:1;}
+export function headScale(operator){const o=cleanOperator(operator);return o.kit==='sfondamento'?.86:o.kit==='mastino'?.93:1;}
 export function cleanOperator(v){
- const kit=kitFor(v?.kit)?v.kit:'assalto';
- return {kit,accent:Object.hasOwn(PAINTS,v?.accent)?v.accent:'graphite',visor:v?.visor?1:0,mask:v?.mask?1:0,pack:v?.pack?1:0};
+ const id=RETIRED_KITS[v?.kit]||v?.kit,kit=kitFor(id)?id:'assalto';
+ return {kit,accent:Object.hasOwn(PAINTS,v?.accent)?v.accent:'graphite',visor:v?.visor?1:0,mask:v?.mask?1:0,pack:v?.pack?1:0,smoke:cleanTint(v?.smoke),glow:v?.glow===0||v?.glow===false?0:1};
 }
-// Templates are keyed by the gear generation too: once the photographed models arrive, every
+// Templates are keyed by the gear generation too: once the third-party models arrive, every
 // dressed operator is rebuilt on its next dressOperator call.
 let gearGeneration=0;
 export const operatorKey=(team,v)=>{const o=cleanOperator(v);return team+':'+o.kit+':'+o.accent+':'+o.visor+o.mask+o.pack+':g'+gearGeneration;};
 export const operatorName=v=>kitFor(cleanOperator(v).kit).name;
-// Bots wear every kit in turn, with the team's own accent, so a squad reads as a squad.
-export function botOperator(serial,team){const kits=KITS.map(k=>k.id);return {kit:kits[Math.abs(serial|0)%kits.length],accent:team==='blue'?'naval':'sand',visor:serial%3===0?1:0,mask:serial%2===1?1:0,pack:serial%4===2?1:0};}
+// Bots wear every kit in turn, with the team's own accent, so a squad reads as a squad: eight bots in a row show all eight.
+export function botOperator(serial,team){const n=Math.abs(serial|0);return {kit:KITS[n%KITS.length].id,accent:team==='blue'?'naval':'sand',visor:serial%3===0?1:0,mask:serial%2===1?1:0,pack:serial%4===2?1:0};}
 // ---- materials, shared per team and accent -------------------------------------------
 const looks=new Map();
 export function operatorLook(team,accent){
@@ -39,16 +64,16 @@ export function operatorLook(team,accent){
  const mat=(name,color,roughness,metalness,extra={})=>{const m=new T.MeshStandardMaterial({color,roughness,metalness,...extra});m.name='op-'+name;m.userData.teamLook=true;return m;};
  const blue=team==='blue';
  const look={
-  base:mat('base',blue?0x4a5a62:0x6e6248,.9,0),            // gear shell: slate for Vanguard, khaki for Outriders
+  base:mat('base',blue?0x4a5a62:0x6e6248,.9,0),            // gear shell: slate for Scolta, khaki for Razziatori
   cloth:mat('cloth',blue?0x6f9ba9:0xb6855f,1,0),            // team cloth (tags, shemagh, hood)
   rubber:mat('rubber',0x252e2b,.84,0),
   lens:mat('lens',0x263b3c,.3,.15,{envMapIntensity:.5}),
   metal:mat('metal',0x6a7375,.45,.7),
   accent:mat('accent',PAINTS[accent]?.hex||'#45535d',.72,.08)
- };
+ };look.team=team;
  looks.set(key,look);return look;
 }
-// ---- photographed gear ---------------------------------------------------------------
+// ---- third-party gear ---------------------------------------------------------------
 // Each file is loaded once; its meshes are shared by every operator wearing the piece
 // (geometry and materials are never disposed with a body). Fits are in metres relative to
 // the anchor point, in the rest pose with the operator facing -z, +x the right hand.
@@ -56,9 +81,8 @@ export function operatorLook(team,accent){
 // the whole model's bounds, so pieces of one model keep their authored alignment.
 export const GEAR_FILES={
  casco_a:'./assets/models/v37/casco_a.glb',casco_b:'./assets/models/v37/casco_b.glb',
- pacco_teste:'./assets/models/v37/pacco_teste.glb',nvg:'./assets/models/v37/nvg.glb',zaino_a:'./assets/models/v37/zaino_a.glb',zaino_b:'./assets/models/v37/zaino_b.glb',
- passamontagna:'./assets/models/v37/passamontagna.glb',cuffie:'./assets/models/v37/cuffie.glb',
- occhiali:'./assets/models/v41/occhiali.glb',binocolo:'./assets/models/v41/binocolo.glb'
+ pacco_teste:'./assets/models/v37/pacco_teste.glb',nvg:'./assets/models/v37/nvg.glb',zaino_a:'./assets/models/v37/zaino_a.glb'
+ // V44: the balaclava, headset, goggles and binoculars left with RICOGNIZIONE, TIRATORE and BOREA: no longer downloaded.
 };
 export const PIECES={
  casco_a:{model:'casco_a',only:/Helmet_Base|Glasses/,fit:{scale:.0062,rotation:[0,Math.PI,0],position:[0,.01,-.01]}},
@@ -66,16 +90,9 @@ export const PIECES={
  casco_b:{model:'casco_b',fit:{scale:.3,rotation:[0,Math.PI/2,0],position:[0,.02,-.01]}},
  nvg:{model:'nvg',fit:{scale:.75,rotation:[0,Math.PI,0],position:[0,.035,-.175]}},
  zaino_a:{model:'zaino_a',fit:{scale:.55,rotation:[0,0,0],position:[0,.02,.27]}},
- zaino_b:{model:'zaino_b',fit:{scale:.7,rotation:[0,0,0],position:[0,0,.18]}},
- zaino_c:{model:'zaino_b',fit:{scale:.55,rotation:[0,0,0],position:[0,.02,.17]}},
+ zaino_b:{model:'zaino_a',fit:{scale:.5,rotation:[0,0,0],position:[0,.01,.25]}},
+ zaino_c:{model:'zaino_a',fit:{scale:.45,rotation:[0,0,0],position:[0,.03,.235]}},
  antigas:{model:'pacco_teste',only:/GasMask/,own:true,fit:{scale:1.1,rotation:[0,Math.PI,0],position:[0,.0,-.045]}},
- occhiali:{model:'occhiali',fit:{scale:.078,rotation:[0,0,0],position:[0,.012,-.128]}},
- occhiali_tiro:{model:'occhiali',fit:{scale:.068,rotation:[0,0,0],position:[0,.0,-.112]}},
- binocolo:{model:'binocolo',fit:{scale:.00013,rotation:[0,Math.PI,0],position:[0,.08,-.2]}},
- passamontagna:{model:'passamontagna',fit:{scale:.13,rotation:[0,Math.PI,0],position:[0,-.038,-.002]}},
- cuffie:{model:'cuffie',fit:{scale:.27,rotation:[0,Math.PI,0],position:[0,0,0]}},
- shemagh:{model:'pacco_teste',only:/Shemagh/,own:true,fit:{scale:1.18,rotation:[0,Math.PI,0],position:[0,-.075,-.01]}},
- teschio:{model:'pacco_teste',only:/GoustMask/,own:true,fit:{scale:1.2,rotation:[0,Math.PI,0],position:[0,-.05,-.01]}},
  mezza_maschera:{model:'pacco_teste',only:/Mask_ballistic/,own:true,fit:{scale:.94,rotation:[0,Math.PI,0],position:[0,-.012,-.035]}}
 };
 const gearScenes=new Map(),gearBounds=new Map();
@@ -103,7 +120,8 @@ const LOOK_FIX={
  passamontagna(m){m.map=null;m.color.set(0x34393a);m.roughness=1;m.metalness=0;m.side=T.DoubleSide;},
  zaino_a(m){m.color.set(0x8a8468);},
  occhiali(m){if(m.name==='Default'){m.color.set(0x3c423c);m.roughness=.7;}else{m.color.set(0x1a2226);m.opacity=.82;m.roughness=.12;m.metalness=.5;}},
- pacco_teste(m){if(/EquipAtlas|GoustMaskMain/.test(m.name))m.side=T.DoubleSide;if(m.name==='Glass'){m.color.set(0x11161a);m.roughness=.18;m.metalness=.4;}if(m.name==='GasMaskWindow'){m.color.set(0x3d5358);m.roughness=.1;m.metalness=.75;m.envMapIntensity=1.6;}}
+ // V43 oR rev: the face wrap and the shooter's hood keep their shapes, not their printed patterns (a checked keffiyeh, a skull).
+ pacco_teste(m){if(/EquipAtlas|HoodMaskMain/.test(m.name))m.side=T.DoubleSide;if(m.name==='EquipAtlas'){m.map=null;m.color.set(0x5c5d4a);m.roughness=1;m.metalness=0;}if(m.name==='HoodMaskMain'){m.map=null;m.color.set(0x24282b);m.roughness=.95;m.metalness=0;}if(m.name==='Glass'){m.color.set(0x11161a);m.roughness=.18;m.metalness=.4;}if(m.name==='GasMaskWindow'){m.color.set(0x3d5358);m.roughness=.1;m.metalness=.75;m.envMapIntensity=1.6;}}
 };
 export async function preloadOperatorGear(){
  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
@@ -127,9 +145,9 @@ class Parts{
  sphere(anchor,mat,x,y,z,r,scale,rot,phiStart=0,phiLength=Math.PI*2,thetaStart=0,thetaLength=Math.PI){this.add(anchor,new T.SphereGeometry(r,20,12,phiStart,phiLength,thetaStart,thetaLength),mat,x,y,z,rot,scale);}
  torus(anchor,mat,x,y,z,r,t,rot,scale){this.add(anchor,new T.TorusGeometry(r,t,6,28),mat,x,y,z,rot,scale);}
  cyl(anchor,mat,x,y,z,r,len,rot,scale){this.add(anchor,new T.CylinderGeometry(r,r,len,14),mat,x,y,z,rot,scale);}
- // A photographed piece: shared meshes of a loaded model placed by its fit.
+ // A third-party piece: shared meshes of a loaded model placed by its fit.
  model(anchor,id){let g=this.pieces.get(anchor);if(!g){g=[];this.pieces.set(anchor,g);}g.push(id);}
- // One merged mesh per material per anchor for the procedural trims; photographed pieces keep
+ // One merged mesh per material per anchor for the procedural trims; third-party pieces keep
  // their own shared geometry and materials (one draw per material each).
  build(){
   const out=new Map(),anchors=new Set([...this.groups.keys(),...this.pieces.keys()]);
@@ -160,39 +178,21 @@ function placePiece(group,anchor,id){
   mesh.castShadow=mesh.receiveShadow=true;mesh.userData.ownedGeometry=false;mesh.userData.sharedModel=true;mesh.userData.piece=id;mesh.name='Gear '+anchor+' '+id;group.add(mesh);
  });
 }
-// Team identity on every kit: the two cloth tags on the chest, as the base operator had.
-// The suit already carries its own plate, pouches and pads: gear is added only where it
-// changes the silhouette (head, back, shoulders) and never over the photographed kit.
-function tags(P,L){for(const s of [-1,1])P.box('chest',L.cloth,0,.025,s*.145,.15,.038,.006);}
-// Head anchor H = head bone + 10.5 cm ≈ eye level: skull top at H+.10, mouth at H−.06,
-// chin at H−.1, neck at H−.17; the bare head is 17 cm wide and 25 cm deep at the eyes.
+// V44: BOREA's hood, snow mask and collar and the cloth tags went with their kits (archivio/v44-operatori/codice/operator-kits.v43.js).
 const KIT_PARTS={
  assalto(P,L,o,side){
   P.model('head','casco_a');if(o.mask)P.model('head','maschera_a');if(o.visor)P.model('head','nvg');
   P.torus('head',L.accent,0,.045,0,.138,.005,[Math.PI/2,0,0],[1,1.12,1]);
-  tags(P,L);P.box('chest',L.metal,-.14*side,.13,-.07,.05,.1,.045);P.cyl('chest',L.metal,-.14*side,.21,-.07,.006,.1);P.box('chest',L.accent,.13*side,.12,-.1,.045,.03,.02);
+  // V43 oR: the body's wear (vest, pouches, pads, marks) is the kit's own cut in operator-wear.js; here only head and pack.
   if(o.pack)P.model('chest','zaino_b');
- },
- ricognizione(P,L,o,side){
-  P.model('head','cuffie');
-  if(o.mask)P.model('head','shemagh');
-  if(o.visor)P.model('head','occhiali');
-  tags(P,L);P.model('chest','binocolo');
-  if(o.pack)P.model('chest','zaino_c');
-  P.torus('shoulderL',L.accent,0,-.1,0,.058,.013,[Math.PI/2,0,0]);
  },
  sfondamento(P,L,o,side){
   P.model('head','casco_b');P.model('head',o.mask?'antigas':'mezza_maschera');
-  tags(P,L);P.box('chest',L.accent,0,.1,-.19,.1,.04,.02);
   if(o.pack)P.model('chest','zaino_a');
-  for(const a of ['shoulderL','shoulderR'])P.torus(a,L.accent,0,-.1,0,.058,.012,[Math.PI/2,0,0]);
  },
- tiratore(P,L,o,side){
-  P.model('head',o.mask?'teschio':'passamontagna');
-  if(o.visor&&!o.mask)P.model('head','occhiali_tiro');
-  tags(P,L);P.box('chest',L.base,.13*side,-.03,-.17,.07,.1,.05);P.box('chest',L.accent,0,.08,-.18,.07,.03,.01);
-  if(o.pack)P.model('chest','zaino_c');
- }
+ // V44: the whole bodies carry their own armour and helmet; CORVO wears a light pack so it does not read as ASTORE's twin.
+ mastino(){},saetta(){},onice(){},astore(){},lince(){},
+ corvo(P){P.model('chest','zaino_c');}
 };
 // Builds the gear groups of one operator configuration: a Map anchor → Group, in world
 // coordinates of the rest pose. The caller attaches each to its bone.

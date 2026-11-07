@@ -1,5 +1,7 @@
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-export const BOT_ACCELERATION=11, BOT_BRAKING=17, BOT_RUN_SPEED=4.3;
+export const BOT_ACCELERATION=11, BOT_BRAKING=17, BOT_RUN_SPEED=4.9;
+// Bot steering travels as an input of up to 1: both ends of that trip must share this scale. It is no speed limit.
+export const BOT_INPUT_SCALE=6;
 
 // Work in metres/second so steering behaves the same at 30, 60 and 144 Hz.
 export function accelerate(velocity,desired,dt){
@@ -21,11 +23,14 @@ export function turnToward(p,m,target,maxSpeed,dt){
 
 // Presentation is separate from authoritative collision/shooting positions.
 // A new life snaps to its spawn; ordinary movement/aim is interpolated.
+export const PRESENT_RATE=20,PRESENT_MS=1000/PRESENT_RATE;
+// How far behind its input the first-order filter below draws a steady mover, at this frame time (ms).
+export const presentLag=dt=>dt>1e-4?dt*1000/Math.expm1(PRESENT_RATE*dt):PRESENT_MS;
 export function presentAgent(view,actor,dt){
  if(!view||view.life!==actor.life||Math.hypot(view.x-actor.x,view.z-actor.z)>6){
   return {x:actor.x,y:actor.y||0,groundY:actor.groundY||0,z:actor.z,yaw:actor.yaw,pitch:actor.pitch||0,vx:0,vz:0,speed:0,duck:actor.duck||0,life:actor.life};
  }
- const alpha=1-Math.exp(-20*dt),oldX=view.x,oldZ=view.z;
+ const alpha=1-Math.exp(-PRESENT_RATE*dt),oldX=view.x,oldZ=view.z;
  view.x+=(actor.x-view.x)*alpha;view.y+=((actor.y||0)-view.y)*alpha;view.groundY=(view.groundY||0)+((actor.groundY||0)-(view.groundY||0))*alpha;view.z+=(actor.z-view.z)*alpha;
  view.yaw+=Math.atan2(Math.sin(actor.yaw-view.yaw),Math.cos(actor.yaw-view.yaw))*alpha;
  view.duck=((view.duck||0)+((actor.duck||0)-(view.duck||0))*alpha);

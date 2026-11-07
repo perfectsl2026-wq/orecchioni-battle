@@ -1,7 +1,7 @@
 // Scoreboard and top-bar roster. Both read the synced match state only, so host and
 // guests draw the same numbers.
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const TEAMS={blue:'VANGUARD',orange:'OUTRIDERS'};
+const TEAMS={blue:'SCOLTA',orange:'RAZZIATORI'};
 const ROUND_ICONS={
  kill:'<path d="M8 1.5a5.5 5.5 0 0 0-5.5 5.5v2.2L5 11v3h6v-3l2.5-1.8V7A5.5 5.5 0 0 0 8 1.5M5.2 6h2v2h-2zm3.6 0h2v2h-2z"/>',
  bomb:'<path d="M3 5h10v8H3zM5 3h6v2H5zm1 4v4h1V7zm3 0v4h1V7z"/>',
@@ -18,8 +18,8 @@ export function scoreboardHTML(state,self,{tactical,economy=false}){
  const team=key=>{
   const list=players.filter(p=>p.team===key).sort((a,b)=>b.kills-a.kills||(b.dealt||0)-(a.dealt||0));
   const rows=list.map(p=>{const hs=p.kills?Math.round((p.hs||0)/p.kills*100):0,adr=Math.round((p.dealt||0)/rounds);
-   return '<tr class="'+(p.id===self.id?'me ':'')+(p.hp<=0&&tactical?'out':'')+'"><td class="who"><i class="dot"></i>'+esc(p.name)+(p.bot?'<small>BOT</small>':'')+(p.id===self.id?'<small class="you">TU</small>':'')+'</td><td>'+p.kills+'</td><td>'+(p.assists||0)+'</td><td>'+p.deaths+'</td><td>'+(tactical?adr:(p.dealt||0))+'</td><td>'+hs+'%</td>'+(economy?'<td class="cash">'+(p.team===self.team?(p.money||0).toLocaleString("it-IT"):'—')+'</td>':'')+'</tr>';}).join('');
-  return '<section class="sb-team '+key+(key===self.team?' ours':'')+'"><header><b>'+TEAMS[key]+'</b><span>'+(key===self.team?'LA TUA SQUADRA':'AVVERSARI')+'</span><strong>'+state.score[key]+'</strong></header><table><thead><tr><th>OPERATORE</th><th>K</th><th>A</th><th>M</th><th>'+(tactical?'DANNI/R':'DANNI')+'</th><th>TESTA</th>'+(economy?'<th>CREDITI</th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></section>';
+   return '<tr class="'+(p.id===self.id?'me ':'')+(p.hp<=0&&tactical?'out':'')+'"><td class="who"><i class="dot"></i><span class="nm" title="'+esc(p.name)+'">'+esc(p.name)+'</span>'+(p.bot?'<small>'+(p.heldBy?'GUIDATO':'BOT')+'</small>':'')+(p.id===self.id?'<small class="you">TU</small>':'')+'</td><td>'+p.kills+'</td><td>'+(p.assists||0)+'</td><td>'+p.deaths+'</td><td>'+(tactical?adr:(p.dealt||0))+'</td><td>'+hs+'%</td>'+(economy?'<td class="cash">'+(p.team===self.team&&!p.heldBy?((p.hp<=0&&Number.isFinite(p.purse)?p.purse:p.money)||0).toLocaleString("it-IT"):'—')+'</td>':'')+'</tr>';}).join('');
+  return '<section class="sb-team '+key+(key===self.team?' ours':'')+'"><header><b>'+TEAMS[key]+'</b><span>'+(key===self.team?'LA TUA SQUADRA':'AVVERSARI')+'</span><strong>'+state.score[key]+'</strong></header><table><thead><tr><th>OPERATORE</th><th title="Uccisioni">K</th><th title="Assist">A</th><th title="Morti">M</th><th title="'+(tactical?'Danni medi per round':'Danni inflitti')+'">'+(tactical?'DANNI/R':'DANNI')+'</th><th title="Uccisioni alla testa">TESTA</th>'+(economy?'<th>CREDITI</th>':'')+'</tr></thead><tbody>'+rows+'</tbody></table></section>';
  };
  const order=self.team==='orange'?['orange','blue']:['blue','orange'];
  return (tactical?roundStrip(state,self):'')+team(order[0])+team(order[1]);

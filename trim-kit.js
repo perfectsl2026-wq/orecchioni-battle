@@ -1,5 +1,5 @@
 import * as T from './vendor/three.module.js';
-// Modelled trim kit after the Riot practice: extruded mouldings from a small set of
+// Modelled trim kit: extruded mouldings from a small set of
 // profiles, reused across every facade. Coordinates are facade-local: x along the
 // wall, y up, z out of the authoritative wall face. Ornament above 2.6 m may project
 // like real stonework and is cosmetic for ballistics (as wires and palms already are);
@@ -52,7 +52,7 @@ export function scupper(face,material,x,y,{length=.42}={}){
  for(const side of [-1,1])place(g,material,new T.BoxGeometry(.025,.09,length),side*.0675,.045,length/2);
  return g;
 }
-// Downspout kept mid-wall (Valve removed corner pipes from Dust II for clean peeks).
+// Downspout kept mid-wall (no corner pipes, for clean peeks).
 export function downspout(face,material,x,bottom,top){
  const r=.034,z=.075,len=Math.max(.2,top-bottom),pipe=place(face,material,new T.CylinderGeometry(r,r,len,8,1,true),x,(top+bottom)/2,z);pipe.userData.pipe=true;
  for(let y=bottom+.6;y<top-.2;y+=1.6)place(face,material,new T.BoxGeometry(.11,.03,.05),x,y,.04);

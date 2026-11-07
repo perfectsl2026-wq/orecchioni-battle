@@ -1,14 +1,19 @@
-import {MAP_THEMES} from './visual-theme.js?v=41.0';
-import {KITS} from './weapon-kits.js?v=41.0';
-import {GUN_RULES} from './combat-rules.js?v=41.0';
-import {applyFinish,cleanFinish,PAINTS,TRIMS,PATTERNS} from './weapon-finish.js?v=41.0';
-import {VARIANTS,variantFor,cleanBuild} from './weapon-variants.js?v=41.0';
+import {MAP_THEMES} from './visual-theme.js?v=42.0';
+import {KITS,kitLabel,kitSide} from './weapon-kits.js?v=42.0';
+import {rulesFor} from './combat-rules.js?v=42.0';
+import {weaponFor,designOf} from './weapon-stats.js?v=42.0';
+import {applyFinish,cleanFinish,PAINTS,TRIMS,PATTERNS} from './weapon-finish.js?v=42.0';
+import {VARIANTS,variantFor,variantKey,cleanBuild} from './weapon-variants.js?v=42.0';
 import * as THREE from './vendor/three.module.js';
-import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator} from './assets.js?v=41.0';
-import {KITS as OPERATOR_KITS,kitFor,cleanOperator} from './operator-kits.js?v=41.0';
-import {WEAPONS,groundHeight} from './shared.js?v=41.0';
+import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator} from './assets.js?v=42.0';
+import {KITS as OPERATOR_KITS,kitFor,cleanOperator} from './operator-kits.js?v=42.0';
+import {SMOKE_TINTS} from './smoke-rules.js?v=42.0';
+import {WEAPONS,groundHeight} from './shared.js?v=42.0';
 const $=id=>document.getElementById(id);
 export const studioScale=(radius,width,height,fov=34)=>Math.min(1,width/Math.max(1,height))*Math.tan(fov*Math.PI/360)*2.65*.86/Math.max(.01,radius);
+// The model number stays on one line: the title column is narrow and a hyphen is a break point.
+// V44: the eyebrow repeats the label of the tab on show, word for word as its picker button reads (01 / PISTOLA ... 07 / FIGURA).
+function armoryTitle(name,index){const eyebrow=document.querySelector('.armoryinfo>.eyebrow');if(eyebrow&&index>=0)eyebrow.textContent=String(index+1).padStart(2,'0')+' / '+(index===6?'FIGURA':WEAPONS[index].label);const [code,...rest]=name.split(' '),head=document.createElement('span');head.style.whiteSpace='nowrap';head.textContent=code;$('armory-title').replaceChildren(head,rest.length?' '+rest.join(' '):'');}
 export class Armory{
  constructor(renderer,environment,onSelect,onClose,{career,onFinish=()=>{},onOperator=()=>{}}={}){
   this.career=career;this.onFinish=onFinish;this.onOperator=onOperator;this.model=null;this.layoutDirty=true;this.boundsDirty=true;this.previewBox=new THREE.Box3();this.previewSize=new THREE.Vector3();this.previewCenter=new THREE.Vector3();
@@ -28,6 +33,10 @@ export class Armory{
   {const b=document.createElement('button');b.innerHTML='<span>07 / FIGURA</span>OPERATORE';b.onclick=()=>this.select(6);$('armorychoices').append(b);}
   for(const kit of OPERATOR_KITS){const b=document.createElement('button');b.type='button';b.dataset.kit=kit.id;b.innerHTML='<span>'+kit.name+'</span><small>'+kit.tag+'</small>';b.onclick=()=>{this.opDraft.kit=kit.id;this.previewOperator();$('operatorstatus').textContent='Kit '+kit.name+' in anteprima. Applica per salvarlo.';};$('operatorkits').append(b);}
   for(const [key,choice]of Object.entries(PAINTS)){const b=document.createElement('button');b.type='button';b.style.setProperty('--swatch',choice.hex);b.title=choice.label;b.setAttribute('aria-label',choice.label);b.dataset.key=key;b.onclick=()=>{this.opDraft.accent=key;this.previewOperator();};$('operatoraccents').append(b);}
+  {const label=document.createElement('div'),host=document.createElement('div');label.className='field-label';label.id='fl-smoke';label.textContent='COLORE DEL FUMOGENO';host.id='operatorsmoke';host.className='paint-swatches';host.setAttribute('role','group');host.setAttribute('aria-labelledby','fl-smoke');
+   // V42: the canister's tint. Same opacity, size and duration for every colour: only the hue changes.
+   SMOKE_TINTS.forEach((t,n)=>{const b=document.createElement('button');b.type='button';b.style.setProperty('--swatch',t.hex);b.title=t.label+' · stessa copertura per tutti';b.setAttribute('aria-label','Fumogeno '+t.label);b.dataset.smoke=n;b.onclick=()=>{this.opDraft.smoke=n;this.previewOperator();$('operatorstatus').textContent='Fumogeno '+t.label.toLowerCase()+' in anteprima. Applica per salvarlo.';};host.append(b);});
+   $('operatoraccents').after(label,host);}
   $('operatortoggles').addEventListener('change',e=>{const el=e.target.closest('[data-toggle]');if(!el)return;this.opDraft[el.dataset.toggle]=el.checked?1:0;this.previewOperator();});
   $('applyoperator').onclick=()=>{this.career?.setOperator(this.opDraft);this.onOperator();$('operatorstatus').textContent=this.career?.persisted?'Operatore applicato. Gli altri giocatori lo vedono.':'Operatore attivo in questa sessione. Il browser non consente il salvataggio.';};
   document.getElementById('team')?.addEventListener('change',()=>{if(this.active&&this.index===6)this.select(6);});
@@ -39,22 +48,24 @@ export class Armory{
    const b=document.createElement('button');b.type='button';b.style.setProperty('--swatch',choice.hex);b.title=choice.label;b.setAttribute('aria-label',choice.label);b.dataset.key=key;b.onclick=()=>{this.draft.style='paint';this.draft[field]=key;this.draft[field==='primary'?'customPrimary':'customAccent']=null;this.previewFinish();};$(id).append(b);
   }
   for(const [key,kit]of Object.entries(KITS)){const o=document.createElement('option');o.value=key;o.textContent=kit.label;$('weaponkit').append(o);}
-  for(const [key,label,config]of [['recon','RECON',{primary:'olive',accent:'carbon',kit:'field',surface:'matte'}],['desert','DESERT',{primary:'sand',accent:'carbon',kit:'rail',surface:'matte'}],['urban','URBAN',{primary:'graphite',accent:'titanium',kit:'service',surface:'satin'}]]){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>{this.draft=cleanFinish({...config,model:this.draft.model,build:this.draft.build,style:'paint',pattern:this.draft.pattern},this.index);this.previewFinish();$('finishstatus').textContent='Assetto '+label+' in anteprima. Applica per salvarlo.';};$('tacticalpresets').append(b);}
-  $('weaponkit').onchange=()=>{this.draft.kit=$('weaponkit').value;this.previewFinish();};
-  // V33: the class's base model and its original OB designs; each design exposes its tuning.
-  $('weaponmodels').addEventListener('click',e=>{const b=e.target.closest('button[data-model]');if(!b)return;this.draft.model=b.dataset.model;this.draft.build=cleanBuild(this.index,this.draft.model,this.draft.build);this.previewFinish();$('finishstatus').textContent=b.dataset.model==='stock'?'Modello di serie in anteprima. Applica per salvarlo.':'Disegno originale in anteprima. Regola i dettagli, poi Applica.';});
+  for(const [key,label,config]of [['recon','RECON',{primary:'olive',accent:'carbon',kit:'field',surface:'matte'}],['desert','DESERT',{primary:'sand',accent:'carbon',kit:'rail',surface:'matte'}],['urban','URBAN',{primary:'graphite',accent:'titanium',kit:'service',surface:'satin'}]]){const b=document.createElement('button');b.type='button';b.textContent=label;b.onclick=()=>{this.draft=cleanFinish({...config,model:this.draft.model,build:this.draft.build,style:'paint',pattern:this.draft.pattern},this.index);this.previewFinish();this.faceKit();$('finishstatus').textContent='Assetto '+label+' in anteprima. Applica per salvarlo.';};$('tacticalpresets').append(b);}
+  $('weaponkit').onchange=()=>{this.draft.kit=$('weaponkit').value;this.previewFinish();this.faceKit();};
+  // V33: the class's base model and its OB variants; each design exposes its tuning.
+  $('weaponmodels').addEventListener('click',e=>{const b=e.target.closest('button[data-model]');if(!b)return;this.draft.model=b.dataset.model;this.draft.build=cleanBuild(this.index,this.draft.model,this.draft.build);this.previewFinish();this.faceKit();$('finishstatus').textContent=b.dataset.model==='stock'?'Modello di serie in anteprima. Applica per salvarlo.':'Variante in anteprima. Regola i dettagli, poi Applica.';});
   $('modelparams').addEventListener('input',e=>{const el=e.target.closest('[data-param]');if(!el)return;this.draft.build={...(this.draft.build||{}),[el.dataset.param]:Number(el.value)};this.draft.build=cleanBuild(this.index,this.draft.model,this.draft.build);this.previewFinish();});
   $('finishsurface').onchange=()=>{this.draft.surface=$('finishsurface').value;this.draft.style='paint';this.previewFinish();};
   for(const [id,field]of [['customprimary','customPrimary'],['customaccent','customAccent']])$(id).oninput=()=>{this.draft[field]=$(id).value;this.draft.style='paint';this.previewFinish();};
   for(const [id,field]of [['customprimaryhex','customPrimary'],['customaccenthex','customAccent']])$(id).oninput=()=>{if(/^#[0-9a-f]{6}$/i.test($(id).value)){this.draft[field]=$(id).value.toLowerCase();this.draft.style='paint';this.previewFinish();}else $('finishstatus').textContent='Colore esadecimale: # seguito da 6 cifre (0–9, A–F).';};
   $('finishstyle').onchange=()=>{this.draft.style=$('finishstyle').value;this.previewFinish();};
   $('finishpattern').onchange=()=>{this.draft.pattern=$('finishpattern').value;this.draft.style='paint';this.previewFinish();};
-  $('applyfinish').onclick=()=>{if(!this.career?.setFinish(this.index,this.draft)){$('finishstatus').textContent='Completa la maestria richiesta per questo disegno.';return;}this.onFinish();$('finishstatus').textContent=this.career.persisted?'Finitura applicata. Visibile anche agli altri giocatori.':'Finitura attiva in questa sessione. Il browser non consente il salvataggio.';};
-  $('resetfinish').onclick=()=>{this.draft=cleanFinish(null,this.index);this.career?.setFinish(this.index,this.draft);this.onFinish();this.previewFinish();$('finishstatus').textContent='Finitura originale ripristinata.';};
+  $('finishglow').onchange=()=>{this.draft.glow=$('finishglow').value;this.previewFinish();};
+   $('finishprime').onchange=()=>{this.draft.prime=$('finishprime').checked;this.previewFinish();};
+   $('applyfinish').onclick=()=>{if(!this.career?.setFinish(this.index,this.draft)){$('finishstatus').textContent='Completa la maestria richiesta per questo disegno.';return;}this.onFinish();$('finishstatus').textContent=this.career.persisted?'Finitura applicata. Visibile anche agli altri giocatori.':'Finitura attiva in questa sessione. Il browser non consente il salvataggio.';};
+  $('resetfinish').onclick=()=>{this.draft=cleanFinish(null,this.index);this.career?.setFinish(this.index,this.draft);this.onFinish();this.previewFinish();$('finishstatus').textContent='Finitura di serie ripristinata.';};
 
  }
  // Display models are built once and kept: rebuilding on every selection cloned the rig
- // and compiled its studio shaders mid-frame (100–240 ms per weapon, 488 ms for the M24).
+ // and compiled its studio shaders mid-frame (100–240 ms per weapon, 488 ms for the precision rifle).
  display(index){
   if(!this.models)this.models=new Map();let model=this.models.get(index);
   if(!model){model=createDisplayWeapon(index);if(!model)return null;if(index===5){model.rotation.x=Math.PI/2;model.scale.multiplyScalar(2.25);}model.updateMatrixWorld(true);const center=new THREE.Box3().setFromObject(model).getCenter(new THREE.Vector3());model.position.sub(center);model.visible=false;this.pivot.add(model);this.models.set(index,model);}
@@ -82,23 +93,28 @@ export class Armory{
  }
  previewOperator(){
   if(!this.model||this.index!==6)return;const team=this.previewTeam(),o=this.opDraft=cleanOperator(this.opDraft);dressOperator(this.model.children[0],team,o);this.boundsDirty=true;
-  const kit=kitFor(o.kit);$('armory-title').textContent=kit.name;$('armory-description').textContent=kit.desc;$('operatornote').textContent=kit.desc;
-  for(const b of $('operatorkits').children)b.setAttribute('aria-pressed',String(b.dataset.kit===o.kit));for(const b of $('operatoraccents').children)b.setAttribute('aria-pressed',String(b.dataset.key===o.accent));
+  const kit=kitFor(o.kit);armoryTitle(kit.name,6);$('armory-description').textContent=kit.desc;$('operatornote').textContent=kit.desc;
+  for(const b of $('operatorkits').children)b.setAttribute('aria-pressed',String(b.dataset.kit===o.kit));for(const b of $('operatoraccents').children)b.setAttribute('aria-pressed',String(b.dataset.key===o.accent));for(const b of $('operatorsmoke')?.children||[])b.setAttribute('aria-pressed',String(Number(b.dataset.smoke)===o.smoke));
   const host=$('operatortoggles');host.replaceChildren();for(const [key,label]of Object.entries(kit.toggles))if(label){const l=document.createElement('label');l.innerHTML='<input type="checkbox" data-toggle="'+key+'"'+(o[key]?' checked':'')+'> '+label;host.append(l);}
  }
  select(index){if(index===6){this.selectOperator();return;}document.getElementById('armory').classList.remove('operator-mode');document.querySelector('.finish-editor').classList.remove('operator-mode');for(const [,m]of this.operators||[])m.visible=false;
   this.camera.position.z=2.65;this.idleSince=performance.now();this.idleBase=null;this.index=index;this.onSelect(index);for(const [i,m]of this.models||[])m.visible=i===index;this.model=this.display(index);if(this.model)this.model.visible=true;const yaw=index===5?.45:-1.12;this.rotationTarget.set(.05,yaw);this.pivot.rotation.set(.05,yaw,.06);this.pivot.position.set(0,0,0);this.pivot.scale.setScalar(1);this.pivot.updateMatrixWorld(true);const previewBounds=new THREE.Box3().setFromObject(this.pivot);this.previewSize=previewBounds.getSize(new THREE.Vector3());this.previewCenter=previewBounds.getCenter(new THREE.Vector3());
- this.boundsDirty=this.layoutDirty=true;this.draft=cleanFinish(this.career?.data.finishes[index],index);this.renderModels();this.previewFinish();$('finishstatus').textContent='';
- const w=WEAPONS[index],variant=variantFor(index,this.draft.model);$('armory-title').textContent=variant?variant.name:w.name;$('armory-description').textContent=variant?variant.desc:this.descriptions[index];$('ballistic-info').textContent=w.melee?'Fendente 35 · stoccata 65 · stoccata alle spalle 140':('Testa ×4 · torace/braccia ×1 · addome ×1,25 · gambe ×0,75. Armatura: '+Math.round(GUN_RULES[index].penetration*100)+'% del danno nelle zone protette.');$('statdamage').textContent=w.damage;$('statrate').textContent=Math.round(60/w.rate);$('statmag').textContent=w.melee?'—':w.mag;for(const[id,v]of [['bardamage',w.damage/100],['barrate',(60/w.rate)/850],['barmag',w.mag/30]])$(id).style.width=Math.min(100,v*100)+'%';Array.from($('armorychoices').children).forEach((b,i)=>b.classList.toggle('active',i===index));
+ this.boundsDirty=this.layoutDirty=true;this.draft=cleanFinish(this.career?.data.finishes[index],index);this.renderModels();this.faceKit(true);this.previewFinish();$('finishstatus').textContent='';
+ const w=WEAPONS[index],variant=variantFor(index,this.draft.model);armoryTitle(variant?variant.name:w.name,index);$('armory-description').textContent=variant?.desc||this.descriptions[index];this.showStats();Array.from($('armorychoices').children).forEach((b,i)=>b.classList.toggle('active',i===index));
  }
+ // V42 b4a: the numbers of the design on show (a design may be a weapon of its own, weapon-stats.js).
+ showStats(){const index=this.index;if(index===6)return;const w=weaponFor(index,this.draft),r=rulesFor(index,this.draft);$('ballistic-info').textContent=w.melee?'Fendente 35 · stoccata 65 · stoccata alle spalle 140':((designOf(index,this.draft)?designOf(index,this.draft).role+'. ':'')+'Testa ×4 · torace/braccia ×1 · addome ×1,25 · gambe ×0,75. Armatura: '+Math.round(r.penetration*100)+'% del danno nelle zone protette.');$('statdamage').textContent=w.damage;$('statrate').textContent=Math.round(60/w.rate);$('statmag').textContent=w.melee?'—':w.mag;for(const[id,v]of [['bardamage',w.damage/100],['barrate',(60/w.rate)/850],['barmag',w.mag/30]])$(id).style.width=Math.min(100,v*100)+'%';}
+ // V42 b3b: an accessory on the gun's left side (side light, ammo cuff) turns the preview to that side.
+ faceKit(now=false){if(this.index===6)return;const worn=variantKey(this.index,this.draft)==='stock'&&!variantFor(this.index,this.draft?.model)?.base;const y=(this.index===5?.45:-1.12)+(worn&&kitSide(this.index,this.draft?.kit)?Math.PI:0);if(Math.abs(Math.atan2(Math.sin(y-this.rotationTarget.y),Math.cos(y-this.rotationTarget.y)))<.01)return;this.rotationTarget.y=y;this.idleSince=performance.now();this.idleBase=null;if(now){this.pivot.rotation.y=y;this.boundsDirty=true;}}
  renderModels(){
-  const list=VARIANTS[this.index]||[],host=$('weaponmodels');host.replaceChildren();
+  // A class's base design is its stock model (V42 AVERLA): it is the MODELLO DI SERIE button, not a second choice.
+  const list=(VARIANTS[this.index]||[]).filter(v=>!v.base),host=$('weaponmodels');host.replaceChildren();
   const button=(id,name,tag)=>{const b=document.createElement('button');b.type='button';b.dataset.model=id;b.innerHTML='<span>'+name+'</span><small>'+tag+'</small>';host.append(b);};
   button('stock',WEAPONS[this.index].name,'MODELLO DI SERIE');for(const v of list)button(v.id,v.name,v.tag);
   host.closest('.finish-editor').classList.toggle('single-model',!list.length);
  }
  renderParams(){
-  const v=variantFor(this.index,this.draft.model),host=$('modelparams');host.replaceChildren();$('modelnote').textContent=v?v.desc:'';
+  const v=variantFor(this.index,this.draft.model),host=$('modelparams');host.replaceChildren();$('modelnote').textContent=v?.desc||v?.note||'';
   if(!v)return;const build=cleanBuild(this.index,v.id,this.draft.build);
   for(const p of v.params){const label=document.createElement('label');
    if(p.type==='range'){label.innerHTML='<span>'+p.label+'</span><output>'+Math.round(build[p.key]*100)+'%</output><span><input type="range" min="'+p.min+'" max="'+p.max+'" step="'+p.step+'" value="'+build[p.key]+'" data-param="'+p.key+'" aria-label="'+p.label+'"></span>';}
@@ -106,32 +122,47 @@ export class Armory{
    host.append(label);}
  }
  previewFinish(){
-  applyFinish(this.model,this.index,this.draft);this.boundsDirty=true;
+  applyFinish(this.model,this.index,this.draft);this.boundsDirty=true;this.showStats();
   for(const b of $('weaponmodels').children)b.setAttribute('aria-pressed',String(b.dataset.model===(this.draft.model||'stock')));
   if($('modelparams').dataset.for!==this.index+':'+this.draft.model){$('modelparams').dataset.for=this.index+':'+this.draft.model;this.renderParams();}else for(const out of $('modelparams').querySelectorAll('output')){const input=out.parentElement.querySelector('input')||out.nextElementSibling?.querySelector('input');if(input)out.textContent=Math.round(Number(input.value)*100)+'%';}
-  {const v=variantFor(this.index,this.draft.model);$('armory-title').textContent=v?v.name:WEAPONS[this.index].name;$('armory-description').textContent=v?v.desc:this.descriptions[this.index];}$('finishstyle').value=this.draft.style;$('finishpattern').value=this.draft.pattern;$('weaponkit').value=this.draft.kit;$('finishsurface').value=this.draft.surface;$('customprimary').value=this.draft.customPrimary||PAINTS[this.draft.primary].hex;$('customaccent').value=this.draft.customAccent||TRIMS[this.draft.accent].hex;$('customprimaryhex').value=$('customprimary').value;$('customaccenthex').value=$('customaccent').value;
+  {const v=variantFor(this.index,this.draft.model);armoryTitle(v?v.name:WEAPONS[this.index].name,this.index);$('armory-description').textContent=v?.desc||this.descriptions[this.index];}$('finishstyle').value=this.draft.style;$('finishpattern').value=this.draft.pattern;$('finishprime').checked=this.draft.prime!==false;$('finishglow').value=this.draft.glow||'oro';$('weaponkit').value=this.draft.kit;$('finishsurface').value=this.draft.surface;$('customprimary').value=this.draft.customPrimary||PAINTS[this.draft.primary].hex;$('customaccent').value=this.draft.customAccent||TRIMS[this.draft.accent].hex;$('customprimaryhex').value=$('customprimary').value;$('customaccenthex').value=$('customaccent').value;
   for(const [id,field]of [['primarypaints','primary'],['trimpaints','accent']])for(const b of $(id).children)b.setAttribute('aria-pressed',String(!this.draft[field==='primary'?'customPrimary':'customAccent']&&b.dataset.key===this.draft[field]));
+  // A base design with a factory finish (V42 OB-510 AVERLA): kit, assets, coating and colours do not apply to it, so they
+  // are shown locked, under the note that says why, instead of answering clicks with no change.
+  {const fixed=!!variantFor(this.index,this.draft.model)?.base,ed=$('weaponmodels').closest('.finish-editor');ed?.classList.toggle('fixed-finish',fixed);
+   for(const id of ['weaponkit','finishstyle','finishsurface','finishpattern','customprimary','customprimaryhex','customaccent','customaccenthex'])$(id).disabled=fixed;
+   for(const b of document.querySelectorAll('#primarypaints button,#trimpaints button,#tacticalpresets button'))b.disabled=fixed;}
+  // V42 b3b: a design that brings its own furniture (TAFANO, MAGLIO, the alternative knives, the AVERLA) wears no kit: the menu shows
+  // that, locked, and keeps the saved choice for the base model.
+  {const bare=!!variantFor(this.index,this.draft.model)?.base||variantKey(this.index,this.draft)!=='stock',sel=$('weaponkit');if(bare)sel.disabled=true;for(const o of sel.options)o.textContent=bare?'Non su questo modello':kitLabel(this.index,o.value);sel.title=bare?'Questo modello ha i suoi accessori: il kit vale per il modello di serie.':'';}
   const kills=this.career?.data.kills[this.index]||0;$('masteryvalue').textContent=kills+' KILL';$('masterybar').style.width=Math.min(100,kills/15*100)+'%';
   const next=kills<5?5:kills<15?15:null;$('masterynext').textContent=next?(next-kills)+' eliminazioni per '+(next===5?'Bicolore':'Topografia'):'Tutti i disegni di questa arma sono disponibili.';
   for(const option of $('finishpattern').options){option.disabled=!this.career?.canUse(this.index,option.value);option.textContent=PATTERNS[option.value].label+(option.disabled?' · '+PATTERNS[option.value].kills+' kill richieste':'');}
  }
  open(index){this.layoutDirty=this.boundsDirty=true;this.returnFocus=document.activeElement;this.active=true;$('armory').hidden=false;this.select(index);$('closearmory').focus()}
- close(){if(!this.active)return;this.active=false;this.drag=false;$('armory').hidden=true;this.onClose();this.returnFocus?.focus?.()}
+ close(){if(!this.active)return;
+  // A finish or operator left unapplied: warn once, a second CHIUDI discards it.
+  const unsaved=this.index<6?this.draft&&JSON.stringify(cleanFinish(this.draft,this.index))!==JSON.stringify(cleanFinish(this.career?.data.finishes[this.index],this.index)):this.opDraft&&JSON.stringify(cleanOperator(this.opDraft))!==JSON.stringify(cleanOperator(this.career?.data.operator));
+  if(unsaved&&!this.warnedClose){this.warnedClose=true;const status=$(this.index<6?'finishstatus':'operatorstatus');if(status)status.textContent='Modifiche non applicate: premi '+(this.index<6?'APPLICA FINITURA':'APPLICA OPERATORE')+', oppure CHIUDI di nuovo per scartarle.';return;}
+  this.warnedClose=false;this.active=false;this.drag=false;$('armory').hidden=true;this.onClose();this.returnFocus?.focus?.()}
  setTheme(key){if(key===this.themeKey)return;this.themeKey=key;const colors=(MAP_THEMES[key]||MAP_THEMES.caldera).studio,g=this.studioCanvas.getContext('2d'),gradient=g.createLinearGradient(0,0,0,256);for(let n=0;n<3;n++)gradient.addColorStop(n===1?.65:n/2,colors[n]);g.fillStyle=gradient;g.fillRect(0,0,2,256);this.scene.background.needsUpdate=true;}
  render(width,height,dt=1/60){
   // Left alone, the piece turns slowly a little each way, like a showroom turntable.
   const now=performance.now();if(!this.drag&&now-this.idleSince>2600&&!matchMedia('(prefers-reduced-motion:reduce)').matches){if(this.idleBase===null){this.idleBase=this.rotationTarget.y;this.idleStart=now;}const u=(now-this.idleStart)/1000,ease=Math.min(1,u/1.5);this.rotationTarget.y=this.idleBase+ease*.42*Math.sin(u*.45);}
   const follow=1-Math.exp(-20*Math.min(.05,Math.max(0,dt)));this.pivot.rotation.x+=(this.rotationTarget.x-this.pivot.rotation.x)*follow;this.pivot.rotation.y+=Math.atan2(Math.sin(this.rotationTarget.y-this.pivot.rotation.y),Math.cos(this.rotationTarget.y-this.pivot.rotation.y))*follow;
   if(this.layoutDirty||width!==this.lastWidth||height!==this.lastHeight){
-   const editor=document.querySelector('.finish-editor').getBoundingClientRect(),info=document.querySelector('.armoryinfo').getBoundingClientRect(),landscape=height<600&&width<1000;
-   // Phone landscape: the stage sits between the title column and the editor, above the picker.
-   const picker=document.getElementById('armorychoices').getBoundingClientRect();
-   const left=width<700?14:landscape?info.right+10:info.right+18,right=width<700?width-14:editor.left-18;
-   const top=width<700?Math.max(118,info.bottom+10):landscape?62:80,bottom=width<700?editor.top-16:landscape?picker.top-16:height-125;
+   const editor=document.querySelector('.finish-editor').getBoundingClientRect(),info=document.querySelector('.armoryinfo').getBoundingClientRect(),landscape=height<600&&width<1000&&width>height;
+   // Phone landscape: the stage sits between the title column and the editor, above the picker. V43 b56: a phone held
+   // sideways narrower than 700 px (iPhone SE, 667) took the portrait branch and drew the weapon above the header.
+   // (b56 rev) Up to 760 px wide the name sits on one line above the stage (style.css), so the stage spans the free width.
+   const picker=document.getElementById('armorychoices').getBoundingClientRect(),narrow=width<700&&!landscape,tight=landscape&&width<=760;
+   const left=narrow||tight?14:landscape?info.right+10:info.right+18,right=narrow?width-14:editor.left-18;
+   const top=narrow?Math.max(118,info.bottom+10):tight?info.bottom+4:landscape?62:80,bottom=narrow?editor.top-16:tight?picker.top-8:landscape?picker.top-16:height-125;
    this.viewport={left,bottom,w:Math.max(100,right-left),h:Math.max(80,bottom-top)};this.lastWidth=width;this.lastHeight=height;this.layoutDirty=false;
    const hint=document.querySelector('.rotatehint');hint.style.left=(left+this.viewport.w/2)+'px';hint.style.top=(bottom-14)+'px';hint.style.bottom='auto';hint.textContent=document.documentElement.classList.contains('touch-mode')?'TRASCINA PER RUOTARE':'↔  TRASCINA PER RUOTARE · ROTELLA ZOOM';
    this.camera.aspect=this.viewport.w/this.viewport.h;this.camera.updateProjectionMatrix();
   }
+  {const stamp=this.model?.userData?.variantStamp;if(stamp!==this.variantStamp){this.variantStamp=stamp;this.boundsDirty=true;}}
   if(this.boundsDirty){
    this.pivot.scale.setScalar(1);this.pivot.position.set(0,0,0);this.pivot.rotation.set(0,0,0);this.pivot.updateMatrixWorld(true);this.previewBox.makeEmpty();
    // Skinned bodies keep their authored, bind-space geometry: the operator is measured as a fixed figure instead.

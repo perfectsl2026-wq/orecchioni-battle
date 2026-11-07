@@ -1,10 +1,10 @@
 import * as T from './vendor/three.module.js';
-import {groundHeight,blocked} from './shared.js?v=41.0';
-import {box,cyl,bevel,label} from './graphics.js?v=41.0';
-import {metricBlock as block} from './caldera-architecture.js?v=41.0';
-import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=41.0';
-import {sahraInterior} from './sahra-layout.js?v=41.0';
-import {vehicleGreenhouse} from './vehicles.js?v=41.0';
+import {groundHeight,blocked} from './shared.js?v=42.0';
+import {box,cyl,bevel,label} from './graphics.js?v=42.0';
+import {metricBlock as block} from './caldera-architecture.js?v=42.0';
+import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=42.0';
+import {sahraInterior} from './sahra-layout.js?v=42.0';
+import {vehicleGreenhouse} from './vehicles.js?v=42.0';
 let awningMat=null;
 function awning(){
  if(awningMat)return awningMat;
@@ -44,15 +44,16 @@ export function desertAnnex(root,p,x,z,w,d,h,base){
 export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
  const face=new T.Group();face.position.set(x,0,z);face.rotation.y=angle;root.add(face);
  // Districts: stone piers inside the covered souk, hammam, loggia and arcade;
- // kasbah masonry around the B gate and court; the hotel frontage around A.
- const tunnel=!!sahraInterior(x,z)||(x>=23.9&&x<=32.1&&z>12&&z<28),castle=x<-25&&z<-6,hotel=x>21&&z<-23;
- const white=hotel?p.stuccoRose:serial%3===0?p.stuccoOchre:serial%3===1?p.plaster:p.stuccoWhite;
+ // fort masonry around the B gate and court; the tall frontage around A.
+ const tunnel=!!sahraInterior(x,z)||(x>=23.9&&x<=32.1&&z>12&&z<28),castle=x<-25&&z<-6,frontage=x>21&&z<-23;
+ // Each district carries its own wall colour and band, so a glance tells you where you are.
+ const ward=frontage?null:p.wards?.[z>31?'t':x>21?'a':x<-25?'b':z<-36?'ct':'mid'],band=ward?.band||p.blue,white=frontage?p.stuccoRose:ward?ward.wall[serial%2]:serial%3===0?p.stuccoOchre:serial%3===1?p.plaster:p.stuccoWhite;
  // Ashlar courses read at about 29 cm (1.9 m per texture tile); plaster keeps its 2.8 m.
  block(face,castle||tunnel?p.stone:white,0,h/2,.02,width,h,.035,castle||tunnel?1.9:2.8);
  for(let off=-width/2;off<width/2-.01;off+=2){const w=Math.min(2,width/2-off),u=off+w/2,wx=x+Math.cos(angle)*u+Math.sin(angle)*.08,wz=z-Math.sin(angle)*u+Math.cos(angle)*.08,y=groundHeight(wx,wz);block(face,p.wornStone,u,y+.3,.046,w,.6,.04,1.2);}
  const kit=p.trimKit;
  if(castle||tunnel||!kit)box(face,p.trim,0,h-.2,.045,width,.18,.08);
- else cornice(face,kit,width,h-.02,{modern:hotel,brackets:serial%2===0});
+ else cornice(face,kit,width,h-.02,{modern:frontage,brackets:serial%2===0});
  if(castle){
   for(let u=-width/2+.6;u<width/2;u+=2.3)box(face,p.stone,u,h+.38,.035,1.1,.75,.22);
   // Restored sandstone below, a new recessed-looking metal gallery above.
@@ -67,8 +68,8 @@ export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
   box(face,p.trim,0,2.85,.055,width,.14,.07);return face;
  }
  // Break long masses into individual houses using shallow vertical reveals.
- const step=hotel?4.8:5.2;
- if(hotel){
+ const step=frontage?4.8:5.2;
+ if(frontage){
   const y=groundHeight(x,z)+3.0;
   box(face,p.blue,0,y+.1,.049,width-.12,1.55,.035);
   box(face,p.copper,0,y-.7,.071,width-.12,.065,.025);
@@ -76,7 +77,7 @@ export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
   for(let u=-width/2+.8;u<width/2;u+=4.8){box(face,p.copper,u,groundHeight(x,z)+1.4,.066,.05,2.6,.025);}
   return face;
  }
- box(face,p.blue,0,h-1.05,.047,width-.12,.48,.035);
+ box(face,band,0,h-1.05,.047,width-.12,.48,.035);
  box(face,p.copper,0,h-1.33,.065,width-.12,.045,.025);
  if(kit){
   // A string course above the doors ties each run together at the same datum.
@@ -87,18 +88,21 @@ export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
  }
  for(let u=-width/2+.25;u<width/2-.1;u+=step){box(face,p.trim,u,(h+1)/2,.052,.13,h-1,.045);}
  for(let u=-width/2+1.65;u<width/2-1.1;u+=step){
-  window(face,p,u,hotel?groundHeight(x,z)+3.2:3.9,hotel||serial%3===0?1.25:1.02,hotel?1.8:1.6,(serial+(u|0))%3===0?p.shutterOlive:p.blue);
+  window(face,p,u,frontage?groundHeight(x,z)+3.2:3.9,frontage||serial%3===0?1.25:1.02,frontage?1.8:1.6,(serial+(u|0))%3===0?p.shutterOlive:p.blue);
   if(h>9.5&&serial%2===0)window(face,p,u,6.8,1,1.45,p.wood);
  }
  // Flush closed shop fronts sit on the actual sloping street datum.
- if(!hotel&&width>=5&&serial%3===0){const y=groundHeight(x+Math.sin(angle)*.1,z+Math.cos(angle)*.1);if(p.facadeDoor){p.facadeDoor(x,y,z,angle);return face;}box(face,p.dark,0,y+1.2,.05,1.55,2.4,.025);block(face,p.doorPaint||p.wood,0,y+1.2,.075,1.4,2.36,.03,1.2);for(const side of [-1,1])box(face,p.wornStone,side*.82,y+1.28,.06,.12,2.56,.07);box(face,p.trim,0,y+2.62,.07,1.85,.17,.08);}
+ if(!frontage&&width>=5&&serial%3===0){const y=groundHeight(x+Math.sin(angle)*.1,z+Math.cos(angle)*.1);if(p.facadeDoor){p.facadeDoor(x,y,z,angle);return face;}box(face,p.dark,0,y+1.2,.05,1.55,2.4,.025);block(face,p.doorPaint||p.wood,0,y+1.2,.075,1.4,2.36,.03,1.2);for(const side of [-1,1])box(face,p.wornStone,side*.82,y+1.28,.06,.12,2.56,.07);box(face,p.trim,0,y+2.62,.07,1.85,.17,.08);}
  return face;
 }
 function archShape(w,h){const r=w/2,spring=h-r,s=new T.Shape();s.moveTo(-r,0);s.lineTo(r,0);s.lineTo(r,spring);s.absarc(0,spring,r,0,Math.PI,false);s.lineTo(-r,0);return s;}
 function window(parent,p,x,y,w,h,shutter){
  const s=archShape(w+.2,h+.2),hole=archShape(w,h);s.holes.push(new T.Path(hole.getPoints(20).map(v=>new T.Vector2(v.x,v.y+.08))));const frame=new T.Mesh(new T.ExtrudeGeometry(s,{depth:.045,bevelEnabled:false,curveSegments:14}),p.trim);frame.position.set(x,y,.045);parent.add(frame);
- const dark=new T.Mesh(new T.ShapeGeometry(archShape(w,h),18),p.dark);dark.position.set(x,y+.08,.048);parent.add(dark);const panelH=h-w/2-.035;
- for(const side of [-1,1]){box(parent,shutter,x+side*w*.255,y+panelH/2,.07,w*.46,panelH,.035);for(let slat=0;slat<4;slat++)box(parent,p.dark,x+side*w*.255,y+.16+slat*(panelH-.22)/4,.093,w*.39,.018,.012);}
+ const dark=new T.Mesh(new T.ShapeGeometry(archShape(w,h),18),p.windowGlass||p.dark);dark.position.set(x,y+.08,.048);parent.add(dark);const panelH=h-w/2-.035;
+ // V44: glazed sash with glazing bars behind the shutters; about one window in four stands open, leaves folded back on the wall.
+ if(p.windowGlass){box(parent,p.trim,x,y+.08+(h-.08)/2,.056,.035,h-.1,.018);box(parent,p.trim,x,y+panelH+.02,.056,w-.04,.035,.018);}
+ const open=p.windowGlass&&Math.abs(Math.round(x*7.31+y*3.17+w*11))%4===1;
+ for(const side of [-1,1]){const sx=open?x+side*(w*.5+w*.24+.06):x+side*w*.255,sz=open?.04:.07;box(parent,shutter,sx,y+panelH/2,sz,w*.46,panelH,.035);for(let slat=0;slat<4;slat++)box(parent,p.dark,sx,y+.16+slat*(panelH-.22)/4,sz+.023,w*.39,.018,.012);}
  if(p.trimKit){sill(parent,p.trimKit,x,y,w+.34);if(y+h>ORNAMENT_HEIGHT)keystone(parent,p.trimKit.ornament,x,y+h+.14,{width:.2,height:.28,depth:.06,offset:.075});}
  else box(parent,p.trim,x,y-.055,.07,w+.28,.12,.09);
 }
@@ -395,7 +399,8 @@ export function desertFeature(root,p,role,x,z,w,d,top,base,part='full'){
   for(const [sx,sz,ww,dd]of [[0,-(d-rim)/2,w,rim],[0,(d-rim)/2,w,rim],[-(w-rim)/2,0,rim,d-2*rim],[(w-rim)/2,0,rim,d-2*rim]])block(g,p.wornStone,sx,base+h/2,sz,ww,h,dd,1.2);
   // Glazed band and a moulded cap ring, both flush with the solid.
   for(const side of [-1,1]){box(g,tile,0,base+h*.55,side*(d/2+.006),w-.1,.22,.012);box(g,tile,side*(w/2+.006),base+h*.55,0,.012,.22,d-.1);}
-  for(const [sx,sz,ww,dd]of [[0,-(d-rim)/2,w,rim],[0,(d-rim)/2,w,rim],[-(w-rim)/2,0,rim,d-2*rim],[(w-rim)/2,0,rim,d-2*rim]])box(g,p.trim,sx,top-.04,sz,ww,.08,dd);
+  // The cap rides 6 mm proud and overhangs the masonry: never coplanar with the stone under it.
+  for(const [sx,sz,ww,dd]of [[0,-(d-rim)/2,w+.05,rim+.05],[0,(d-rim)/2,w+.05,rim+.05],[-(w-rim)/2,0,rim+.05,d-2*rim-.05],[(w-rim)/2,0,rim+.05,d-2*rim-.05]])box(g,p.trim,sx,top-.034,sz,ww,.08,dd);
   if(role==='basin')box(g,m.water,0,top-.035,0,w-2*rim,.05,d-2*rim);
   else{
    for(let u=-(w-2*rim)/2+.14;u<(w-2*rim)/2;u+=.3)box(g,p.wornWood,u,top-.04,0,.26,.06,d-2*rim);box(g,p.doorIron,0,top-.005,0,w-2*rim-.1,.02,.08);
@@ -409,8 +414,8 @@ export function desertFeature(root,p,role,x,z,w,d,top,base,part='full'){
  }
  if(role==='rill'){
   // Salsabil: a stone channel down the middle of the piazza steps, water at the lip.
-  block(g,p.wornStone,0,(top+base)/2,0,w,h,d,1.2);box(g,p.trim,0,top-.04,0,w+.05,.08,d+.05);
-  box(g,m.water,0,top-.025,0,w-.5,.04,d-.3);for(const side of [-1,1])box(g,tile,side*(w/2+.006),top-.26,0,.012,.2,d-.1);
+  block(g,p.wornStone,0,(top-.07+base)/2,0,w,h-.07,d,1.2);for(const [sx,sz,ww,dd]of [[-(w-.2)/2,0,.25,d+.05],[(w-.2)/2,0,.25,d+.05],[0,-(d-.12)/2,w-.3,.17],[0,(d-.12)/2,w-.3,.17]])box(g,p.trim,sx,top-.034,sz,ww,.08,dd);
+  box(g,m.water,0,top-.045,0,w-.4,.05,d-.2);for(const side of [-1,1])box(g,tile,side*(w/2+.006),top-.26,0,.012,.2,d-.1);
   return;
  }
  if(role==='spout'){
@@ -435,7 +440,7 @@ export function desertFeature(root,p,role,x,z,w,d,top,base,part='full'){
  }
  if(role==='trunk'){
   // Bark trunk inside its 0.32 m shot box, then a loose crown of leaf clusters. V39: the trunk
-  // stays as the solid, inside a photographed palm; the crown is its fallback if the model fails.
+  // stays as the solid, inside a third-party palm; the crown is its fallback if the model fails.
   if(part!=='crown')cyl(g,m.bark,0,(top+base)/2,0,.12,h,'y',.155,7);
   if(part==='bark')return;
   const seed=Math.abs(Math.sin(x*12.9+z*78.2))*1000;
