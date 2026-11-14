@@ -22,5 +22,5 @@ export class SmokeThrow{
   if(this.phase==='throw'&&now-this.at>=THROW_MS)this.reset();return 0;
  }
  // Viewmodel channels, written into `out`: pin 0–1, throw 0–1, lob, cook (a button held).
- pose(now,out){out.pin=this.phase==='pin'?Math.min(1,(now-this.at)/PIN_MS):1;out.throw=this.phase==='throw'?Math.min(1,(now-this.at)/THROW_MS):0;out.lob=this.lob;out.cook=this.held?1:0;return out;}
+ pose(now,out){out.pin=this.phase==='pin'?Math.min(1,(now-this.at)/PIN_MS):1;out.throw=this.phase==='throw'?Math.min(1,(now-this.at)/THROW_MS):0;out.lob=this.lob;out.cook=this.held?1:0;out.under=this.held===2;return out;}
 }

@@ -6,7 +6,7 @@ import {applyFinish,cleanFinish,PAINTS,TRIMS,PATTERNS} from './weapon-finish.js?
 import {VARIANTS,variantFor,variantKey,cleanBuild} from './weapon-variants.js?v=42.0';
 import * as THREE from './vendor/three.module.js';
 import {createDisplayWeapon,disposeAgent,createAgent,animateAgent,dressOperator,bodyReady,loadBody} from './assets.js?v=42.0';
-import {BODIES} from './operator-kits.js?v=42.0';
+import {BODIES,signatureOf,styleOf,TWEAKS,FINISHES,VISORS,DETAIL_NAMES,cleanTw,twParts} from './operator-kits.js?v=42.0';
 import {KITS as OPERATOR_KITS,kitFor,cleanOperator} from './operator-kits.js?v=42.0';
 import {SMOKE_TINTS} from './smoke-rules.js?v=42.0';
 import {WEAPONS,groundHeight} from './shared.js?v=42.0';
@@ -32,14 +32,18 @@ export class Armory{
   WEAPONS.forEach((w,i)=>{const b=document.createElement('button');b.innerHTML='<span>0'+(i+1)+' / '+w.label+'</span>'+w.name;b.onclick=()=>this.select(i);$('armorychoices').append(b)});
   // V35: the seventh slot is the operator: kit, accent and toggles, previewed on the player's team.
   {const b=document.createElement('button');b.innerHTML='<span>07 / FIGURA</span>OPERATORE';b.onclick=()=>this.select(6);$('armorychoices').append(b);}
-  for(const kit of OPERATOR_KITS){const b=document.createElement('button');b.type='button';b.dataset.kit=kit.id;b.innerHTML='<span>'+kit.name+'</span><small>'+kit.tag+'</small>';b.onclick=()=>{this.opDraft.kit=kit.id;this.previewOperator();$('operatorstatus').textContent='Kit '+kit.name+' in anteprima. Applica per salvarlo.';};$('operatorkits').append(b);}
+  for(const kit of OPERATOR_KITS){const b=document.createElement('button');b.type='button';b.dataset.kit=kit.id;b.innerHTML='<span>'+kit.name+'</span><small>'+kit.tag+'</small>';b.onclick=()=>{this.opDraft.kit=kit.id;this.opDraft.tw=this.career?.data.tweaks?.[kit.id]||'';this.previewOperator();$('operatorstatus').textContent='Kit '+kit.name+' in anteprima. Applica per salvarlo.';};$('operatorkits').append(b);}
   for(const [key,choice]of Object.entries(PAINTS)){const b=document.createElement('button');b.type='button';b.style.setProperty('--swatch',choice.hex);b.title=choice.label;b.setAttribute('aria-label',choice.label);b.dataset.key=key;b.onclick=()=>{this.opDraft.accent=key;this.previewOperator();};$('operatoraccents').append(b);}
   {const label=document.createElement('div'),host=document.createElement('div');label.className='field-label';label.id='fl-smoke';label.textContent='COLORE DEL FUMOGENO';host.id='operatorsmoke';host.className='paint-swatches';host.setAttribute('role','group');host.setAttribute('aria-labelledby','fl-smoke');
    // V42: the canister's tint. Same opacity, size and duration for every colour: only the hue changes.
    SMOKE_TINTS.forEach((t,n)=>{const b=document.createElement('button');b.type='button';b.style.setProperty('--swatch',t.hex);b.title=t.label+' · stessa copertura per tutti';b.setAttribute('aria-label','Fumogeno '+t.label);b.dataset.smoke=n;b.onclick=()=>{this.opDraft.smoke=n;this.previewOperator();$('operatorstatus').textContent='Fumogeno '+t.label.toLowerCase()+' in anteprima. Applica per salvarlo.';};host.append(b);});
    $('operatoraccents').after(label,host);}
+  // V46f: the operator's own tweaks (detail colour, finish, visor tint), rebuilt for each kit in previewOperator.
+  {const h=document.createElement('div');h.id='operatortweaks';h.className='operator-tweaks';$('operatortoggles').after(h);}
+  // The old accent row tints almost nothing under the signature palettes and offers team-like hues: hidden while they are on.
+  if(signatureOf('assalto')){const r=$('operatoraccents');r.hidden=true;if(r.previousElementSibling?.classList.contains('field-label'))r.previousElementSibling.hidden=true;}
   $('operatortoggles').addEventListener('change',e=>{const el=e.target.closest('[data-toggle]');if(!el)return;this.opDraft[el.dataset.toggle]=el.checked?1:0;this.previewOperator();});
-  $('applyoperator').onclick=()=>{this.career?.setOperator(this.opDraft);this.onOperator();$('operatorstatus').textContent=this.career?.persisted?'Operatore applicato. Gli altri giocatori lo vedono.':'Operatore attivo in questa sessione. Il browser non consente il salvataggio.';};
+  $('applyoperator').onclick=()=>{this.career?.setTweak?.(this.opDraft.kit,this.opDraft.tw);this.career?.setOperator(this.opDraft);this.onOperator();$('operatorstatus').textContent=this.career?.persisted?'Operatore applicato. Gli altri giocatori lo vedono.':'Operatore attivo in questa sessione. Il browser non consente il salvataggio.';};
   document.getElementById('team')?.addEventListener('change',()=>{if(this.active&&this.index===6)this.select(6);});
   $('closearmory').onclick=()=>this.close();
   window.addEventListener('pointerdown',e=>{if(!this.active||e.target.closest('button,input,select,label,.finish-editor,.armoryinfo'))return;this.drag=true;this.idleSince=performance.now();this.idleBase=null;this.lastX=e.clientX;this.lastY=e.clientY;});window.addEventListener('pointerup',()=>this.drag=false);window.addEventListener('pointercancel',()=>this.drag=false);window.addEventListener('blur',()=>this.drag=false);window.addEventListener('wheel',e=>{if(!this.active||e.target.closest('.finish-editor'))return;e.preventDefault();this.camera.position.z=THREE.MathUtils.clamp(this.camera.position.z+e.deltaY*.002,1.2,4.2)},{passive:false});
@@ -97,6 +101,12 @@ export class Armory{
   const kit=kitFor(o.kit);armoryTitle(kit.name,6);$('armory-description').textContent=kit.desc;$('operatornote').textContent=kit.desc;
   for(const b of $('operatorkits').children)b.setAttribute('aria-pressed',String(b.dataset.kit===o.kit));for(const b of $('operatoraccents').children)b.setAttribute('aria-pressed',String(b.dataset.key===o.accent));for(const b of $('operatorsmoke')?.children||[])b.setAttribute('aria-pressed',String(Number(b.dataset.smoke)===o.smoke));
   const host=$('operatortoggles');host.replaceChildren();for(const [key,label]of Object.entries(kit.toggles))if(label){const l=document.createElement('label');l.innerHTML='<input type="checkbox" data-toggle="'+key+'"'+(o[key]?' checked':'')+'> '+label;host.append(l);}
+  const tw=$('operatortweaks'),T=TWEAKS[o.kit];if(tw&&T){tw.replaceChildren();const p=twParts(o.tw),set=(a,f,v)=>{this.opDraft.tw=cleanTw(o.kit,'a'+a+'f'+f+'v'+v);this.previewOperator();$('operatorstatus').textContent='Ritocco in anteprima. Applica per salvarlo: lo vedono anche gli altri giocatori.';};
+   const row=(label,cls,items)=>{const l=document.createElement('div'),h=document.createElement('div');l.className='field-label';l.textContent=label;h.className=cls;h.setAttribute('role','group');h.setAttribute('aria-label',label);h.append(...items);tw.append(l,h);};
+   const sw=(hex,title,on,fn)=>{const b=document.createElement('button');b.type='button';b.style.setProperty('--swatch',hex);b.title=title;b.setAttribute('aria-label',title);b.setAttribute('aria-pressed',String(on));b.onclick=fn;return b;};
+   row('DETTAGLIO','paint-swatches',T.detail.map((hex,i)=>sw(hex,(DETAIL_NAMES[hex]||hex)+(i?'':' · originale'),p.a===i,()=>set(i,p.f,p.v))));
+   row('FINITURA','model-choices tweak-finish',FINISHES.map((F,i)=>{const b=document.createElement('button');b.type='button';b.innerHTML='<span>'+F.label+'</span>';b.setAttribute('aria-pressed',String(p.f===i));b.onclick=()=>set(p.a,i,p.v);return b;}));
+   if(T.visor)row('VISIERA','paint-swatches',VISORS.map((V,i)=>sw(V?V.hex:'#55626b',V?V.label:'Originale',p.v===i,()=>set(p.a,p.f,i))));}
  }
  select(index){if(index===6){this.selectOperator();return;}document.getElementById('armory').classList.remove('operator-mode');document.querySelector('.finish-editor').classList.remove('operator-mode');for(const [,m]of this.operators||[])m.visible=false;
   this.camera.position.z=2.65;this.idleSince=performance.now();this.idleBase=null;this.index=index;this.onSelect(index);for(const [i,m]of this.models||[])m.visible=i===index;this.model=this.display(index);if(this.model)this.model.visible=true;const yaw=index===5?.45:-1.12;this.rotationTarget.set(.05,yaw);this.pivot.rotation.set(.05,yaw,.06);this.pivot.position.set(0,0,0);this.pivot.scale.setScalar(1);this.pivot.updateMatrixWorld(true);const previewBounds=new THREE.Box3().setFromObject(this.pivot);this.previewSize=previewBounds.getSize(new THREE.Vector3());this.previewCenter=previewBounds.getCenter(new THREE.Vector3());
@@ -123,6 +133,10 @@ export class Armory{
    host.append(label);}
  }
  previewFinish(){
+  // V46g: the weapon finish never touches the operator slot. Before, its controls stayed live under the operator editor and a
+  // change ran applyFinish on the operator itself: the gear hidden by the kit came back and every operator material took the
+  // weapon's paint program (one shared cache key: the gloves, band and body of every kit compiled as one).
+  if(!(this.index>=0&&this.index<WEAPONS.length)||!this.model||!this.draft)return;
   applyFinish(this.model,this.index,this.draft);this.boundsDirty=true;this.showStats();
   for(const b of $('weaponmodels').children)b.setAttribute('aria-pressed',String(b.dataset.model===(this.draft.model||'stock')));
   if($('modelparams').dataset.for!==this.index+':'+this.draft.model){$('modelparams').dataset.for=this.index+':'+this.draft.model;this.renderParams();}else for(const out of $('modelparams').querySelectorAll('output')){const input=out.parentElement.querySelector('input')||out.nextElementSibling?.querySelector('input');if(input)out.textContent=Math.round(Number(input.value)*100)+'%';}
@@ -151,17 +165,44 @@ export class Armory{
  // Same renderer and studio scene as the Officina: no second WebGL context.
  lineupAgent(team,kit){this.lineupBodies??=new Map();const key=team+':'+kit;let g=this.lineupBodies.get(key);
   if(!g){const agent=createAgent(team,3);if(!agent)return null;const ground=groundHeight(0,0);agent.position.y=ground;animateAgent(agent,1/60,false,3,0,{life:1,time:0,pitch:0,vx:0,vz:0,groundY:ground});
-   dressOperator(agent,team,{...cleanOperator(this.career?.data.operator),kit});agent.updateMatrixWorld(true);agent.userData.shadow&&(agent.userData.shadow.visible=false);
-   const box=new THREE.Box3().setFromObject(agent),c=box.getCenter(new THREE.Vector3());agent.position.x-=c.x;agent.position.z-=c.z;agent.position.y-=box.min.y;g=new THREE.Group();g.add(agent);g.userData.kit=kit;g.userData.team=team;g.visible=false;this.scene.add(g);this.lineupBodies.set(key,g);}
+   dressOperator(agent,team,{...cleanOperator(this.career?.data.operator),kit,tw:this.career?.data.tweaks?.[kit]||''});agent.updateMatrixWorld(true);agent.userData.shadow&&(agent.userData.shadow.visible=false);
+   const box=new THREE.Box3().setFromObject(agent),c=box.getCenter(new THREE.Vector3());agent.position.x-=c.x;agent.position.z-=c.z;agent.position.y-=box.min.y;g=new THREE.Group();g.add(agent);g.userData.kit=kit;g.userData.ground=ground;g.userData.lift=agent.position.y;g.userData.team=team;g.visible=false;this.scene.add(g);this.lineupBodies.set(key,g);}
   // A whole-body kit arrives a moment later: dress again (a no-op once the key matches).
-  dressOperator(g.children[0],team,{...cleanOperator(this.career?.data.operator),kit});
+  dressOperator(g.children[0],team,{...cleanOperator(this.career?.data.operator),kit,tw:this.career?.data.tweaks?.[kit]||''});
   return g;}
+ // Check Fable: a stage for the line-up (it stood in an empty gradient): a dark lacquered floor that fades into the backdrop, one low
+ // plinth per operator with a rim in the team's colour, a soft light wall behind the row and a key light that follows the pick.
+ lineupStage(team){if(!this.lineupStageGroup){const G=new THREE.Group(),tex=(stops,w=4,h=256,radial=false)=>{const c=document.createElement('canvas');c.width=radial?256:w;c.height=h;const g=c.getContext('2d'),gr=radial?g.createRadialGradient(128,128,0,128,128,128):g.createLinearGradient(0,0,0,h);stops.forEach(([o,col])=>gr.addColorStop(o,col));g.fillStyle=gr;g.fillRect(0,0,c.width,h);const t=new THREE.CanvasTexture(c);t.colorSpace=THREE.SRGBColorSpace;return t;};
+   const floor=new THREE.Mesh(new THREE.CircleGeometry(9,64),new THREE.MeshStandardMaterial({color:0x1a2127,roughness:.32,metalness:.25,alphaMap:tex([[0,'#fff'],[.55,'#fff'],[1,'#000']],256,256,true),transparent:true,depthWrite:false}));floor.rotation.x=-Math.PI/2;floor.position.set(0,-.061,.4);floor.renderOrder=-1;G.add(floor);
+   const wall=new THREE.Mesh(new THREE.CylinderGeometry(9,9,7,64,1,true,-Math.PI*.42,Math.PI*.84),new THREE.MeshBasicMaterial({map:tex([[0,'#0b1116'],[.38,'#24323a'],[.62,'#3a4a50'],[.8,'#1a252b'],[1,'#0e151a']]),side:THREE.BackSide,depthWrite:false,fog:false}));wall.position.set(0,3.2,1.5);wall.rotation.y=Math.PI;G.add(wall);
+   const band=new THREE.Mesh(new THREE.CylinderGeometry(8.9,8.9,.035,64,1,true,-Math.PI*.42,Math.PI*.84),new THREE.MeshBasicMaterial({color:0xffd27a,side:THREE.BackSide,transparent:true,opacity:.55,depthWrite:false,fog:false}));band.position.set(0,1.05,1.5);band.rotation.y=Math.PI;G.add(band);
+   const plinthGeo=new THREE.CylinderGeometry(.36,.4,.06,40),rimGeo=new THREE.TorusGeometry(.385,.008,6,48),plinthMat=new THREE.MeshStandardMaterial({color:0x252d33,roughness:.45,metalness:.5});
+   G.userData.rims=[];G.userData.plinths=OPERATOR_KITS.map(()=>{const p=new THREE.Group(),b=new THREE.Mesh(plinthGeo,plinthMat),r=new THREE.Mesh(rimGeo,new THREE.MeshBasicMaterial({color:0xffffff,toneMapped:false}));b.position.y=-.03;r.rotation.x=Math.PI/2;r.position.y=-.002;p.add(b,r);G.userData.rims.push(r);G.add(p);return p;});
+   const key=new THREE.SpotLight(0xfff1dc,26,14,.34,.6,1.6);key.position.set(0,5.2,5);G.add(key,key.target);G.userData.key=key;
+   const back=new THREE.DirectionalLight(0x9fc4ff,1.1);back.position.set(-2,3,-4);G.add(back);
+   this.scene.add(G);this.lineupStageGroup=G;}
+  const G=this.lineupStageGroup,col=new THREE.Color(team==='blue'?0x2a8cff:0xff2e2a);G.visible=true;G.userData.rims.forEach(r=>r.material.color.copy(col));return G;}
  showLineup(team,kit){this.lineupTeam=team;this.lineupPick=kit;this.lineupCam??=new THREE.PerspectiveCamera(30,16/9,.1,60);
-  OPERATOR_KITS.forEach((k,i)=>{const g=this.lineupAgent(team,k.id);if(!g)return;g.visible=true;g.userData.slot=i;g.position.set((i-(OPERATOR_KITS.length-1)/2)*.95,0,0);g.rotation.y=Math.PI+.32;});
+  this.lineupStage(team);
+  OPERATOR_KITS.forEach((k,i)=>{const g=this.lineupAgent(team,k.id);if(!g)return;g.visible=true;g.userData.slot=i;g.position.set((i-(OPERATOR_KITS.length-1)/2)*.95,0,0);g.rotation.y=Math.PI;});
   for(const [key,g]of this.lineupBodies||[])if(!key.startsWith(team+':'))g.visible=false;}
- hideLineup(){for(const [,g]of this.lineupBodies||[])g.visible=false;this.lineupTeam=null;}
- renderLineup(width,height,dt=1/60){if(!this.lineupTeam)return;const cam=this.lineupCam,f=1-Math.exp(-9*Math.min(.05,dt));cam.aspect=width/Math.max(1,height);cam.fov=cam.aspect<1.5?40:30;cam.updateProjectionMatrix();cam.position.set(0,1.25,cam.aspect<1.5?10.5:8.4);cam.lookAt(0,.95,0);
-  for(const k of OPERATOR_KITS){const g=this.lineupAgent(this.lineupTeam,k.id);if(!g)continue;const on=k.id===this.lineupPick;g.position.z+=((on?.7:0)-g.position.z)*f;g.rotation.y+=((on?Math.PI:Math.PI+.32)-g.rotation.y)*f;const sc=on?1.06:.97;g.scale.setScalar(g.scale.x+(sc-g.scale.x)*f);}
+ // Check Fable: which operator of the line-up is under a screen point (its standing box projected through the line-up camera), or null.
+ lineupHit(px,py,width,height){if(!this.lineupTeam||!this.lineupCam)return null;const cam=this.lineupCam,v=this.lineupHitV??=new THREE.Vector3();let best=null,bd=1e9;
+  for(const k of OPERATOR_KITS){const g=this.lineupBodies?.get(this.lineupTeam+':'+k.id);if(!g?.visible)continue;v.set(g.position.x,0,g.position.z).project(cam);const fx=(v.x+1)/2*width,fy=(1-v.y)/2*height;
+   v.set(g.position.x,1.95*g.scale.x,g.position.z).project(cam);const hy=(1-v.y)/2*height,half=(fy-hy)*.27,d=Math.abs(px-fx);if(py>hy-12&&py<fy+16&&d<half&&d<bd){bd=d;best=k.id;}}
+  return best;}
+ hideLineup(){for(const [,g]of this.lineupBodies||[])g.visible=false;if(this.lineupStageGroup)this.lineupStageGroup.visible=false;this.lineupTeam=null;}
+ renderLineup(width,height,dt=1/60){if(!this.lineupTeam)return;const cam=this.lineupCam,f=1-Math.exp(-9*Math.min(.05,dt));cam.aspect=width/Math.max(1,height);cam.fov=cam.aspect<1.5?40:33;cam.updateProjectionMatrix();// V46f: the camera eases a little toward the picked operator (a fifth of its offset), so a picked end of the row is never cut.
+  const pickIndex=OPERATOR_KITS.findIndex(k=>k.id===this.lineupPick),pickX=pickIndex<0?0:(pickIndex-(OPERATOR_KITS.length-1)/2)*.95*.2;this.lineupCamX=(this.lineupCamX??pickX)+(pickX-(this.lineupCamX??pickX))*f;
+  cam.position.set(this.lineupCamX,1.25,cam.aspect<1.5?10.5:8.4);cam.lookAt(this.lineupCamX,.95,0);
+  // V46e: every operator breathes in its own idle (operator-kits.js STYLE); the one just picked plays its 1.5 s pose-in. Posed
+  // with its stand reset (the foot plants are in world metres), then put back. Pick screen only, never on phones' match path.
+  const now=performance.now(),tmpP=this.lineupTmpP??=new THREE.Vector3(),tmpE=this.lineupTmpE??=new THREE.Euler(),tmpS=this.lineupTmpS??=new THREE.Vector3();
+  for(const k of OPERATOR_KITS){const g=this.lineupAgent(this.lineupTeam,k.id);if(!g)continue;const on=k.id===this.lineupPick;g.position.z+=((on?.7:0)-g.position.z)*f;g.rotation.y+=(Math.PI-g.rotation.y)*f;const sc=on?1.06:.97;g.scale.setScalar(g.scale.x+(sc-g.scale.x)*f);
+   {const st=this.lineupStageGroup,p=st?.userData.plinths[g.userData.slot];if(p){p.position.set(g.position.x,0,g.position.z);p.scale.setScalar(g.scale.x);}if(on&&st){st.userData.key.target.position.set(g.position.x,.9,g.position.z);st.userData.key.position.x=g.position.x;}}
+   const agent=g.children[0];if(!agent)continue;if(on&&g.userData.introFor!==this.lineupPick+':'+this.lineupTeam){g.userData.introFor=this.lineupPick+':'+this.lineupTeam;g.userData.introAt=now;}if(!on)g.userData.introFor=null;
+   const t=on?(now-(g.userData.introAt||0))/1500:1;tmpP.copy(g.position);tmpE.copy(g.rotation);tmpS.copy(g.scale);g.position.set(0,0,0);g.rotation.set(0,0,0);g.scale.setScalar(1);g.updateMatrixWorld(true);
+   const gy=g.userData.ground??0;agent.position.y=gy;animateAgent(agent,Math.min(.05,dt),false,3,0,{life:1,time:now,pitch:0,vx:0,vz:0,groundY:gy,front:true,intro:t<1?{t}:null});agent.position.y=g.userData.lift??agent.position.y;g.position.copy(tmpP);g.rotation.copy(tmpE);g.scale.copy(tmpS);}
   const pv=this.pivot.visible,fs=this.floorShadow.visible;this.pivot.visible=this.floorShadow.visible=false;this.renderer.setScissorTest(false);this.renderer.setViewport(0,0,width,height);this.renderer.autoClear=true;this.renderer.render(this.scene,cam);this.pivot.visible=pv;this.floorShadow.visible=fs;}
  // V45 portraits: one head-and-shoulders render per team and kit into a small target, read back once
  // and kept as an image URL (operator-portrait.js). Never called on phones.
@@ -170,10 +211,20 @@ export class Armory{
    const cam=this.portraitCam??=new THREE.PerspectiveCamera(24,1,.05,20),hidden=[];for(const o of this.scene.children)if(o!==g&&o.visible&&!o.isLight){hidden.push(o);o.visible=false;}
    const was={v:g.visible,p:g.position.clone(),r:g.rotation.y,s:g.scale.x},bg=this.scene.background;g.visible=true;g.position.set(0,0,0);g.rotation.y=Math.PI+.22;g.scale.setScalar(1);g.updateMatrixWorld(true);
    const box=new THREE.Box3().setFromObject(g),top=box.max.y;cam.position.set(.18,top-.28,1.55);cam.lookAt(0,top-.36,0);
-   this.scene.background=null;const r=this.renderer,prevTarget=r.getRenderTarget(),clear=r.getClearAlpha();r.setRenderTarget(rt);r.setClearAlpha(0);r.clear();r.render(this.scene,cam);
+   // V46d: a key light from the front left and a rim from behind in the operator's third colour, only for the portrait.
+   const sig=signatureOf(kit),key=this.portraitKey??=new THREE.DirectionalLight(0xfff4e8,1.6),rim=this.portraitRim??=new THREE.DirectionalLight(0xffffff,2.4);
+   key.position.set(-1.2,top+.6,2);key.target.position.set(0,top-.36,0);rim.position.set(.9,top+.4,-1.6);rim.target.position.set(0,top-.36,0);rim.color.set(sig?.accent||'#9fb4c8').lerp(new THREE.Color(1,1,1),.35);
+   this.scene.add(key,key.target,rim,rim.target);
+   this.scene.background=null;const r=this.renderer,prevTarget=r.getRenderTarget(),clear=r.getClearAlpha();r.setRenderTarget(rt);r.setClearAlpha(0);r.clear();r.render(this.scene,cam);this.scene.remove(key,key.target,rim,rim.target);
    const px=new Uint8Array(size*size*4);r.readRenderTargetPixels(rt,0,0,size,size,px);r.setRenderTarget(prevTarget);r.setClearAlpha(clear);this.scene.background=bg;for(const o of hidden)o.visible=true;
    g.visible=was.v;g.position.copy(was.p);g.rotation.y=was.r;g.scale.setScalar(was.s);
-   const c=document.createElement('canvas');c.width=c.height=size;const ctx=c.getContext('2d'),img=ctx.createImageData(size,size);for(let y=0;y<size;y++)img.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4);ctx.putImageData(img,0,0);url=c.toDataURL('image/png');}catch(e){url=null;}
+   const c=document.createElement('canvas');c.width=c.height=size;const ctx=c.getContext('2d'),img=ctx.createImageData(size,size);for(let y=0;y<size;y++)img.data.set(px.subarray((size-1-y)*size*4,(size-y)*size*4),y*size*4);ctx.putImageData(img,0,0);
+   // V46d: behind the bust a soft radial gradient in the operator's own main colour (lifted, then into near black), the team in a faint lower glow.
+   if(sig){const m0=new THREE.Color(sig.main),L=m0.r*.2126+m0.g*.7152+m0.b*.0722,m=m0.multiplyScalar(Math.min(1,.3/Math.max(L,.01))),hi=m.clone().lerp(new THREE.Color(1,1,1),.12).multiplyScalar(.85),lo=m.clone().multiplyScalar(.22),css=c=>'#'+c.getHexString(),b=document.createElement('canvas');b.width=b.height=size;const bx=b.getContext('2d'),grad=bx.createRadialGradient(size*.5,size*.34,size*.05,size*.5,size*.5,size*.78);
+    grad.addColorStop(0,css(hi));grad.addColorStop(.55,css(m.clone().multiplyScalar(.5)));grad.addColorStop(1,css(lo));bx.fillStyle=grad;bx.fillRect(0,0,size,size);
+    const tg=bx.createLinearGradient(0,size*.7,0,size);tg.addColorStop(0,'rgba(0,0,0,0)');tg.addColorStop(1,team==='orange'?'rgba(255,46,42,.22)':'rgba(42,140,255,.22)');bx.fillStyle=tg;bx.fillRect(0,0,size,size);
+    ctx.globalCompositeOperation='destination-over';ctx.drawImage(b,0,0);ctx.globalCompositeOperation='source-over';}
+   url=c.toDataURL('image/png');}catch(e){url=null;}
   this.portraits.set(key,url);return url;}
  render(width,height,dt=1/60){
   // Left alone, the piece turns slowly a little each way, like a showroom turntable.
@@ -203,7 +254,7 @@ export class Armory{
    const q=this.pivot.quaternion,c=new THREE.Vector3();let ex=0,ey=0;for(let k=0;k<8;k++){c.set(k&1?this.previewBox.max.x:this.previewBox.min.x,k&2?this.previewBox.max.y:this.previewBox.min.y,k&4?this.previewBox.max.z:this.previewBox.min.z).sub(this.previewCenter).applyQuaternion(q);ex=Math.max(ex,Math.abs(c.x));ey=Math.max(ey,Math.abs(c.y));}
    this.previewExtent={x:Math.max(.01,ex),y:Math.max(.01,ey)};
   }
-  const {left,bottom,w,h}=this.viewport,halfH=Math.tan(this.camera.fov*Math.PI/360)*this.camera.position.z,halfW=halfH*w/Math.max(1,h),fill=width<700?.7:.8,scale=this.previewExtent?Math.min(halfW*fill/this.previewExtent.x,halfH*(this.index===6?.92:.72)/this.previewExtent.y):studioScale(this.previewRadius,w,h,this.camera.fov);this.pivot.scale.setScalar(scale);this.pivot.position.copy(this.fitCenter.copy(this.previewCenter).applyQuaternion(this.pivot.quaternion)).multiplyScalar(-scale);
+  const {left,bottom,w,h}=this.viewport,halfH=Math.tan(this.camera.fov*Math.PI/360)*this.camera.position.z,halfW=halfH*w/Math.max(1,h),fill=width<700?.7:.8,scale=this.previewExtent?Math.min(halfW*fill/this.previewExtent.x,halfH*(this.index===6?.92:this.index===0?.6:.72)/this.previewExtent.y):studioScale(this.previewRadius,w,h,this.camera.fov);this.pivot.scale.setScalar(scale);this.pivot.position.copy(this.fitCenter.copy(this.previewCenter).applyQuaternion(this.pivot.quaternion)).multiplyScalar(-scale);
   if(this.previewExtent){const ext=this.previewExtent;this.floorShadow.position.set(0,-ext.y*scale-.035,0);this.floorShadow.scale.set(ext.x*scale*2.3,ext.x*scale*.55,1);}
   // Reserve the real model viewport between the HTML panels. Background and
   // weapon render separately, so even narrow layouts never cover the muzzle.

@@ -7,9 +7,11 @@ import {createMotes} from './ambient-particles.js?v=42.0';
 // image with a strong hemisphere fill; here direct sun and sky reflections carry
 // the scene, leaving shape to shadows and ambient obscurance.
 const PROFILES={
- caldera:{hemi:.3,ambient:1,sun:1.36,sunColor:0xfff0dc,environment:.86,normal:2.4,fog:.0046,wear:{macro:.26,base:0,height:1.3,grime:.32,streak:.2,floor:.18,edge:.7},sky:SKIES.caldera,reflections:{paving:.5,quay:.45,deck:.5}},
+ // Check Fable: Caldera's streets read murky blue-brown; more sky light, a warm bounce off the quay, stronger reflections of the sky.
+ // Sahra's sky bounce is warmer (the blue-grey one turned the yellow plaster olive in the shade).
+ caldera:{hemi:.7,bounce:[0xdde7ec,0xcbb79c],ambient:1,sun:1.36,sunColor:0xfff0dc,environment:1.3,normal:2.4,fog:.0046,wear:{macro:.26,base:0,height:1.3,grime:.32,streak:.2,floor:.18,edge:.7},sky:SKIES.caldera,reflections:{paving:.5,quay:.45,deck:.5}},
  forge:{hemi:.48,bounce:[0xe0edf2,0xb8b2a6],ambient:1,sun:1.32,sunColor:0xfff2e2,sunPosition:[-23.4,23.2,3],environment:1.12,normal:2.6,fog:.005,wear:{macro:.22,base:0,height:1.1,grime:.3,streak:.18,floor:.16,edge:.85},sky:SKIES.forge,reflections:{floor:.3},motes:{count:500,color:0xd8dcd8,opacity:.18,size:.01},lamps:[[-17,2.9,0,5],[17,2.9,0,5]]},
- sahra:{hemi:.72,wear:{macro:.32,base:0,height:1.2,grime:.28,streak:.14,floor:.14,edge:0},bounce:[0xd8d6cc,0xd2aa78],ambient:1,sun:1.36,sunColor:0xffe2bd,sunPosition:[-82,64,-60],shadowBox:{left:-62,right:58,top:37,bottom:-34,near:1,far:260},environment:1.1,normal:2.7,fog:.0044,sky:SKIES.sahra,reflections:{tunnelFloor:.22,floor:.4,road:.45,paving:.5,sitePaving:.45},motes:{count:1100,color:0xe2cfaa,opacity:.26,size:.011},lamps:[[-40,3.9,14,26],[-40,3.9,1,26],[-40,3.9,-9,26],[-46,3.9,-21,26],[-20,3.45,-9,20]]}
+ sahra:{hemi:.72,wear:{macro:.32,base:0,height:1.2,grime:.28,streak:.14,floor:.14,edge:0},bounce:[0xeadcc6,0xd2aa78],ambient:1,sun:1.36,sunColor:0xffe2bd,sunPosition:[-82,64,-60],shadowBox:{left:-62,right:58,top:37,bottom:-34,near:1,far:260},environment:1.1,normal:2.7,fog:.0044,sky:SKIES.sahra,reflections:{tunnelFloor:.22,floor:.4,road:.45,paving:.5,sitePaving:.45},motes:{count:1100,color:0xe2cfaa,opacity:.26,size:.011},lamps:[[-40,3.9,14,26],[-40,3.9,1,26],[-40,3.9,-9,26],[-46,3.9,-21,26],[-20,3.45,-9,20]]}
 
 };
 // V44 weathering pass, visual only: macro variation breaks texture tiling, walls gain

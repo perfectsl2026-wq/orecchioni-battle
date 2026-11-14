@@ -11,6 +11,8 @@
 import * as T from './vendor/three.module.js';
 import {mergeGeometries,mergeVertices} from './vendor/addons/utils/BufferGeometryUtils.js';
 import {PAINTS} from './weapon-finish.js?v=42.0';
+import {signatureOf,TEAM_SIGNAL,PRIME_GLSL,primeUniforms,OB_FORM} from './operator-kits.js?v=42.0';
+import {DETAIL,DETAIL_GLSL,detailUniforms} from './operator-detail.js?v=42.0';
 export const WEAR_KITS=new Set(['assalto','sfondamento','tiratore','ricognizione','mastino']);
 const U=1.1e6,R=Math.PI/180,TUCK=.016,clamp=(v,a,b)=>Math.max(a,Math.min(b,v)),sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t);};
 const boneName=n=>n.replace(/^mixamorig[:_]?/,'').replace(/_\d+$/,'');
@@ -23,21 +25,29 @@ const TEAM={blue:{M:0x46677f,D:0x2a3b4a,H:0x3b5670,I:0x3f9ad8,K:0x1d2227,N:0x585
 // [roughness, metalness, weave]: weave > .3 is cloth (relief, seams, stitching), under it a hard surface (worn edges).
 const PBR=[[.93,0,1],[.93,0,1],[.86,0,.8],[.46,.06,.06],[.6,.08,.15],[.9,0,.9],[.36,.82,0],[.8,0,.12],[.95,0,1],[.7,0,.25],[.15,.45,0],[.95,0,1]];
 let weave=null;
-function weaveTexture(){if(weave)return weave;const n=64,data=new Uint8Array(n*n*4),g=new Float32Array(8*8),h=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);};
+export function weaveTexture(){if(weave)return weave;const n=64,data=new Uint8Array(n*n*4),g=new Float32Array(8*8),h=(x,y)=>{const s=Math.sin(x*127.1+y*311.7)*43758.5453;return s-Math.floor(s);};
  for(let i=0;i<64;i++)g[i]=h(i%8,i>>3);const noise=(x,y)=>{const fx=x/8,fy=y/8,ix=Math.floor(fx),iy=Math.floor(fy),tx=fx-ix,ty=fy-iy,sx=tx*tx*(3-2*tx),sy=ty*ty*(3-2*ty),G=(a,b)=>g[((b&7)<<3)|(a&7)];return (G(ix,iy)*(1-sx)+G(ix+1,iy)*sx)*(1-sy)+(G(ix,iy+1)*(1-sx)+G(ix+1,iy+1)*sx)*sy;};
  // R: ripstop, a fine twill with a heavier thread every 16 texels both ways. G: a soft tileable mottle (wear and fading).
  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const tw=((x+y)>>1&1)?.86:1,rip=(x%16===0||y%16===0)?.74:1,k=(y*n+x)*4;data[k]=Math.round(255*tw*rip*(.92+.08*Math.sin(x*.9)*Math.sin(y*1.3)));data[k+1]=Math.round(255*(.62*noise(x,y)+.38*noise(x*2+17,y*2+5)));data[k+2]=0;data[k+3]=255;}
  weave=new T.DataTexture(data,n,n);weave.wrapS=weave.wrapT=T.RepeatWrapping;weave.magFilter=T.LinearFilter;weave.minFilter=T.LinearMipmapLinearFilter;weave.generateMipmaps=true;weave.anisotropy=8;weave.needsUpdate=true;return weave;}
 const looks=new Map();
-export function wearLook(team,accent){
- const key=team+':'+accent;if(looks.has(key))return looks.get(key);const t=TEAM[team==='blue'?'blue':'orange'],c=v=>new T.Color(v);
- const cols=[c(t.M),c(t.D),c(0x2a2d2e),c(t.H),c(PAINTS[accent]?.hex||'#45535d'),c(t.I),c(0x6c7578),c(0x1b1f21),c(t.N),c(0xcfc8b6),c(0x0f1418),c(t.K)];
+// V46 proposal (?oppal=1): the kit's signature palette (operator-kits.js SIGNATURE) fills the cloth, shell, dark and accent slots, the
+// team identity slot I keeps the team's signal colour and glows faintly: the team's band and marks.
+function paletteSlots(sig,team,kit){const c=v=>new T.Color(v),role={main:c(sig.main),dark:c(sig.dark),accent:c(sig.accent)},w={M:'main',D:'dark',H:'main',A:'accent',K:'dark',...sig.wear};
+ const cols=[role[w.M],role[w.D],c(0x2a2d2e),role[w.H],role[w.A],c(TEAM_SIGNAL[team==='blue'?'blue':'orange']),c(0x6c7578),c(0x1b1f21),w.N?role[w.N]:role.main.clone().lerp(role.dark,.5),c(0xcfc8b6),c(sig.visor||0x0f1418),role[w.K].clone().multiplyScalar(.6)];
+ const pbr=PBR.map(p=>[...p]);for(const [k,i] of Object.entries({M:0,D:1,H:3,A:4,K:11,N:8}))if(w[k]){pbr[i][0]=sig.pbr[w[k]][0];pbr[i][1]=sig.pbr[w[k]][1];}
+ // V47: slots a kit wears as painted hard shells instead of cloth (MASTINO's lime bands: lacquer that chips to steel).
+ for(const k of DETAIL[kit]?.hard||[])pbr[PAL[k]][2]=.06;return {cols,pbr};}
+export function wearLook(team,accent,kit,tw=''){
+ const sig=signatureOf(kit,tw),key=team+':'+accent+(sig?':'+kit+':'+tw:'');if(looks.has(key))return looks.get(key);const t=TEAM[team==='blue'?'blue':'orange'],c=v=>new T.Color(v);
+ const P=sig?paletteSlots(sig,team,kit):null,cols=P?P.cols:[c(t.M),c(t.D),c(0x2a2d2e),c(t.H),c(PAINTS[accent]?.hex||'#45535d'),c(t.I),c(0x6c7578),c(0x1b1f21),c(t.N),c(0xcfc8b6),c(0x0f1418),c(t.K)];
  const m=new T.MeshStandardMaterial({color:0xffffff,roughness:.9,metalness:0,envMapIntensity:.45});m.name='op-wear';m.userData.teamLook=true;m.userData.wear=true;
- const uniforms={wearCol:{value:cols},wearPbr:{value:PBR.map(p=>new T.Vector3(...p))},wearWeave:{value:weaveTexture()}};
+ const uniforms={wearCol:{value:cols},wearPbr:{value:(P?P.pbr:PBR).map(p=>new T.Vector3(...p))},wearWeave:{value:weaveTexture()},...primeUniforms(sig,team,sig?1:0),...detailUniforms(sig?kit:'',team)};
+ if(sig)m.defines={WEAR_GLOW:''};
  m.onBeforeCompile=s=>{Object.assign(s.uniforms,uniforms);
-  s.vertexShader='attribute float wearPal;attribute vec2 wearUv;attribute float wearEdge;varying float vWearPal;varying vec2 vWearUv;varying float vWearEdge;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvWearPal=wearPal;vWearUv=wearUv;vWearEdge=wearEdge;');
-  s.fragmentShader=`uniform vec3 wearCol[12];uniform vec3 wearPbr[12];uniform sampler2D wearWeave;varying float vWearPal;varying vec2 vWearUv;varying float vWearEdge;
-vec3 wearBump(vec3 p,vec3 n,vec2 dH,float fd){vec3 sx=normalize(dFdx(p)),sy=normalize(dFdy(p)),r1=cross(sy,n),r2=cross(n,sx);float det=dot(sx,r1)*fd;return normalize(abs(det)*n-sign(det)*(dH.x*r1+dH.y*r2));}
+  s.vertexShader='attribute float wearPal;attribute vec2 wearUv;attribute float wearEdge;attribute vec4 wearRim;varying float vWearPal;varying vec2 vWearUv;varying float vWearEdge;varying float vWearY;varying vec3 vPrimeP;varying vec4 vWearRim;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvWearPal=wearPal;vWearUv=wearUv;vWearEdge=wearEdge;vWearY=position.y/1.1e6;vPrimeP=position/1.1e6;vWearRim=wearRim;');
+  s.fragmentShader=`uniform vec3 wearCol[12];uniform vec3 wearPbr[12];uniform sampler2D wearWeave;varying float vWearY;varying float vWearPal;varying vec2 vWearUv;varying float vWearEdge;varying vec3 vPrimeP;varying vec4 vWearRim;
+`+PRIME_GLSL+DETAIL_GLSL+`vec3 wearBump(vec3 p,vec3 n,vec2 dH,float fd){vec3 sx=normalize(dFdx(p)),sy=normalize(dFdy(p)),r1=cross(sy,n),r2=cross(n,sx);float det=dot(sx,r1)*fd;return normalize(abs(det)*n-sign(det)*(dH.x*r1+dH.y*r2));}
 `+s.fragmentShader
    .replace('#include <color_fragment>',`#include <color_fragment>
 int wearI=int(vWearPal+.5);vec3 wearP=wearPbr[wearI];vec4 wearS=texture2D(wearWeave,vWearUv);float wearT=wearS.r,wearM=texture2D(wearWeave,vWearUv*.047+.31).g,wearCloth=step(.3,wearP.z),wearE=clamp(vWearEdge/.016,0.,1.);
@@ -45,11 +55,46 @@ vec3 wearC=wearCol[wearI]*mix(1.,.6+.46*wearT,wearP.z)*(.9+.2*wearM);
 wearC*=mix(1.,.66+.34*smoothstep(0.,1.,wearE),wearCloth);
 wearC=mix(wearC,min(wearC*1.5+.035,vec3(1.)),(1.-wearCloth)*(1.-smoothstep(0.,.4,wearE))*.55);
 float wearSt=wearCloth*(1.-smoothstep(.0005,.0011,abs(vWearEdge-.0058)))*step(.42,fract((vWearUv.x+vWearUv.y)*1.15));
-diffuseColor.rgb=mix(wearC,wearC*1.38+.03,wearSt*.85);`)
-   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(wearP.x+(.5-wearT)*.12*wearP.z+(wearM-.5)*.1,0.,1.);')
-   .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor=wearP.y;')
-   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{vec2 wearDH=vec2(dFdx(wearT),dFdy(wearT))*wearP.z*1.2*(1.-smoothstep(2.5,8.,length(vViewPosition)));normal=wearBump(-vViewPosition,normal,wearDH,faceDirection);}');};
- m.customProgramCacheKey=()=>'operator-wear-v43r';looks.set(key,m);return m;}
+diffuseColor.rgb=mix(wearC,wearC*1.38+.03,wearSt*.85);
+#ifdef WEAR_GLOW
+diffuseColor.rgb*=mix(.76,1.1,smoothstep(.1,1.75,vWearY));diffuseColor.rgb+=(1.-wearCloth)*(1.-smoothstep(0.,.25,wearE))*.06;
+#endif
+vec2 odN=vec2(0.);float odRo=0.,odMe=-1.,odRf=-1.;
+#ifdef WEAR_GLOW
+// V47 detail (operator-detail.js): micro surface from the shared tiles, then the panel's construction from its exact rims.
+if(odK.x>.5&&wearI!=5&&wearI!=10){vec2 odU=vWearUv/55.;
+ if(wearCloth>.5){vec4 c=texture2D(odCloth,odU/odSize.x);odN=(c.rg*2.-1.)*odReady;odRo=(c.a-.5)*.5*odReady;diffuseColor.rgb*=mix(1.,.84+.32*c.b,odReady);
+  if(wearI==2){float rb=sin(odU.y/.0024*6.2832)*(1.-smoothstep(.0008,.0024,fwidth(odU.y)));odN.y+=.45*rb;diffuseColor.rgb*=1.+.07*rb;}}
+ else{bool odMt=wearP.y>.5;vec4 mt=texture2D(odMetal,odU/odSize.y),pt=texture2D(odPaint,odU/odSize.z);vec4 R=vWearRim;float e=min(R.x,R.y),big=step(.06,min(R.z,R.w));
+  vec2 gx=odGrad(R.x,odU),gy=odGrad(R.y,odU),ge=odGrad(e,odU);gx/=max(length(gx),1e-6);gy/=max(length(gy),1e-6);ge/=max(length(ge),1e-6);
+  // chips only on a panel's face near its rims (a wall or a thin strip is all rim: it gets a plain worn sheen instead)
+  float wall=step(R.z+R.w,.0001)*step(.5,R.y),face=step(.03,min(R.z,R.w)),cut=mix(.56,0.,smoothstep(0.,odK.y,e))*face,ch=cut>0.?(1.-smoothstep(cut-.02,cut+.02,pt.b))*odReady:0.,lip=cut>0.?(smoothstep(cut-.06,cut-.02,pt.b)-smoothstep(cut,cut+.04,pt.b))*odReady:0.;
+  diffuseColor.rgb*=1.+.18*wall*odReady;
+  if(odMt){odN=(mt.rg*2.-1.)*.8*odReady;float tone=texture2D(odPaint,odU/.45).b;diffuseColor.rgb*=mix(1.,(.88+.24*tone)*(.9+.2*mt.a)*(1.+.3*mt.b),odReady);odRf=clamp(wearP.x+(mt.a-.5)*.6*odReady-.15*mt.b,.1,1.);
+   diffuseColor.rgb*=1.-.45*max(lip,0.);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.78,.79,.8)*(.85+.3*mt.r),ch);if(ch>.5){odMe=1.;odRf=.18;}}
+  else{odN=(pt.rg*2.-1.)*.55*odReady;odRo=(pt.a-.5)*.35*odReady;
+   diffuseColor.rgb*=1.-.55*max(lip,0.);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.66,.67,.69)*(.8+.35*mt.r),ch);odN=mix(odN,(mt.rg*2.-1.)*.8,ch);if(ch>.5){odMe=1.;odRf=.26+(mt.a-.5)*.3;}}
+  // V47c two-tone plates: a frame in the plate's own colour round a field in the kit's second tone, split by a wide break.
+  float tz=odB.w>0.&&(wearI==3||(R.y>.99&&R.z>0.))?1.:0.,ins=tz>.5?odT.x:.008,tk=tz*step(.07,min(R.z,R.w))*smoothstep(ins-.0005,ins+.0005,e)*odReady;
+  {float bl=max(dot(wearCol[wearI],vec3(.2126,.7152,.0722)),.002);diffuseColor.rgb=mix(diffuseColor.rgb,odTone.x<0.?diffuseColor.rgb*odTone.y:odTone*dot(diffuseColor.rgb,vec3(.2126,.7152,.0722))/bl,tk*odB.w);}
+  float gd=e-ins,gr=odK.w*big*odLine(gd,tz>.5?.0016:.0011)*odReady,hl=odK.w*big*odLine(gd-.0018,.0005)*odReady,gao=odK.w*big*odReady*exp(-abs(gd)/.003);diffuseColor.rgb*=(1.-.8*gr)*(1.-.32*gao)*(1.+.8*hl);odN+=-sign(gd)*ge*(gr*1.2+gao*.25);
+  {float bev=(1.-smoothstep(.0,.003,e))*(1.-wall)*odReady;diffuseColor.rgb*=1.+.55*bev;odN+=-ge*bev*.6;}
+  if(odK.z>.5&&big>.5){float ri=.012,rr=.0046,sp=.07;vec4 b1=odBolt(vec2(R.x-ri,R.y-ri),rr);vec2 n1=b1.z*gx+b1.w*gy;
+   vec4 b2=R.w>.14&&R.y>ri+.02?odBolt(vec2(R.x-ri,(fract(odU.y/sp)-.5)*sp),rr):vec4(0.);vec4 b3=R.z>.14&&R.z<.9&&R.x>ri+.02?odBolt(vec2((fract(odU.x/sp)-.5)*sp,R.y-ri),rr):vec4(0.);
+   if(b2.x+b2.y>b1.x+b1.y){b1=b2;n1=b2.z*gx+vec2(0.,b2.w);}if(b3.x+b3.y>b1.x+b1.y){b1=b3;n1=vec2(b3.z,0.)+b3.w*gy;}
+   b1*=odReady;float hx=max(abs(b1.z)*.866+abs(b1.w)*.5,abs(b1.w));float sock=(1.-smoothstep(.36,.42,hx))*b1.x;
+   diffuseColor.rgb=mix(diffuseColor.rgb*(1.-.55*b1.y),vec3(.3,.31,.33)*(1.-.75*sock),b1.x);odN=mix(odN,n1*(1.-sock),b1.x);if(b1.x>.5){odMe=1.;odRf=.36;}}}
+ vec2 dc=odDecal(vPrimeP);dc.x*=odReady*(1.-.6*smoothstep(.55,.85,texture2D(odPaint,vWearUv/55./odSize.z*1.7).b));if(dc.x>.01){diffuseColor.rgb=mix(diffuseColor.rgb,odCol[int(dc.y+.5)],dc.x*.92);if(dc.x>.5){odMe=odMe>0.?odMe:0.;odRf=.42;}}}
+#endif
+vec3 primeV=vec3(0.);
+#ifdef WEAR_GLOW
+if(primeW.w>0.&&wearI!=5)primeV=primeLines(vPrimeP);diffuseColor.rgb*=(1.-.55*primeV.z)*(1.-.95*min(1.,primeV.x*1.6));diffuseColor.rgb=mix(diffuseColor.rgb,primeInlay,primeV.y);
+#endif`)
+   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(wearP.x+(.5-wearT)*.12*wearP.z+(wearM-.5)*.1,0.,1.);\n#ifdef WEAR_GLOW\nroughnessFactor=mix(max(roughnessFactor*.65,.2),roughnessFactor,wearCloth);roughnessFactor=mix(roughnessFactor,.2,primeV.y);if(wearP.y>.5)roughnessFactor=clamp(roughnessFactor+(texture2D(wearWeave,vWearUv*vec2(.15,4.)).r-.5)*.3,.05,1.);\nif(odRf>=0.)roughnessFactor=mix(odRf,.2,primeV.y);roughnessFactor=clamp(roughnessFactor+odRo,.05,1.);\n#endif')
+   .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor=mix(odMe>=0.?odMe:wearP.y,.3,primeV.y);')
+   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{vec2 wearDH=vec2(dFdx(wearT),dFdy(wearT))*wearP.z*1.2*(1.-smoothstep(2.5,8.,length(vViewPosition)));normal=wearBump(-vViewPosition,normal,wearDH,faceDirection);}\nnormal=odPerturb(normal,-vViewPosition,vWearUv/55.,odN);')
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM+'#ifdef WEAR_GLOW\nif(wearI==5)totalEmissiveRadiance+=wearCol[5]*.6;totalEmissiveRadiance+=primeLight*primeV.x*primeW.w+primeInlay*primeV.y*.05;\n{float wF=pow(1.-clamp(dot(normal,normalize(-vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=wF*.035*mix(vec3(.8,.86,1.),diffuseColor.rgb*2.+.05,.5)*(1.3-.7*wearCloth);}\n#endif');};
+ m.customProgramCacheKey=()=>sig?'operator-wear-v47-detail':'operator-wear-v43r';looks.set(key,m);return m;}
 // ---- the suit under the wear: each kit's colour blocking ----------------------------------------
 // Zones in bind space: sleeves (out of the torso's width), legs (below the crotch), torso; the boots stay dark leather.
 // `pat`: 0 plain, 1 fine vertical rib (night cloth), 2 quilted bands (heavy undersuit), 3 ripstop squares (light field cloth).
@@ -62,14 +107,16 @@ const SUIT={
  mastino:{torso:'K',sleeve:'K',legs:'K',pat:2}
 };
 const suitLooks=new Map();
-export function wearSuitLook(base,team,kit){
- const key=base.uuid+':'+team+':'+kit;if(suitLooks.has(key))return suitLooks.get(key);const S=SUIT[kit];if(!S){suitLooks.set(key,base);return base;}
- const t=TEAM[team==='blue'?'blue':'orange'],col=k=>new T.Color(t[k]);
+export function wearSuitLook(base,team,kit,tw=''){
+ const key=base.uuid+':'+team+':'+kit+(tw?':'+tw:'');if(suitLooks.has(key))return suitLooks.get(key);const S=SUIT[kit];if(!S){suitLooks.set(key,base);return base;}
+ const t=TEAM[team==='blue'?'blue':'orange'],sig=signatureOf(kit,tw),col=k=>sig?new T.Color(k==='M'?sig.main:sig.dark).multiplyScalar(k==='K'?(DETAIL[kit]?1.9:.6):1):new T.Color(t[k]);
+ // V46d: a kit can name the suit's role per zone (sig.suit): SFONDAMENTO's torso takes the vest's olive, so a fold that shows between panels does not read as a black blotch.
+ const zone=z=>sig?.suit?.[z]?new T.Color(sig[sig.suit[z]]):col(S[z]);
  const m=base.clone();m.name=base.name+' '+kit;m.userData.teamLook=true;m.color.set(0xffffff);m.onBeforeCompile=null;
- const uniforms={suitTorso:{value:col(S.torso)},suitSleeve:{value:col(S.sleeve)},suitLegs:{value:col(S.legs)},suitPat:{value:S.pat}};
+ const uniforms={suitTorso:{value:zone('torso')},suitSleeve:{value:zone('sleeve')},suitLegs:{value:zone('legs')},suitPat:{value:S.pat},...primeUniforms(sig,team,sig?1:0),...detailUniforms(sig?kit:'',team),odUvm:{value:2.1}};
  m.onBeforeCompile=s=>{Object.assign(s.uniforms,uniforms);
   s.vertexShader='attribute float suitTuck;varying vec3 vSuitP;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvSuitP=position;transformed-=normalize(objectNormal)*suitTuck*SUIT_TUCK;');
-  s.fragmentShader='uniform vec3 suitTorso;uniform vec3 suitSleeve;uniform vec3 suitLegs;uniform float suitPat;varying vec3 vSuitP;\n'+s.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+  s.fragmentShader='uniform vec3 suitTorso;uniform vec3 suitSleeve;uniform vec3 suitLegs;uniform float suitPat;uniform float odUvm;varying vec3 vSuitP;\n'+PRIME_GLSL+DETAIL_GLSL+s.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
   {float v=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.,1.),ax=abs(vSuitP.x),y=vSuitP.y;
   float sl=mix(smoothstep(290000.,320000.,ax),smoothstep(163000.,186000.,ax),smoothstep(1330000.,1390000.,y));
   float lg=(1.-smoothstep(985000.,1030000.,y))*(1.-smoothstep(330000.,360000.,ax));
@@ -79,9 +126,25 @@ export function wearSuitLook(base,team,kit){
   else if(suitPat>1.5&&suitPat<2.5)c*=.88+.12*smoothstep(.0,.25,abs(fract(y/42000.)-.5));
   else if(suitPat>2.5){vec2 g=fract(vMapUv*140.);c*=.93+.07*step(.08,min(g.x,g.y));}
   #endif
-  vec3 dyed=c*(.5+.85*sqrt(v));diffuseColor.rgb=mix(vec3(.07,.066,.06)*(.6+1.1*v),dyed,smoothstep(BOOT_TOP-BOOT_FADE,BOOT_TOP+BOOT_FADE,y));}`);};
- m.defines={...base.defines,BOOT_TOP:'250000.0',BOOT_FADE:'15000.0',SUIT_TUCK:(TUCK*U).toFixed(1)};m.customProgramCacheKey=()=>'operator-wearsuit-v43r';m.needsUpdate=true;
+  vec3 dyed=c*(.5+.85*sqrt(v));diffuseColor.rgb=mix(vec3(.07,.066,.06)*(.6+1.1*v),dyed,smoothstep(BOOT_TOP-BOOT_FADE,BOOT_TOP+BOOT_FADE,y));}
+  // V46g PRIME: the kit's light strips and inlays run on across the suit where the wear leaves it bare (arms, legs).
+  vec3 primeV=vec3(0.);if(primeW.w>0.)primeV=primeLines(vSuitP/1.1e6)*smoothstep(BOOT_TOP,BOOT_TOP+3.*BOOT_FADE,vSuitP.y);
+  diffuseColor.rgb*=(1.-.55*primeV.z)*(1.-.95*min(1.,primeV.x*1.6));diffuseColor.rgb=mix(diffuseColor.rgb,primeInlay,primeV.y);
+  // V47 detail: the shared ripstop at its physical size (the soldier's uv is ~2.1 m a unit) over the suit's own folds.
+  vec2 odN=vec2(0.);float odRo=0.;
+  #ifdef USE_MAP
+  if(odK.x>.5){vec4 oc=texture2D(odCloth,vMapUv*odUvm/odSize.x);odN=(oc.rg*2.-1.)*odReady;odRo=(oc.a-.5)*.5*odReady;diffuseColor.rgb*=mix(1.,.84+.32*oc.b,odReady);
+   vec2 dc=odDecal(vSuitP/1.1e6);dc.x*=odReady;if(dc.x>.01)diffuseColor.rgb=mix(diffuseColor.rgb,odCol[int(dc.y+.5)],dc.x*.9);}
+  #endif`)
+  .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n  roughnessFactor=clamp(mix(roughnessFactor,.22,primeV.y)+odRo,.05,1.);')
+  .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n  #ifdef USE_MAP\n  normal=odPerturb(normal,-vViewPosition,vMapUv*odUvm,odN);\n  #endif')
+  .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM+'  totalEmissiveRadiance+=primeLight*primeV.x*primeW.w+primeInlay*primeV.y*.05;\n  if(odK.x>.5){float sF=pow(1.-clamp(dot(normal,normalize(-vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=sF*.05*(diffuseColor.rgb*2.2+.025);}');};
+ m.defines={...base.defines,BOOT_TOP:'250000.0',BOOT_FADE:'15000.0',SUIT_TUCK:(TUCK*U).toFixed(1)};m.customProgramCacheKey=()=>'operator-wearsuit-v49';m.needsUpdate=true;
+ // V49: the suit's own hands take the finger tones too (attribute from ensureFingerTone).
+ {const inner=m.onBeforeCompile;m.onBeforeCompile=(s,r)=>{inner(s,r);s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float partTone;varying float vPartTone;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPartTone=partTone;');
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPartTone;').replace('#include <roughnessmap_fragment>','{float ft=vPartTone-1.;diffuseColor.rgb=max(vec3(0.),diffuseColor.rgb*(1.+ft*2.2)+vec3(.05,.052,.058)*ft*3.5);}\n#include <roughnessmap_fragment>');};}
  suitLooks.set(key,m);return m;}
+export function ensureFingerTone(skin,g){if(!g||g.attributes.partTone)return;g.setAttribute('partTone',fingerTone(skin.skeleton.bones.map(b=>boneName(b.name)),g.attributes.skinIndex,g.attributes.skinWeight,g.attributes.position.count));}
 // RICOGNIZIONE: the soldier head mesh is its olive neck gaiter, worn up to the nose on every kit (the eyes are another mesh);
 // here it takes the scarf's team colour, its folds kept, so it reads as the scarf pulled up over the face.
 const headLooks=new Map();
@@ -96,13 +159,22 @@ const tucked=new WeakMap();
 export function wearSuitGeometry(wear,suitGeo){
  if(!wear?.userData.tuck)return suitGeo;let g=tucked.get(wear);if(g)return g;g=new T.BufferGeometry();for(const [n,a] of Object.entries(suitGeo.attributes))g.setAttribute(n,a);g.setIndex(suitGeo.index);for(const gr of suitGeo.groups)g.addGroup(gr.start,gr.count,gr.materialIndex);
  g.setAttribute('suitTuck',new T.BufferAttribute(wear.userData.tuck,1));g.boundingBox=suitGeo.boundingBox;g.boundingSphere=suitGeo.boundingSphere;g.name=(suitGeo.name||'suit')+' tucked';tucked.set(wear,g);return g;}
+const FINGER={Thumb:1.06,Index:1.14,Middle:.9,Ring:1.12,Pinky:.9},SEG=[1,.9,1.2];
+function fingerTone(names,I,W,count){const tone=new Float32Array(count),tones=names.map(n=>{const f=/Hand(Thumb|Index|Middle|Ring|Pinky)(\d)/.exec(n||'');return f?FINGER[f[1]]*SEG[Math.min(3,+f[2])-1]:1;});
+ for(let i=0;i<count;i++){let t=0,sw=0;for(let c=0;c<4;c++){const w=W.getComponent(i,c);t+=w*tones[I.getComponent(i,c)];sw+=w;}tone[i]=sw>0?t/sw:1;}return new T.BufferAttribute(tone,1);}
+// The glove look's finger tones on any material (the soldier's own gloves keep theirs): a clone that reads `partTone`.
+const toneLooks=new WeakMap();
+export function fingerToneLook(base){let m=toneLooks.get(base);if(m)return m;m=base.clone();m.name=(base.name||'gloves')+' toned';const prior=base.onBeforeCompile;
+ m.onBeforeCompile=(s,r)=>{prior?.call(m,s,r);s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float partTone;varying float vPartTone;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPartTone=partTone;');
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPartTone;').replace('#include <map_fragment>','#include <map_fragment>\ndiffuseColor.rgb*=1.+(vPartTone-1.)*2.2;');};
+ m.customProgramCacheKey=()=>(base.customProgramCacheKey?.()||'')+'finger-tone-v49';toneLooks.set(base,m);return m;}
 // The soldier's pads skin keeps only its gloves under the new wear (its knee and elbow pads belong to the old kit).
 const gloveGeos=new WeakMap();
 export function glovesOnly(skin){
  const g=skin.userData.baseGeometry||skin.geometry;if(gloveGeos.has(g))return gloveGeos.get(g);const names=skin.skeleton.bones.map(b=>boneName(b.name)),I=g.attributes.skinIndex,W=g.attributes.skinWeight,dom=i=>{let b=0,bw=-1;for(let c=0;c<4;c++){const w=W.getComponent(i,c);if(w>bw){bw=w;b=I.getComponent(i,c);}}return names[b];};
  const hand=new Uint8Array(g.attributes.position.count);for(let i=0;i<hand.length;i++)hand[i]=/Hand/.test(dom(i))?1:0;
  const src=g.index.array,keep=[];for(let k=0;k<src.length;k+=3)if(hand[src[k]]&&hand[src[k+1]]&&hand[src[k+2]])keep.push(src[k],src[k+1],src[k+2]);
- const out=new T.BufferGeometry();for(const [n,a] of Object.entries(g.attributes))out.setAttribute(n,a);out.setIndex(keep);out.boundingBox=g.boundingBox;out.boundingSphere=g.boundingSphere;
+ const out=new T.BufferGeometry();for(const [n,a] of Object.entries(g.attributes))out.setAttribute(n,a);out.setIndex(keep);out.boundingBox=g.boundingBox;out.boundingSphere=g.boundingSphere;out.setAttribute('partTone',fingerTone(names,I,W,g.attributes.position.count));
  gloveGeos.set(g,out);return out;}
 // V44 op2: a part of a skin's geometry (its attributes shared): the triangles whose three vertices pass test(dominant bone, y).
 // The whole bodies built without real hands or with heeled feet wear the soldier's own gloves and boots cut out of his suit.
@@ -111,7 +183,10 @@ export function skinPart(skin,g,key,test){let m=partGeos.get(g);if(!m)partGeos.s
  const names=skin.skeleton.bones.map(b=>boneName(b.name)),I=g.attributes.skinIndex,W=g.attributes.skinWeight,P=g.attributes.position,ok=new Uint8Array(P.count);
  for(let i=0;i<ok.length;i++){let b=0,bw=-1;for(let c=0;c<4;c++){const w=W.getComponent(i,c);if(w>bw){bw=w;b=I.getComponent(i,c);}}ok[i]=test(names[b],P.getY(i)/U)?1:0;}
  const src=g.index.array,keep=[];for(let k=0;k<src.length;k+=3)if(ok[src[k]]&&ok[src[k+1]]&&ok[src[k+2]])keep.push(src[k],src[k+1],src[k+2]);
- const out=new T.BufferGeometry();for(const [n,a] of Object.entries(g.attributes))out.setAttribute(n,a);out.setIndex(keep);out.boundingBox=g.boundingBox;out.boundingSphere=g.boundingSphere;m.set(key,out);return out;}
+ const out=new T.BufferGeometry();for(const [n,a] of Object.entries(g.attributes))out.setAttribute(n,a);out.setIndex(keep);out.boundingBox=g.boundingBox;out.boundingSphere=g.boundingSphere;
+ // V49: a tone per vertex for the glove look, so the fingers read apart at a distance: neighbouring fingers a shade
+ // lighter and darker, the middle joint darker (the crease), the fingertip lighter. Blended by skin weight; 1 elsewhere.
+ out.setAttribute('partTone',fingerTone(names,I,W,P.count));m.set(key,out);return out;}
 // ---- the body: suit and head vertices, their weights, radial maps ----------------------------------
 class Body{
  constructor(suit,suitGeo,head){
@@ -180,23 +255,26 @@ class Wear{
  constructor(body){this.body=body;this.pieces=[];}
  push(g,pal,allow,reach){if(!g.index)g.setIndex([...Array(g.attributes.position.count).keys()]);if(!g.attributes.normal)g.computeVertexNormals();const P=g.attributes.position;if(!g.attributes.wearUv){const uv=new Float32Array(P.count*2);for(let i=0;i<P.count;i++){uv[i*2]=(P.getX(i)+P.getZ(i))*55;uv[i*2+1]=P.getY(i)*55;}g.setAttribute('wearUv',new T.BufferAttribute(uv,2));}
   if(!g.attributes.wearEdge)g.setAttribute('wearEdge',new T.BufferAttribute(new Float32Array(P.count).fill(.03),1));
-  for(const k of Object.keys(g.attributes))if(!['position','normal','wearUv','wearEdge'].includes(k))g.deleteAttribute(k);this.pieces.push({g,pal,allow,reach});return g;}
+  // V47: wearRim (distance to the nearest u rim, to the nearest v rim, panel width, length; metres): a panel's exact rims for the
+  // detail layer (operator-detail.js); any other piece knows only its edge distance and no size.
+  if(!g.attributes.wearRim){const E=g.attributes.wearEdge,r=new Float32Array(P.count*4);for(let i=0;i<P.count;i++){r[i*4]=E.getX(i);r[i*4+1]=1;}g.setAttribute('wearRim',new T.BufferAttribute(r,4));}
+  for(const k of Object.keys(g.attributes))if(!['position','normal','wearUv','wearEdge','wearRim'].includes(k))g.deleteAttribute(k);this.pieces.push({g,pal,allow,reach});return g;}
  // A padded panel on a map: rows from s0 to s1, each spanning the angles aL(s)..aR(s) (degrees, or functions of s), `th`
  // thick with its edges eased down to `edge` over `bevel` metres; `bulge` pillows the middle; closed: a ring with no ends.
  panel(map,o,pal,allow){
   const {s0,s1,off=.004,th=.012,bevel=.01,bulge=0,closed=false}=o,ns=Math.max(1,Math.round((o.ns??10)*1.15)),na=Math.max(2,Math.round((o.na??16)*1.15)),edge=o.edge??th*.4,aL=typeof o.aL==='function'?o.aL:()=>o.aL,aR=typeof o.aR==='function'?o.aR:()=>o.aR,sag=o.sag||(()=>0);
-  const pos=[],uv=[],ed=[],idx=[],out=new T.Vector3(),inn=new T.Vector3(),SR=s=>map.sphere?s*R:s,len=map.sphere?Math.abs(s1-s0)*R*.1:Math.abs(s1-s0)*map.L;
+  const pos=[],uv=[],ed=[],rim=[],idx=[],out=new T.Vector3(),inn=new T.Vector3(),SR=s=>map.sphere?s*R:s,len=map.sphere?Math.abs(s1-s0)*R*.1:Math.abs(s1-s0)*map.L;
   const at=(j,k,top)=>{const v=j/ns,u=k/na,s=s0+(s1-s0)*v,a0=aL(s)*R,a1=aR(s)*R,ang=a0+(a1-a0)*u,r=map.r(ang,SR(s)),w=Math.abs(a1-a0)*r,e=Math.min(closed?1e9:Math.min(u,1-u)*w,Math.min(v,1-v)*len),h=edge+(th-edge)*Math.sqrt(sstep(0,bevel,e))+bulge*Math.sin(Math.PI*u)*Math.sin(Math.PI*v),dz=sag(u,v);
-   map.point(ang,SR(s),off+dz+(top?h:0),top?out:inn);return [top?out:inn,ang*r,map.sphere?SR(s)*.1:s*map.L,top?e:0];};
-  const add=(p,a,b,e)=>{pos.push(p.x,p.y,p.z);uv.push(a*55,b*55);ed.push(e);return pos.length/3-1;};
-  const grid=top=>{const ids=[];for(let j=0;j<=ns;j++)for(let k=0;k<=na;k++){const [p,a,b,e]=at(j,k,top);ids.push(add(p,a,b,e));}return ids;};
+   map.point(ang,SR(s),off+dz+(top?h:0),top?out:inn);return [top?out:inn,ang*r,map.sphere?SR(s)*.1:s*map.L,top?e:0,top?[closed?1:Math.min(u,1-u)*w,Math.min(v,1-v)*len,closed?1:w,len]:[0,1,0,0]];};
+  const add=(p,a,b,e,q)=>{pos.push(p.x,p.y,p.z);uv.push(a*55,b*55);ed.push(e);rim.push(...q);return pos.length/3-1;};
+  const grid=top=>{const ids=[];for(let j=0;j<=ns;j++)for(let k=0;k<=na;k++){const [p,a,b,e,q]=at(j,k,top);ids.push(add(p,a,b,e,q));}return ids;};
   const O=grid(true),I=grid(false),W=na+1,radial=new T.Vector3(),mid=(j,k,ids)=>new T.Vector3(pos[ids[j*W+k]*3],pos[ids[j*W+k]*3+1],pos[ids[j*W+k]*3+2]);
   const centre=new T.Vector3();for(const i of O)centre.add(new T.Vector3(pos[i*3],pos[i*3+1],pos[i*3+2]));centre.divideScalar(O.length);
   const tri=(a,b,c,want)=>{const A=new T.Vector3(pos[a*3],pos[a*3+1],pos[a*3+2]),B=new T.Vector3(pos[b*3],pos[b*3+1],pos[b*3+2]),C=new T.Vector3(pos[c*3],pos[c*3+1],pos[c*3+2]),n=B.clone().sub(A).cross(C.clone().sub(A));if(n.dot(want)<0)idx.push(a,c,b);else idx.push(a,b,c);};
   for(let j=0;j<ns;j++)for(let k=0;k<na;k++){const v=(j+.5)/ns,u=(k+.5)/na,s=s0+(s1-s0)*v,ang=(aL(s)+(aR(s)-aL(s))*u)*R;
    if(map.sphere)map.dir(ang,SR(s),radial);else map.dir(ang,radial);
    const q=[j*W+k,j*W+k+1,(j+1)*W+k,(j+1)*W+k+1];tri(O[q[0]],O[q[1]],O[q[2]],radial);tri(O[q[1]],O[q[3]],O[q[2]],radial);const neg=radial.clone().negate();tri(I[q[0]],I[q[1]],I[q[2]],neg);tri(I[q[1]],I[q[3]],I[q[2]],neg);}
-  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('wearUv',new T.Float32BufferAttribute(uv,2));g.setAttribute('wearEdge',new T.Float32BufferAttribute(ed,1));g.setIndex(idx);g.computeVertexNormals();
+  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('wearUv',new T.Float32BufferAttribute(uv,2));g.setAttribute('wearEdge',new T.Float32BufferAttribute(ed,1));g.setAttribute('wearRim',new T.Float32BufferAttribute(rim,4));g.setIndex(idx);g.computeVertexNormals();
   // Walls on their own vertices, so the rims stay crisp.
   const loops=[];for(let k=0;k<=na;k++)loops.push([0,k]);const bottom=loops.splice(0),top=[];for(let k=0;k<=na;k++)top.push([ns,k]);const left=[],right=[];for(let j=0;j<=ns;j++){left.push([j,0]);right.push([j,na]);}
   const walls=[bottom,top,...(closed?[]:[left,right])],wp=[],wu=[],wi=[];
@@ -233,7 +311,9 @@ class Wear{
 }
 // Rounded box (w,h,d metres, corner radius r); its rim distance runs across the face (w,h).
 function rbox(w,h,d,r=.006,seg=3){let g=new T.BoxGeometry(w,h,d,seg,seg,seg);g.deleteAttribute('normal');g.deleteAttribute('uv');g=mergeVertices(g);const P=g.attributes.position,hx=w/2-r,hy=h/2-r,hz=d/2-r,v=new T.Vector3(),c=new T.Vector3(),e=new Float32Array(P.count);
- for(let i=0;i<P.count;i++){v.fromBufferAttribute(P,i);c.set(clamp(v.x,-hx,hx),clamp(v.y,-hy,hy),clamp(v.z,-hz,hz));const q=v.clone().sub(c);if(q.lengthSq()>1e-12)v.copy(c).addScaledVector(q.normalize(),r);P.setXYZ(i,v.x,v.y,v.z);e[i]=v.z>hz*.5?Math.min(w/2-Math.abs(v.x),h/2-Math.abs(v.y)):0;}g.setAttribute('wearEdge',new T.BufferAttribute(e,1));g.computeVertexNormals();return g;}
+ for(let i=0;i<P.count;i++){v.fromBufferAttribute(P,i);c.set(clamp(v.x,-hx,hx),clamp(v.y,-hy,hy),clamp(v.z,-hz,hz));const q=v.clone().sub(c);if(q.lengthSq()>1e-12)v.copy(c).addScaledVector(q.normalize(),r);P.setXYZ(i,v.x,v.y,v.z);e[i]=v.z>hz*.5?Math.min(w/2-Math.abs(v.x),h/2-Math.abs(v.y)):0;}g.setAttribute('wearEdge',new T.BufferAttribute(e,1));
+ // V47c: the front face knows its size, so a big box (a back pack) takes the two-tone field and the break like a plate.
+ {const r=new Float32Array(P.count*4);for(let i=0;i<P.count;i++){r[i*4]=e[i];r[i*4+1]=1;if(P.getZ(i)>hz*.5){r[i*4+2]=w;r[i*4+3]=h;}}g.setAttribute('wearRim',new T.BufferAttribute(r,4));}g.computeVertexNormals();return g;}
 function cylinder(r,h,seg=12,r2=r){const g=new T.CylinderGeometry(r2,r,h,seg,1);g.deleteAttribute('uv');return g;}
 function emblem(shapes,size,depth=.0025){const g=new T.ExtrudeGeometry(shapes,{depth,bevelEnabled:true,bevelThickness:.0008,bevelSize:.0006,bevelSegments:1,curveSegments:8});g.deleteAttribute('uv');g.scale(size,size,1);g.computeBoundingBox();const c=g.boundingBox.getCenter(new T.Vector3());g.translate(-c.x,-c.y,-c.z);g.computeVertexNormals();return g;}
 // A thin slab over a (u,v) patch: p(u,v) its top surface, `th` thick downward along `down`; rim distance from u, v ends.

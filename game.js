@@ -6,6 +6,9 @@ import {UtilityPresentation} from './utility-presentation.js?v=42.0';
 import {applyMapTheme} from './visual-theme.js?v=42.0';
 import {InputChannel,cleanInput,clearPulses as clearInputPulses,DriftCorrector,AmmoLedger,DRIFT,PULSES} from './network-input.js?v=42.0';
 import {NETWORK_PROTOCOL,ROOM_PREFIX,FAST_LIMIT,NetworkSession,SnapshotMirror,sendPacket,sendFast,openFastChannel,watchConnection,startTicker,encodeFrame,decodeFrame,snapshotSignature,buildDelta,validSnapshot,snapshotForNetwork,snapshotIssue,validPeerId} from './network-session.js?v=42.0';
+import {RankedClient} from './ranked-client.js?v=42.0';
+import {createRankedCard,verdictHTML} from './ranked-ui.js?v=42.0';
+import {RANKED,rankedOptions} from './ranked-rules.js?v=42.0';
 import {FrameMeter} from './frame-meter.js?v=42.0';
 import {FramePacing} from './frame-pacing.js?v=42.0';
 import {VARIANTS,variantFor,displayName,shortName,warmVariantMaterials,preloadBaseModels,preloadDesigns,prefetchDesign,useWorldLod,setModelWarm,canvasSource} from './weapon-variants.js?v=42.0';
@@ -19,7 +22,7 @@ import {sizeRenderer,filterTextures} from './render-quality.js?v=42.0';
 import {recordKill,KillLedger} from './kill-events.js?v=42.0';
 import {JUMP,stepJump,stepStance,eyeHeight,LocalPresentation,WeaponSwitch,crosshairGap} from './player-feel.js?v=42.0';
 import {viewMotion} from './view-motion.js?v=42.0';
-import {PostFX,supportsPostFX} from './postfx.js?v=42.0';
+import {PostFX,supportsPostFX,outlineAgent,setOutlineViewport,setOutlineStyle} from './postfx.js?v=42.0';
 import {realizeWorld,realizeEnvironment} from './realism.js?v=42.0';
 import {AudioEngine} from './audio-engine.js?v=42.0';
 import {ViewKick} from './view-kick.js?v=42.0';
@@ -32,7 +35,7 @@ const pacing=new FramePacing({start:pacingStart});
 import * as THREE from './vendor/three.module.js';
 import {createWorld,createWeapon,animateWeapon,createOperator,animateOperator} from './graphics.js?v=42.0';
 import {Armory} from './armory.js?v=42.0';
-import {preloadAssets,useMobileAssets,useTouchViewmodels,useClassicSniper,operatorGearParts,createDisplayWeapon,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug,loadArmour,armourWarmParts,onBodyReady} from './assets.js?v=42.0';
+import {preloadAssets,useMobileAssets,useTouchViewmodels,useClassicSniper,operatorGearParts,createDisplayWeapon,createArmedModel,createAgent,animateAgent,animateViewmodel,flashAgent,reactAgent,disposeAgent,prepareAgentEquipment,dressOperator,operatorDebug,loadArmour,armourWarmParts,onBodyReady,setArmsKit} from './assets.js?v=42.0';
 import {cleanOperator,botOperator,operatorName,KITS as OPERATOR_KITS} from './operator-kits.js?v=42.0';
 import {WEAPONS,WALLS,SPAWNS,MAPS,ACTIVE_MAP,BOUNDS,configureMap,chooseTeam,blocked,move,wallDistance,groundHeight} from './shared.js?v=42.0';
 import {botInput,resetBots,resetBot,hearBotShot,BOT_LEVELS} from './navigation.js?v=42.0';
@@ -167,10 +170,40 @@ await loadMap(chosenMap||'sahra');
 for(const b of document.querySelectorAll('.playlists [data-playlist]'))b.onclick=async()=>{if(playing||mapSelect.disabled)return;const next=PLAYLISTS[b.dataset.playlist];playlist=b.dataset.playlist;try{if(!next.maps.includes(ACTIVE_MAP))await loadMap(next.maps[0]);}catch(e){error('Mappa non disponibile: '+e.message);return;}$('mode').value=next.mode;describeMode();$('mode').dispatchEvent(new Event('change'));};
 // Lobby views: GIOCA (online rooms) and ALLENAMENTO (local match against bots).
 // The training card drives the same selects and buttons the online panel uses.
+// V50 CLASSIFICATA. The service (see /server) pairs the players and hands out the room; the match itself is an
+// ordinary room whose rules, teams and guests are fixed by the ticket. `rankedTicket` is the match this page is in.
+const RANKED_HOLD_MS=75000,RANKED_JOIN_MS=60000,ranked=new RankedClient({build:NETWORK_PROTOCOL+'/r'+RANKED.revision});let rankedTicket=null,rankedBefore=null,rankedSince=0;
+const rankedCard=createRankedCard({root:$('rankedcard'),client:ranked,name:()=>$('name').value,touch:()=>mobileDevice,ticker:startTicker,onTicket:startRanked});
+async function startRanked(ticket){
+ if(playing)return;rankedTicket=ticket;rankedBefore=ranked.profile;rankedSince=Date.now();
+ try{if(ticket.host===ticket.me){if(ACTIVE_MAP!==ticket.map)await loadMap(ticket.map);if(rankedTicket===ticket&&!playing)online(true,ticket);}else online(false,ticket);}
+ catch(e){rankedTicket=null;rankedCard.reset('Avvio della partita non riuscito. Riprova.');}
+}
+// Ticket players who are not in the room now: gone, never arrived, or still loading.
+function rankedAbsent(){const here=new Set(Object.values(state.players).filter(p=>p.rid&&!p.away&&!p.loading).map(p=>p.rid));return (rankedTicket?.players||[]).map(q=>q.rid).filter(r=>!here.has(r));}
+// Referee only: the first round waits for everyone, and a side with nobody left forfeits.
+function rankedWatch(){
+ const t=rankedTicket;if(!host||!state.ranked||state.ended||!t)return;
+ const seated=q=>Object.values(state.players).some(p=>p.rid===q.rid);
+ if(state.hold){if(t.players.every(q=>Object.values(state.players).some(p=>p.rid===q.rid&&!p.loading))||clock.time>=state.hold)state.hold=0;else return;}
+ for(const team of ['blue','orange'])if(!t.players.some(q=>q.team===team&&seated(q))){state.forfeit=team;state.ended=true;event({kind:'info',text:teamName(team)+' si ritira: partita vinta a tavolino'});return;}
+}
+function rankedVerdict(html){let box=$('rankedverdict');if(!box){box=Object.assign(document.createElement('div'),{id:'rankedverdict'});$('rows').before(box);}box.hidden=html===null;if(html!==null)box.innerHTML=html;}
+// Every player files the result; the service decides when enough of them agree.
+async function rankedFinish(){
+ const t=rankedTicket,wait=ms=>new Promise(r=>setTimeout(r,ms));if(!t||state.ranked?.id!==t.id)return;
+ const body={match:t.id,ended:true,blue:state.score.blue,orange:state.score.orange,forfeit:state.forfeit||'',absent:rankedAbsent()},still=()=>rankedTicket===t&&playing;
+ rankedVerdict(verdictHTML(null));let v=null;
+ for(let n=0;n<5&&!v&&still();n++){try{v=await ranked.report(body);}catch{await wait(3000);}}
+ if(!v){if(still())rankedVerdict(verdictHTML({state:'offline'}));return;}
+ for(let n=0;n<80&&v.state==='open'&&still();n++){await wait(3000);try{v=await ranked.result(t.id);}catch{}}
+ if(still())rankedVerdict(verdictHTML(v,rankedBefore));
+}
 function showLobbyView(view){
- const panel=document.querySelector('#menu .panel');panel.dataset.view=view;$('trainingcard').hidden=view!=='training';
- $('navplay').setAttribute('aria-current',view==='play'?'page':'false');$('navtraining').setAttribute('aria-current',view==='training'?'page':'false');
- document.querySelector('.paneltop>span').textContent=view==='training'?'ALLENAMENTO CON BOT':'GIOCA CON GLI AMICI';
+ const panel=document.querySelector('#menu .panel');panel.dataset.view=view;$('trainingcard').hidden=view!=='training';$('rankedcard').hidden=view!=='ranked';
+ $('navplay').setAttribute('aria-current',view==='play'?'page':'false');$('navtraining').setAttribute('aria-current',view==='training'?'page':'false');$('navranked').setAttribute('aria-current',view==='ranked'?'page':'false');
+ document.querySelector('.paneltop>span').textContent=view==='training'?'ALLENAMENTO CON BOT':view==='ranked'?'PARTITA CLASSIFICATA':'GIOCA CON GLI AMICI';
+ if(view==='ranked')rankedCard.show();else rankedCard.hide();
  if(view==='training'){syncTrainingCard();(matchMedia('(max-width:700px)').matches?$('trainingcard'):panel).scrollIntoView({block:matchMedia('(max-width:700px)').matches?'start':'nearest',behavior:matchMedia('(prefers-reduced-motion:reduce)').matches?'auto':'smooth'});}
 }
 function syncTrainingCard(){
@@ -179,7 +212,7 @@ function syncTrainingCard(){
  for(const b of document.querySelectorAll('.levels [data-level]'))b.setAttribute('aria-checked',String(b.dataset.level===botDifficulty));
  const weapon=$('trainweapon');if(!weapon.options.length)weapon.append(...[...$('botequipment').options].map(o=>new Option(o.textContent,o.value)));weapon.value=$('botequipment').value;
 }
-$('navplay').onclick=()=>showLobbyView('play');
+$('navplay').onclick=()=>showLobbyView('play');$('navranked').onclick=()=>{if(!playing&&!mapSelect.disabled)showLobbyView('ranked');};
 $('navtraining').onclick=()=>showLobbyView('training');$('gotraining').onclick=()=>showLobbyView('training');
 for(const b of document.querySelectorAll('.stepper button'))b.onclick=()=>{const select=$(b.dataset.step),open=[...select.options].filter(o=>!o.disabled).map(o=>o.value),next=open[open.indexOf(select.value)+Number(b.dataset.dir)];if(next===undefined)return;select.value=next;select.dispatchEvent(new Event('change'));syncTrainingCard();};
 for(const b of document.querySelectorAll('.levels [data-level]'))b.onclick=()=>{$('botlevel').value=b.dataset.level;$('botlevel').dispatchEvent(new Event('change'));syncTrainingCard();};
@@ -369,7 +402,7 @@ const gearList=[];function myFinishes(){for(let i=0;i<6;i++)gearList[i]=myFinish
 // finishes a short reload into a larger magazine or skips a draw.
 function fitAmmo(p,before=null){if(Array.isArray(p.ammo))for(let i=0;i<p.ammo.length;i++)p.ammo[i]=Math.min(p.ammo[i],gunOf(p,i).mag);if(before&&p.hp>0&&weaponFor(p.weapon,before[p.weapon])!==gunOf(p)){p.reload=0;p.reloadStart=0;p.shots=0;p.equipUntil=Math.max(p.equipUntil||0,(state.now||clock.time)+(gunOf(p).equip??.3)*1000);}}
 function clickBuffer(weapon){const w=mine(weapon);return w.auto?0:weapon===4?SCOPE_LEAD_MS:Math.min(SCOPE_LEAD_MS,w.rate*500);}
-function pauseGame(){refreshRoomList();awaitingPointerLock=false;ready=false;clearActions();sfx.setAmbience(.45);touch.setActive(false);document.exitPointerLock?.();if(playing){$('pause').hidden=false;$('pausetitle').textContent=state.ended?'PARTITA CONCLUSA':'IN PAUSA';$('resume').textContent=state.ended&&host?'NUOVA PARTITA ↗':'TORNA IN CAMPO ↗';}}
+function pauseGame(){refreshRoomList();awaitingPointerLock=false;ready=false;clearActions();sfx.setAmbience(.45);touch.setActive(false);document.exitPointerLock?.();if(playing){$('pause').hidden=false;$('pausetitle').textContent=state.ended?'PARTITA CONCLUSA':'IN PAUSA';$('resume').textContent=state.ended&&state.ranked?'TORNA AL MENU':state.ended&&host?'NUOVA PARTITA ↗':'TORNA IN CAMPO ↗';}}
 function enterWithoutLock(){if(!playing||overlayOpen()||armory.active)return;ready=true;$('pause').hidden=true;touch.setActive(true);hintText??=document.querySelector('.hint').textContent;document.querySelector('.hint').textContent=touch.enabled?'SINISTRA MUOVI · TRASCINA A DESTRA PER MIRARE':'Mouse alternativo: tieni DESTRO per ruotare · SINISTRO spara · WASD muovi · ESC pausa';}
 // Right after Esc the browser refuses a new lock for a moment: that is a pause, not a broken mouse.
 // Keep the panel, ask for a click and try once by itself. The fallback never outlives this attempt.
@@ -639,7 +672,7 @@ function acceptInput(p,packet,remote=false){
  if(i.yaw!==null)p.yaw=i.yaw;if(i.pitch!==null)p.pitch=i.pitch;
  if(p.hp>0&&ownsWeapon(state,p,i.weapon))equipWeapon(p,i.weapon,clock.time);p.input=i;p.seen=Date.now();
 }
-function start(){const visits=MAPS[ACTIVE_MAP].visits;$('visitnav').hidden=!(state.preview&&visits);if(visits)$('visitpoint').replaceChildren(...Object.entries(visits).map(([key,v])=>Object.assign(document.createElement('option'),{value:key,textContent:v[3]})));$('visitpoint').value='spawn';$('resume').hidden=false;$('reconnect').hidden=true;resetGuestNet();if(!training)holdScreen();clock.reset(state.now??state.started??Date.now());state.now=clock.time;snapshots.clear();lastSnapshotAt=performance.now();if(!host)snapshots.push(state,lastSnapshotAt);playing=true;ready=false;resultHandled=null;matchStartXP=career.data.xp;mapSelect.disabled=true;networkSeq=0;clearActions();local.vx=local.vz=0;camera.fov=BASE_FOV;camera.updateProjectionMatrix();$('menu').hidden=true;$('hud').hidden=false;void $('hud').offsetHeight;/* lay the HUD out now, in the click, not in the first frame of the match */frameMeter.reset();$('pause').hidden=false;$('pausetitle').textContent='PRONTO A ENTRARE?';$('pausetext').textContent=state.preview?'Visita libera senza bot e senza limite di tempo. H nasconde l’HUD, ESC torna al menu pausa.':(training?'Allenamento con '+Object.values(state.players).filter(p=>p.bot).length+' bot. ':'Stanza '+room+'. ')+(isRoundMode(state.mode)?'Una vita per round · prima squadra a '+matchRules(state).target+'.':state.mode==='corsa'?'CORSA ALLE ARMI · rientro continuo · sei armi, due uccisioni a gradino · finisci col coltello.':matchRules(state).label+' · rientro continuo · primi a '+matchRules(state).target+' eliminazioni.');$('roomtag').textContent=MAPS[ACTIVE_MAP].short+' / '+(state.preview?'VISITA':training?'TRAINING':room);$('copy').hidden=training;const p=state.players[id];$('feed').replaceChildren();kills.clear();kills.reconcile(state,matchNow(),presentKill);if(p){syncWeapon(p);local.x=p.x;local.z=p.z;yaw=p.yaw;localLife=p.life;pitch=0;jump=local.y=p.y||0;local.groundY=p.groundY||0;jumpV=local.jumpV=local.duck=0;local.landingUntil=0;localView.reset({...local,life:p.life});jumpRequestUntil=-Infinity}lastDamageHP=100;lastDeath=null;$('deathcard').hidden=true;document.querySelector('.pausebox>small').textContent=touch.enabled?'Joystick a sinistra · trascina a destra per mirare · pulsante SPARA':'Clic sinistro spara · Destro ottica AVERLA · 1–6 equipaggiamento · Q ultima arma · V coltello · G granate (rotella o G sceglie, clic lancia) · Z fumogeno: rilascia sinistro lungo, destro corto, entrambi medio';$('resume').textContent='ENTRA IN CAMPO ↗'}
+function start(){const visits=MAPS[ACTIVE_MAP].visits;$('visitnav').hidden=!(state.preview&&visits);if(visits)$('visitpoint').replaceChildren(...Object.entries(visits).map(([key,v])=>Object.assign(document.createElement('option'),{value:key,textContent:v[3]})));$('visitpoint').value='spawn';$('resume').hidden=false;$('reconnect').hidden=true;resetGuestNet();if(!training)holdScreen();clock.reset(state.now??state.started??Date.now());state.now=clock.time;snapshots.clear();lastSnapshotAt=performance.now();if(!host)snapshots.push(state,lastSnapshotAt);playing=true;ready=false;resultHandled=null;matchStartXP=career.data.xp;mapSelect.disabled=true;networkSeq=0;clearActions();local.vx=local.vz=0;camera.fov=BASE_FOV;camera.updateProjectionMatrix();$('menu').hidden=true;$('hud').hidden=false;void $('hud').offsetHeight;/* lay the HUD out now, in the click, not in the first frame of the match */frameMeter.reset();$('pause').hidden=false;$('pausetitle').textContent='PRONTO A ENTRARE?';$('pausetext').textContent=state.preview?'Visita libera senza bot e senza limite di tempo. H nasconde l’HUD, ESC torna al menu pausa.':(training?'Allenamento con '+Object.values(state.players).filter(p=>p.bot).length+' bot. ':state.ranked?'Partita classificata · '+state.ranked.size+' contro '+state.ranked.size+'. ':'Stanza '+room+'. ')+(isRoundMode(state.mode)?'Una vita per round · prima squadra a '+matchRules(state).target+'.':state.mode==='corsa'?'CORSA ALLE ARMI · rientro continuo · sei armi, due uccisioni a gradino · finisci col coltello.':matchRules(state).label+' · rientro continuo · primi a '+matchRules(state).target+' eliminazioni.');$('roomtag').textContent=MAPS[ACTIVE_MAP].short+' / '+(state.preview?'VISITA':training?'TRAINING':state.ranked?'CLASSIFICATA':room);$('copy').hidden=training||!!state.ranked;const p=state.players[id];$('feed').replaceChildren();kills.clear();kills.reconcile(state,matchNow(),presentKill);if(p){syncWeapon(p);local.x=p.x;local.z=p.z;yaw=p.yaw;localLife=p.life;pitch=0;jump=local.y=p.y||0;local.groundY=p.groundY||0;jumpV=local.jumpV=local.duck=0;local.landingUntil=0;localView.reset({...local,life:p.life});jumpRequestUntil=-Infinity}lastDamageHP=100;lastDeath=null;$('deathcard').hidden=true;document.querySelector('.pausebox>small').textContent=touch.enabled?'Joystick a sinistra · trascina a destra per mirare · pulsante SPARA':'Clic sinistro spara · Destro ottica AVERLA · 1–6 equipaggiamento · Q ultima arma · V coltello · G granate (rotella o G sceglie, clic lancia) · Z fumogeno: rilascia sinistro lungo, destro corto, entrambi medio';$('resume').textContent='ENTRA IN CAMPO ↗'}
 // `linger` leaves the channels open a moment so a last goodbye can leave the machine.
 function disconnectNetwork(linger=0){stopTicker?.();stopTicker=null;const session=networkSession;networkSession=null;if(session){if(linger)setTimeout(()=>session.close(),linger);else session.close();}peer=null;upstream=null;guestFast=null;connections.clear();signalingDown=false;setBanner('');wakeLock?.release?.().catch?.(()=>{});wakeLock=null;}
 function resetGuestNet(){const t=performance.now();resetPrediction();nextSend=0;lastPacketAt=lastStateAt=watchAt=t;netStalled=false;setBanner('');}
@@ -650,7 +683,12 @@ function saveSeat(code,token){rejoinToken={room:code,token};try{sessionStorage.s
 function seatFor(code){let seat=rejoinToken;try{seat??=JSON.parse(sessionStorage.getItem('ob-seat')||'null');}catch{}return seat?.room===code&&typeof seat.token==='string'?seat.token:null;}
 function forgetSeat(){rejoinToken=null;try{sessionStorage.removeItem('ob-seat');}catch{}}
 function cleanup(rejoining=false){
- const stay=rejoining===true;if(networkSession&&!training&&!stay){if(host)broadcast({type:'bye'});else if(upstream?.open)sendPacket(upstream,{type:'bye'});}if(!stay)forgetSeat();
+ const stay=rejoining===true;
+ // V50: leaving a ranked match that is not over is told to the service: as a walk-out, or as a room that died.
+ rankedVerdict(null);
+ if(state.ranked&&rankedTicket&&!stay){const t=rankedTicket,over=state.ended,gone=!host&&!upstream?.open;rankedTicket=null;
+  if(over)rankedCard.reset('');else ranked.report({match:t.id,ended:false,quit:!gone,hostLost:gone,blue:state.score.blue,orange:state.score.orange}).catch(()=>{}).finally(()=>rankedCard.reset(gone?'La stanza si è chiusa prima della fine: la partita non conta per chi è rimasto.':'Hai abbandonato la partita classificata.'));}
+if(networkSession&&!training&&!stay){if(host)broadcast({type:'bye'});else if(upstream?.open)sendPacket(upstream,{type:'bye'});}if(!stay)forgetSeat();
  kills.clear();clearHistory();viewKick.reset();sfx.cancelReload('local');sfx.setAmbience(.5);document.documentElement.classList.remove('clean-view');awaitingPointerLock=false;touch.setActive(false);resetBots();snapshots.clear();clock.pause();playing=false;ready=false;clearActions();document.exitPointerLock?.();disconnectNetwork(150);
  state={players:{},score:{blue:0,orange:0},started:0,ended:false};for(const g of avatars.values())releaseAvatar(g);avatars.clear();mapSelect.disabled=false;
  $('hud').hidden=$('pause').hidden=$('board').hidden=true;$('menu').hidden=false;for(const key of ['create','join','practice','explore'])$(key).disabled=false;
@@ -673,14 +711,14 @@ let shownRoom='';
 const randomDevice=()=>Array.from(crypto.getRandomValues(new Uint8Array(16)),v=>v.toString(16).padStart(2,'0')).join('');
 function deviceId(){let v='';try{v=localStorage.getItem('ob-device')||'';if(!v){v=randomDevice();localStorage.setItem('ob-device',v);}}catch{v||=randomDevice();}return v;}
 function refreshRoomList(){
- const guests=host&&!training&&networkSession?Object.values(state.players).filter(p=>!p.bot&&p.id!==id):[],seen=guests.map(p=>p.id+':'+p.name+':'+!!p.away).join('|');if(seen===shownRoom)return;shownRoom=seen;
+ const guests=host&&!training&&networkSession&&!state.ranked?Object.values(state.players).filter(p=>!p.bot&&p.id!==id):[],seen=guests.map(p=>p.id+':'+p.name+':'+!!p.away).join('|');if(seen===shownRoom)return;shownRoom=seen;
  $('roomplayers').hidden=!guests.length;$('roomlist').replaceChildren(...guests.map(p=>{const row=document.createElement('li'),name=document.createElement('span'),button=document.createElement('button');name.textContent=p.name;if(p.away){const away=document.createElement('small');away.textContent='assente';name.append(away);}button.textContent='RIMUOVI';button.setAttribute('aria-label','Rimuovi '+p.name+' dalla stanza');button.onclick=()=>askKick(p.id);row.append(name,button);return row;}));
 }
 function askKick(pid){const p=state.players[pid];if(!p)return;kickTarget=pid;$('kick-text').textContent=p.name+' esce subito dalla stanza e non potrà rientrare in questa partita.';$('kickconfirm').hidden=false;$('kick-cancel').focus();}
 const focusRoom=()=>($('roomlist').querySelector('button')||$('resume')).focus();
 function closeKick(){kickTarget=null;$('kickconfirm').hidden=true;focusRoom();}
 function kickPlayer(pid){
- const p=state.players[pid];if(!host||training||!networkSession||!p||p.bot||pid===id)return;
+ const p=state.players[pid];if(!host||training||!networkSession||state.ranked||!p||p.bot||pid===id)return;
  kicked.peers.add(pid);if(p.token)kicked.tokens.add(p.token);if(p.device)kicked.devices.add(p.device);
  const c=connections.get(pid);connections.delete(pid);c?.eject();networkSession.cancel(p.seatTimer);freeBody(p);delete state.players[pid];event({kind:'info',text:p.name+' è stato rimosso dall’host'});fillRoomBots();refreshRoomList();
 }
@@ -704,14 +742,16 @@ function joinConnection(c,session){
   if(joined&&state.players[c.peer])state.players[c.peer].seen=Date.now();
   if(m.type==='hello'&&!joined){
    if(m.protocol!==NETWORK_PROTOCOL){reject('Versione diversa: entrambi i giocatori devono ricaricare il gioco.');return;}
+   // V50: a ranked room only opens to the players on its ticket, each with the key the service gave them alone.
+   let entry=null;if(state.ranked){entry=rankedTicket?.players.find(q=>q.rid===m.ranked?.rid&&q.rid!==rankedTicket.me&&rankedTicket.keys?.[q.rid]===m.ranked.key)||null;if(!entry){reject('Partita classificata: entra solo chi è stato abbinato dal servizio.');return;}}
    if(kicked.peers.has(c.peer)||typeof m.token==='string'&&kicked.tokens.has(m.token)||typeof m.device==='string'&&kicked.devices.has(m.device)){reject(KICKED_TEXT);return;}
    if(connections.has(c.peer)){reject('Operatore già collegato.');return;}
-   const players=Object.values(state.players),capacity=(state.teamSize||2)*2,seat=typeof m.token==='string'&&m.token?players.find(p=>p.token===m.token):null;
+   const players=Object.values(state.players),capacity=(state.teamSize||2)*2,seat=entry?players.find(p=>p.rid===entry.rid):typeof m.token==='string'&&m.token?players.find(p=>p.token===m.token):null;
    if(seat){takeSeat(seat,c,session);joined=true;session.cancel(handshake);connections.set(c.peer,c);c.sentState=null;sendPacket(c,{type:'welcome',protocol:NETWORK_PROTOCOL,id:c.peer,state:snapshotForNetwork(state),room,token:seat.token});pushDeltas();return;}
    // A seat held for someone who may come back gives way to someone who is here.
    if(players.filter(p=>!p.bot).length>=capacity){const held=players.find(p=>p.away&&!connections.has(p.id));if(!held){reject('La stanza è piena ('+capacity+' giocatori).');return;}session.cancel(held.seatTimer);delete state.players[held.id];}
    if(players.length>=capacity){const bot=replaceableBot(players.filter(q=>!q.heldBy),m.team,state.teamSize||2);if(bot)delete state.players[bot.id];}
-   const p=addPlayer(c.peer,m.name,m.team,false,m.finishes,m.weapon,m.operator);if(!p){reject('Nessun posto disponibile.');return;}p.emblem=cleanEmblem(m.emblem);
+   const p=addPlayer(c.peer,entry?entry.name:m.name,entry?entry.team:m.team,false,m.finishes,m.weapon,m.operator);if(!p){reject('Nessun posto disponibile.');return;}p.emblem=cleanEmblem(m.emblem);if(entry){p.rid=entry.rid;p.rk=entry.rank;}
    p.device=typeof m.device==='string'?m.device.slice(0,40):'';p.loading=true;p.hp=0;p.invulnerable=0;p.token=Array.from(crypto.getRandomValues(new Uint8Array(12)),v=>v.toString(16).padStart(2,'0')).join('');readyTimer=session.after(45000,()=>{if(p.loading){farewell=true;c.close();}});joined=true;session.cancel(handshake);connections.set(c.peer,c);fillRoomBots();c.sentState=null;sendPacket(c,{type:'welcome',protocol:NETWORK_PROTOCOL,id:c.peer,state:snapshotForNetwork(state),room,token:p.token});pushDeltas();event({kind:'info',text:p.name+' è entrato nella stanza'});
   }else if(m.type==='ready'&&joined){const p=state.players[c.peer];if(p?.loading){session.cancel(readyTimer);p.loading=false;spawn(p);if(isRoundMode(state.mode)&&state.phase==='live'){p.hp=0;p.dead=0;p.invulnerable=0;}sendPacket(c,{type:'state',state:snapshotForNetwork(state)});}else if(p?.away){p.away=false;remoteInputs.set(p,new InputChannel(p.life));sendPacket(c,{type:'state',state:snapshotForNetwork(state)});event({kind:'info',text:p.name+' è rientrato'});}}
   else if(m.type==='input'&&joined)onInput(m);
@@ -743,14 +783,18 @@ function receiveState(next,own=null){
  else if(error===null&&own&&Math.hypot(local.vx,local.vz)<.1&&(p.speed||0)<.1)drift.setError(p.x-local.x,p.z-local.z);
 }
 let lostHost=null;
-async function online(create){
+async function online(create,ticket=null){
  if(!window.Peer){error('Modulo multiplayer non disponibile. Ricarica la pagina.');return;}
- const code=create?Array.from(crypto.getRandomValues(new Uint8Array(6)),v=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[v%32]).join(''):$('room').value.trim().toUpperCase();
+ const code=ticket?ticket.room:create?Array.from(crypto.getRandomValues(new Uint8Array(6)),v=>'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[v%32]).join(''):$('room').value.trim().toUpperCase(),mine=ticket?.players.find(q=>q.rid===ticket.me);
  if(!/^[A-Z2-9]{6}$/.test(code)){error('Inserisci un codice stanza di 6 caratteri.');return;}
  disconnectNetwork();if(create)for(const list of Object.values(kicked))list.clear();host=create;training=false;room=code;mapSelect.disabled=true;for(const key of ['create','join','practice','explore'])$(key).disabled=true;status('Connessione al servizio multiplayer…');
  let session;
  const active=()=>session?.active&&networkSession===session;
- const fail=(message,seat=true)=>{if(!active())return;disconnectNetwork();if(!playing){mapLoadEpoch++;configureMap(lastGoodMap);mapSelect.value=lastGoodMap;error(message);$('practice').disabled=$('explore').disabled=false;}else{pauseGame();$('pausetitle').textContent='CONNESSIONE PERSA';$('pausetext').textContent=message;$('resume').hidden=true;$('reconnect').hidden=!seat||host;}};
+ const fail=(message,seat=true)=>{if(!active())return;disconnectNetwork();
+  // A ranked guest may be here before the referee has opened the room: keep knocking for a while, then say so to the service.
+  if(ticket&&!playing){if(rankedTicket!==ticket)return;if(!create&&Date.now()-rankedSince<RANKED_JOIN_MS){status('In attesa che l’arbitro apra la stanza…');setTimeout(()=>{if(rankedTicket===ticket&&!playing&&!networkSession)online(false,ticket);},2500);return;}
+   rankedTicket=null;mapSelect.disabled=false;for(const key of ['create','join','practice','explore'])$(key).disabled=false;status('');ranked.report({match:ticket.id,ended:false,hostLost:!create,reached:false}).catch(()=>{}).finally(()=>rankedCard.reset(create?'Non è stato possibile aprire la stanza: '+message:'Non è stato possibile raggiungere la stanza. La partita viene annullata.'));return;}
+  if(!playing){mapLoadEpoch++;configureMap(lastGoodMap);mapSelect.value=lastGoodMap;error(message);$('practice').disabled=$('explore').disabled=false;}else{pauseGame();$('pausetitle').textContent='CONNESSIONE PERSA';$('pausetext').textContent=message;$('resume').hidden=true;$('reconnect').hidden=!seat||host;}};
  lostHost=fail;
  try{
   const candidate=new Peer(create?ROOM_PREFIX+code:undefined,{debug:0});peer=candidate;session=new NetworkSession(candidate);networkSession=session;stopTicker=startTicker(netTick);
@@ -763,7 +807,10 @@ async function online(create){
   candidate.on('error',e=>{if(!active()||playing||upstream?.open&&e.type!=='peer-unavailable')return;fail(e.type==='peer-unavailable'?'Stanza non trovata: controlla codice e host. Entrambi devono usare la versione aggiornata.':'Rete multiplayer non disponibile ('+e.type+'). Esci e riprova.');});
   candidate.on('open',pid=>{
    if(!active())return;if(opened){signalingDown=false;return;}opened=true;session.cancel(timeout);id=pid;
-   if(create){clock.reset(Date.now());state=createMatch($('mode').value,clock.time,botDifficulty,ACTIVE_MAP,matchOptions());addPlayer(id,$('name').value,$('team').value,false,career.data.finishes);fillRoomBots();candidate.on('connection',c=>{if(active())joinConnection(c,session);else c.close();});history.replaceState(null,'',location.pathname+'?room='+room+'&map='+ACTIVE_MAP);start();return;}
+   if(create){clock.reset(Date.now());
+    if(ticket){state=createMatch('demolition',clock.time,botDifficulty,ACTIVE_MAP,rankedOptions(ticket.size));state.ranked={id:ticket.id,size:ticket.size};state.hold=clock.time+RANKED_HOLD_MS;const p=addPlayer(id,mine.name,mine.team,false,career.data.finishes);p.rid=mine.rid;p.rk=mine.rank;}
+    else{state=createMatch($('mode').value,clock.time,botDifficulty,ACTIVE_MAP,matchOptions());addPlayer(id,$('name').value,$('team').value,false,career.data.finishes);fillRoomBots();}
+    candidate.on('connection',c=>{if(active())joinConnection(c,session);else c.close();});history.replaceState(null,'',location.pathname+(ticket?'?map=':'?room='+room+'&map=')+ACTIVE_MAP);start();return;}
    status('Collegamento diretto all’host…');const connection=candidate.connect(ROOM_PREFIX+code,{reliable:true});upstream=connection;
    let pending=session.after(NO_PATH_MS,()=>fail('Collegamento diretto non riuscito: la tua rete e quella dell’host non riescono a parlarsi. Capita su alcune reti mobili e aziendali: prova un’altra rete, per esempio il Wi-Fi, oppure chiedi a un altro di creare la stanza.'));
    let welcoming=false,latest=null;
@@ -772,14 +819,14 @@ async function online(create){
    connection.on('open',()=>{if(!active())return;session.cancel(pending);pending=session.after(30000,()=>fail('Impossibile completare l’ingresso. L’host deve restare aperto: riprova tra poco.'));status('Verifica della stanza…');
     guestFast=openFastChannel(connection,data=>{if(!active())return;lastPacketAt=performance.now();if(typeof data!=='string'){onFrame(data);return;}try{const m=JSON.parse(data);if(Number.isFinite(m?.pong))ping=Math.max(0,Math.min(9999,Date.now()-m.pong));}catch{}});
     watchConnection(connection,()=>fail('La rete si è interrotta. Puoi rientrare nella stanza: il tuo posto resta libero per un minuto.'));
-    sendPacket(connection,{type:'hello',protocol:NETWORK_PROTOCOL,name:$('name').value,team:$('team').value,finishes:career.data.finishes,operator:career.data.operator,emblem:career.data.emblem,weapon:selected,token:seatFor(code),device:deviceId()});});
+    sendPacket(connection,{type:'hello',protocol:NETWORK_PROTOCOL,name:mine?mine.name:$('name').value,team:mine?mine.team:$('team').value,finishes:career.data.finishes,operator:career.data.operator,emblem:career.data.emblem,weapon:selected,token:seatFor(code),device:deviceId(),...(ticket?{ranked:{rid:ticket.me,key:ticket.key}}:{})});});
    connection.on('data',async m=>{
     if(!active()||!m||typeof m!=='object')return;lastPacketAt=performance.now();
     if(m.type==='welcome'){
      if(welcoming||playing)return;
-     if(m.protocol!==NETWORK_PROTOCOL||m.id!==pid||!validSnapshot(m.state,pid)){console.warn('Verifica stanza:',m.protocol===NETWORK_PROTOCOL,m.id===pid,snapshotIssue(m.state,pid));fail('Dati stanza non compatibili. Ricaricate entrambi il gioco.');return;}
+     if(m.protocol!==NETWORK_PROTOCOL||m.id!==pid||!validSnapshot(m.state,pid)||(m.state.ranked?.id||'')!==(ticket?.id||'')){console.warn('Verifica stanza:',m.protocol===NETWORK_PROTOCOL,m.id===pid,snapshotIssue(m.state,pid));fail('Dati stanza non compatibili. Ricaricate entrambi il gioco.');return;}
      welcoming=true;latest=mirror.full(m.state);if(typeof m.token==='string')saveSeat(code,m.token);
-     try{const loaded=await loadMap(m.state.map||'sahra');if(!active()||!loaded)return;session.cancel(pending);state=latest;id=pid;history.replaceState(null,'',location.pathname+'?room='+room+'&map='+ACTIVE_MAP);start();sendPacket(connection,{type:'ready'});}
+     try{const loaded=await loadMap(m.state.map||'sahra');if(!active()||!loaded)return;session.cancel(pending);state=latest;id=pid;history.replaceState(null,'',location.pathname+(ticket?'?map=':'?room='+room+'&map=')+ACTIVE_MAP);start();sendPacket(connection,{type:'ready'});}
      catch{fail('Impossibile caricare la mappa della stanza. Riprova.');}
     }else if(m.type==='state'&&validSnapshot(m.state,pid))take(mirror.full(m.state));
     else if(m.type==='delta')take(mirror.delta(m.delta));
@@ -808,7 +855,7 @@ function backgroundStep(t){
  while(left>0){const slice=Math.min(left,.1);runSteps(slice,i);left-=slice;}pumpNetwork(t,i);
 }
 function hostWatch(t){
- if(t-watchAt<1000)return;const asleep=t-watchAt>3000,wall=Date.now();watchAt=t;
+ if(t-watchAt<1000)return;rankedWatch();const asleep=t-watchAt>3000,wall=Date.now();watchAt=t;
  for(const [pid,c]of connections){const p=state.players[pid];if(!p||p.loading)continue;if(asleep)p.seen=wall;else if(wall-p.seen>GUEST_SILENCE_MS){c.close();continue;}sendPacket(c,{type:'ping',stamp:t},{volatile:true});}
 }
 // The guest judges the link from any packet and the match from state that advances, so a host
@@ -828,7 +875,10 @@ $('create').onclick=()=>online(true);$('join').onclick=()=>online(false);
 $('practice').onclick=()=>{disconnectNetwork();host=true;training=true;resetBots();id='local';room='';clock.reset(Date.now());const allies=Number($('alliedbots').value),enemies=Number($('enemybots').value);state=createMatch($('mode').value,clock.time,botDifficulty,ACTIVE_MAP,{...matchOptions(),teamSize:Math.max(allies+1,enemies)});const player=addPlayer(id,$('name').value,$('team').value,false,career.data.finishes),opponent=player.team==='blue'?'orange':'blue';for(const [count,team]of [[allies,player.team],[enemies,opponent]])for(let n=0;n<count;n++)addPlayer('bot'+(++botSerial),nextBotName(Object.values(state.players),botSerial),team,true);start();};
 try{$('name').value=localStorage.getItem('ob-name')||'Operatore';}catch{$('name').value='Operatore';}$('name').oninput=()=>{try{localStorage.setItem('ob-name',$('name').value);}catch{}};const invited=new URLSearchParams(location.search).get('room');if(invited){$('room').value=invited;status('Sei stato invitato nella stanza '+invited+'. Inserisci il nome e premi →.')}
 $('resume').addEventListener('pointerdown',e=>{if(e.pointerType==='touch'&&!touch.enabled)touch.setEnabled(true);});
-$('resume').onclick=()=>{if(state.ended&&host){$('board').hidden=true;notice('');lastDamageHP=100;scopeAmount=0;aim=false;mouseDown=false;resetBots();state.score={blue:0,orange:0};delete state.corsaWinner;for(const q of Object.values(state.players)){q.tier=0;q.tierKills=0;}state.killEvents=[];kills.clear();clock.reset(Date.now());state.started=clock.time;state.now=clock.time;snapshots.clear();state.ended=false;resultHandled=null;matchStartXP=career.data.xp;state.phase='waiting';state.round=0;deaths.clear();lastDeath=null;$('feed').replaceChildren();$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';state.history=[];resetForRematch(state);for(const p of Object.values(state.players)){p.kills=p.deaths=p.assists=p.dealt=p.hs=0;if(!p.loading)spawn(p)}}enterField()};$('leave').onclick=()=>cleanup();$('reconnect').onclick=()=>{const code=room;cleanup(true);$('room').value=code;online(false);};
+$('resume').onclick=()=>{if(state.ended&&state.ranked){cleanup();return;}if(state.ended&&host){$('board').hidden=true;notice('');lastDamageHP=100;scopeAmount=0;aim=false;mouseDown=false;resetBots();state.score={blue:0,orange:0};delete state.corsaWinner;for(const q of Object.values(state.players)){q.tier=0;q.tierKills=0;}state.killEvents=[];kills.clear();clock.reset(Date.now());state.started=clock.time;state.now=clock.time;snapshots.clear();state.ended=false;resultHandled=null;matchStartXP=career.data.xp;state.phase='waiting';state.round=0;deaths.clear();lastDeath=null;$('feed').replaceChildren();$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';state.history=[];resetForRematch(state);for(const p of Object.values(state.players)){p.kills=p.deaths=p.assists=p.dealt=p.hs=0;if(!p.loading)spawn(p)}}enterField()};// V50: walking out of a ranked match costs points, so it takes a second press.
+let leaveArmed=0;const leaveLabel=$('leave').textContent;
+$('leave').onclick=()=>{if(state.ranked&&!state.ended&&networkSession&&!leaveArmed){$('leave').textContent='CONFERMA: ABBANDONA E PERDI PUNTI';leaveArmed=setTimeout(()=>{leaveArmed=0;$('leave').textContent=leaveLabel;},4000);return;}clearTimeout(leaveArmed);leaveArmed=0;$('leave').textContent=leaveLabel;cleanup();};
+$('reconnect').onclick=()=>{const code=room,t=state.ranked?rankedTicket:null;cleanup(true);if(t){rankedTicket=t;rankedSince=Date.now();online(false,t);}else{$('room').value=code;online(false);}};
 $('copy').onclick=async()=>{const url=location.origin+location.pathname+'?room='+room+'&map='+ACTIVE_MAP;try{await navigator.clipboard.writeText(url);$('copy').textContent='LINK COPIATO ✓';setTimeout(()=>$('copy').textContent='COPIA INVITO ↗',2200)}catch{prompt('Copia questo invito:',url)}};
 document.addEventListener('pointerlockchange',()=>{if(!document.pointerLockElement)lockLostAt=performance.now();if(armory.active||overlayOpen()||buyMenu.active){ready=false;awaitingPointerLock=false;clearActions();if(armory.active||buyMenu.active)$('pause').hidden=true;if(document.pointerLockElement)document.exitPointerLock();return;}if(touch.enabled)return;ready=document.pointerLockElement===canvas;if(ready){awaitingPointerLock=false;fallbackMouse=false;clearTimeout(lockRetry);if(hintText!==null)document.querySelector('.hint').textContent=hintText;}if(playing){if(state.ended){$('pause').hidden=true;$('board').hidden=false;return;}$('pause').hidden=ready;if(!ready){awaitingPointerLock=false;clearActions();if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('pausetext').textContent=state.preview?'Visita libera in pausa. H nasconde l’HUD durante la visita.':training?'Allenamento in pausa.':'La partita online continua mentre sei in pausa.';$('resume').textContent='TORNA IN CAMPO ↗';}}}});document.addEventListener('pointerlockerror',()=>{if(!armory.active)mouseFallback();});
 window.addEventListener('mousemove',e=>{if(wheelOpen&&ready){wheelMove(e.movementX,e.movementY);return;}if(touch.enabled||!ready||overlayOpen()||(fallbackMouse&&!aim))return;const gain=mouseGain(controls.value,camera.fov,aim&&selected===4);yaw-=e.movementX*gain;pitch=Math.max(-1.45,Math.min(1.45,pitch-e.movementY*gain));});window.addEventListener('keydown',e=>{if(!playing||overlayOpen()||armory.active)return;if(state.preview&&ready&&e.code==='KeyH'&&!e.repeat){document.documentElement.classList.toggle('clean-view');return;}if(['Tab','Space','ArrowUp','ArrowDown','ControlLeft','ControlRight'].includes(e.code)||e.ctrlKey&&CTRL_GAME_KEYS.test(e.code))e.preventDefault();keys[e.code]=true;if(e.code==='KeyB'){if(!e.repeat)openBuy();return}if(e.code==='KeyE'&&!e.repeat&&ready&&requestTakeover()){keys.KeyE=false;return;}if(e.code==='Escape'&&(fallbackMouse||touch.enabled)){if(!state.ended){$('pausetitle').textContent='IN PAUSA';$('resume').textContent='TORNA IN CAMPO ↗';}ready=false;$('pause').hidden=false;clearActions();}if(e.code==='Tab')$('board').hidden=false;if(ready&&e.code==='KeyR')reloadRequested=true;if(ready&&e.code==='KeyQ'&&!e.repeat)selectWeapon(backWeapon());if(ready&&e.code==='KeyV'&&!e.repeat)selectWeapon(selected===5?backWeapon():5);if(ready&&e.code==='KeyF'&&!e.repeat)requestInspection();if(ready&&e.code==='KeyX'&&!e.repeat)utilityPulse=true;if(ready&&e.code==='KeyZ'&&!e.repeat)armSmoke();if(ready&&e.code==='KeyG'&&!e.repeat)pickGrenade(1);if(ready&&e.code==='KeyH'&&!state.preview&&!e.repeat)firePulse=true;if(ready&&e.code==='KeyT'&&!e.repeat)dropPulse=true;if(ready&&e.code==='KeyY'&&!e.repeat)bombPulse=true;if(ready&&wheelOpen&&/^Digit[1-6]$/.test(e.code)){closeWheel(Number(e.code.at(-1))-1);return;}if(ready&&e.code==='KeyN'&&!e.repeat)sendSignal(pingTarget());if(ready&&e.code==='KeyU'&&!e.repeat)openWheel();if(ready&&/^Digit[1-6]$/.test(e.code))selectWeapon(Number(e.code.at(-1))-1);if(ready&&canAct(state)&&state.players[id]?.hp>0&&e.code==='Space'&&!e.repeat)jumpRequestUntil=clock.time+JUMP.bufferMs});window.addEventListener('keyup',e=>{keys[e.code]=false;if(e.code==='KeyU'&&wheelOpen)closeWheel(wheelPick);if(e.code==='Tab'&&!state.ended)$('board').hidden=true});window.addEventListener('blur',()=>{if(qaMode)return;if(playing&&ready)pauseGame();else clearActions();});document.addEventListener('visibilitychange',()=>{sfx.silence(document.hidden);if(document.hidden&&playing&&!qaMode)pauseGame();if(!document.hidden&&playing&&networkSession)holdScreen();});window.addEventListener('mousedown',e=>{if(touch.enabled||!ready||e.target!==canvas)return;if(e.button===1){e.preventDefault();sendSignal(pingTarget());return;}if((e.button===0||e.button===2)&&spectateStep(e.button===2?-1:1))return;if(grenadePick&&grenadePick!=='smoke'&&(e.button===0||e.button===2)&&throwPicked())return;if(smokeThrow.press(e.button))return;if(e.button===0){mouseDown=true;pressTrigger();}if(e.button===2){if(selected===5&&!fallbackMouse)secondaryPulse=true;else aim=controls.value.toggleAim?!aim:true;}});window.addEventListener('mouseup',e=>{if(touch.enabled)return;{const power=smokeThrow.release(e.button,performance.now());if(power)launchSmoke(power);}if(e.button===0)mouseDown=false;if(e.button===2&&!controls.value.toggleAim)aim=false});window.addEventListener('contextmenu',e=>e.preventDefault());window.addEventListener('wheel',e=>{if(ready&&!e.ctrlKey&&Math.abs(e.deltaY)>.01){if(grenadePick){pickGrenade(e.deltaY>0?1:-1);return;}if(selected===4&&aim){scopeZoom=e.deltaY<0?8:4;return;}const list=allowedWeapons(state.mode),next=weaponSwitch.wheel(e.deltaY,performance.now(),list.length);if(next!==null)cycleWeapon(e.deltaY);}},{passive:true});
@@ -912,6 +962,14 @@ function requestReady(){if(host){const p=state.players[id];if(p)p.buyReady=state
 // V42 b5: Impostazioni › ARMI: which design of each class is in the loadout, with its price in a round with economy.
 // V42 b5 review: TASTO B (Impostazioni › ARMI): 'cs' opens on the categories (B, category, item), 'rifles' on the rifles as before.
 {const row=$('buykeys'),mark=()=>{for(const b of row?.querySelectorAll('[data-keys]')||[])b.setAttribute('aria-checked',String(b.dataset.keys===buyKeys));};mark();row?.addEventListener('click',e=>{const b=e.target.closest('[data-keys]');if(!b)return;buyKeys=b.dataset.keys;try{localStorage.setItem('ob-buykeys-v42',buyKeys);}catch{}mark();});}
+// V46f: the enemy outline, strength and colour; local only (kept in this browser, never sent to the other players).
+let outlinePref={mode:'leggero',color:'rosso'};try{const v=JSON.parse(localStorage.getItem('ob-outline-v46')||'null');if(v&&typeof v==='object')outlinePref={mode:v.mode,color:v.color};}catch{}
+outlinePref=setOutlineStyle(outlinePref.mode,outlinePref.color);
+{const mark=()=>{for(const b of document.querySelectorAll('#outlinemode [data-outline]'))b.setAttribute('aria-checked',String(b.dataset.outline===outlinePref.mode));for(const b of document.querySelectorAll('#outlinecolor [data-ocolor]'))b.setAttribute('aria-checked',String(b.dataset.ocolor===outlinePref.color));},save=()=>{try{localStorage.setItem('ob-outline-v46',JSON.stringify(outlinePref));}catch{}mark();};mark();
+ $('outlinemode')?.addEventListener('click',e=>{const b=e.target.closest('[data-outline]');if(!b)return;outlinePref=setOutlineStyle(b.dataset.outline,outlinePref.color);save();});
+ $('outlinecolor')?.addEventListener('click',e=>{const b=e.target.closest('[data-ocolor]');if(!b)return;outlinePref=setOutlineStyle(outlinePref.mode,b.dataset.ocolor);save();});
+ // V46h: "Ripristina valori" also brings the outline back to its defaults (Leggero, Rosso), saved and shown at once.
+ $('controls-reset')?.addEventListener('click',()=>{outlinePref=setOutlineStyle('leggero','rosso');save();});}
 loadoutPanel=mountLoadout($('loadoutpanel'),{rows:['PISTOLA','MITRA','FUCILE · ATTACCO','FUCILE · DIFESA','CECCHINO','COLTELLO'].map((label,i)=>({slot:i,label,options:['stock',...(VARIANTS[i]||[]).filter(v=>!v.base).map(v=>v.id)].map(m=>{const item=i<5?slotItem(i,m):null;return {id:m,name:displayName(i,{model:m}),tag:m==='stock'?WEAPONS[i].label:variantFor(i,m)?.tag||'',price:item?(i===0?0:item.price):null};})})),get:i=>career.data.finishes[i]?.model||'stock',set:setLoadoutModel});
 const pipsShown={blue:'',orange:''};
 const smokeFX=new SmokeFX(scene),blastFX=new BlastFX(scene),fireFX=new FireFX(scene);smokeFX.sun=arenaSun;new CrosshairEditor(()=>[$('crosshair'),$('chpreview')]);const radar=new Radar($('radar'));let spotted=new Set(),spottedAt=0,slotsShownAt=0,shownWeapon=-1;
@@ -947,8 +1005,8 @@ putText($('network'),state.preview?'VISITA LIBERA · H NASCONDE HUD':training?pl
   // Freeze time briefs the side and the sites; round one also names the map, and
   // the first round after half time announces the side swap.
   const half=Math.max(1,matchRules(state).target-1),swap=state.round>1&&(state.round-1)%half===0,sites=(MAPS[state.map]?.sites||[]).map(s=>s.id).join(' o '),attacking=objectiveEnabled(state)&&p.team===state.attackTeam;
-  putText($('roundtitle'),state.phase==='waiting'?'IN ATTESA DEGLI AVVERSARI':state.phase==='freeze'?(state.round===1?MAPS[state.map].lobby.name+' · ':swap?'CAMBIO LATO · ':'')+'ROUND '+state.round:state.roundWinner?(state.roundWinner===p.team?'ROUND VINTO':'ROUND PERSO'):'ROUND PAREGGIATO');banner.dataset.outcome=state.phase==='result'?(state.roundWinner?state.roundWinner===p.team?'win':'loss':'draw'):'';
-  putText($('rounddetail'),state.phase==='waiting'?'Serve almeno un operatore per squadra · '+Object.values(state.players).filter(q=>!q.bot).length+'/'+(state.teamSize||2)*2+' in stanza · invita un amico dalla pausa'+(touch.enabled?'.':' (ESC).'):state.phase==='freeze'?(objectiveEnabled(state)?(attacking?'ATTACCO · porta la bomba su '+sites:'DIFESA · proteggi '+(sites.length>1?'i siti ':'il sito ')+sites.replace(' o ',' e ')):'Una vita a testa')+' · partenza tra '+sec+' s':(state.roundWinner?teamName(state.roundWinner)+' · ':'')+state.roundReason+' · prossimo round tra '+sec+' s');
+  putText($('roundtitle'),state.phase==='waiting'?(state.ranked?'IN ATTESA DEI GIOCATORI':'IN ATTESA DEGLI AVVERSARI'):state.phase==='freeze'?(state.round===1?MAPS[state.map].lobby.name+' · ':swap?'CAMBIO LATO · ':'')+'ROUND '+state.round:state.roundWinner?(state.roundWinner===p.team?'ROUND VINTO':'ROUND PERSO'):'ROUND PAREGGIATO');banner.dataset.outcome=state.phase==='result'?(state.roundWinner?state.roundWinner===p.team?'win':'loss':'draw'):'';
+  putText($('rounddetail'),state.phase==='waiting'?state.ranked?'Partita classificata · '+Object.values(state.players).filter(q=>q.rid&&!q.loading).length+'/'+state.ranked.size*2+' pronti · si parte appena ci sono tutti':'Serve almeno un operatore per squadra · '+Object.values(state.players).filter(q=>!q.bot).length+'/'+(state.teamSize||2)*2+' in stanza · invita un amico dalla pausa'+(touch.enabled?'.':' (ESC).'):state.phase==='freeze'?(objectiveEnabled(state)?(attacking?'ATTACCO · porta la bomba su '+sites:'DIFESA · proteggi '+(sites.length>1?'i siti ':'il sito ')+sites.replace(' o ',' e ')):'Una vita a testa')+' · partenza tra '+sec+' s':(state.roundWinner?teamName(state.roundWinner)+' · ':'')+state.roundReason+' · prossimo round tra '+sec+' s');
  }
  if(state.ended){showResult();notice('');$('board').hidden=false;$('pausetitle').textContent='PARTITA CONCLUSA';$('resume').textContent=host?'NUOVA PARTITA ↗':'TORNA ALLA STANZA ↗';}
  else if(p.hp<=0)notice(tactical?(viewedId&&viewedId!==id?'':'ELIMINATO · ATTENDI IL PROSSIMO ROUND'):'RIENTRO TRA '+Math.max(1,Math.ceil((p.dead-now)/1000))+' s');
@@ -1107,6 +1165,7 @@ function frame(t){
   if(!host)predictShot(i,performance.now());
   if(!training||ready)runSteps(elapsed,i);else clock.pause();
   pumpNetwork(t,i);
+  setArmsKit(career.data.operator?.kit||'assalto');
   p=state.players[id];const animationNow=matchNow(),switchPose=weaponSwitch.update(dt);{const power=smokeThrow.update(t,throwJump);throwJump=false;if(power)launchSmoke(power);if(smokeThrow.active()&&(!p||p.hp<=0||p.reload||weaponSwitch.phase!=='ready'))smokeThrow.reset();}const holding=!!grenadePick&&grenadePick!=='smoke'&&!smokeThrow.active(),throwing=smokeThrow.active()||holding;if(throwing&&throwRig!==(holding?grenadePick:'smoke')){throwRig=holding?grenadePick:'smoke';buildGun(5,1);gun.userData.canister?.userData.cap.color.set(holding?GRENADE_CAPS[grenadePick]:SMOKE_TINTS[cleanTint(career.data.operator?.smoke)].hex);}else if(!throwing&&throwRig){throwRig=false;buildGun(switchPose.index,1);}else if(!throwing&&switchPose.index!==displayed)buildGun(switchPose.index,switchPose.lower);
   if(p){
    if(p.hp<=0){clearPulses();scopeAmount=0;}else if(spectateShown)showSpectating(null,0);
@@ -1131,6 +1190,8 @@ function frame(t){
   // New bodies join at most two a frame: a full room entering at once used to build all ten in one ~60 ms frame.
   // V43 b34: the newest grenade each player has in the air drives his third-person throw (agent-gear.js), for bots, other players and a taken-over body alike.
   throwsBy.clear();for(const g of state.grenades||[]){const o=throwsBy.get(g.owner);if(!o||g.born>o.born)throwsBy.set(g.owner,g);}
+  // V46: enemies of the local player (in training the other team's bots) carry the red outline (postfx.js outlineAgent).
+  setOutlineViewport(renderer.domElement.width,renderer.domElement.height);const myTeam=state.players[id]?.team;
   let joined=0;for(const current of Object.values(state.players)){
    if(current.hp<=0&&current.death)deaths.add(current.death.victim,current.death,avatars.get(current.id));if(current.id===id)continue;if(current.hp<=0){const dead=avatars.get(current.id);if(dead)dead.visible=false;continue;}const v=renderedPlayers[current.id]||current;
    let g=avatars.get(v.id);if(!g){if(joined>=2)continue;joined++;g=avatar(v);avatars.set(v.id,g);}
@@ -1138,7 +1199,7 @@ function frame(t){
    const u=g.userData;u.poseDt=(u.poseDt||0)+dt;u.poseSlot??=poseSlots++;
    if(u.life!==v.life||u.weapon!==v.weapon||poseVisible(pose,poseShadows)||(poseFrame+u.poseSlot)%3===0){const poseDt=Math.min(u.poseDt,.15);u.poseDt=0;
     if(!animateAgent(g,poseDt,pose.speed>.2,v.weapon,pose.speed,{...pose,life:v.life,time:now,reloading:!!v.reload,reloadDuration:gunOf(v).reload,reloadProgress:v.reload?(now-(v.reloadStart||now))/ (gunOf(v).reload*1000):0,throwAge:throwsBy.has(v.id)?now-throwsBy.get(v.id).born:undefined,throwKind:throwsBy.get(v.id)?.kind||'flash'}))animateOperator(g,poseDt,pose.speed>.2);
-   }else if(u.gun?.userData.flash)u.gun.userData.flash.visible=performance.now()<(u.flashUntil||0);const finish=v.finishes?.[v.weapon];if(g.userData.appliedFinish!==finish||g.userData.appliedWeapon!==v.weapon){applyFinish(g.userData.gun,v.weapon,finish);g.userData.appliedFinish=finish;g.userData.appliedWeapon=v.weapon;if(!seenFinishes.has(v.id))seenFinishes.set(v.id,[]);seenFinishes.get(v.id)[v.weapon]=finish;utilities.prepareDrop(v.weapon,dropLook(v.weapon,finish));}dressOperator(g,v.team,v.operator);
+   }else if(u.gun?.userData.flash)u.gun.userData.flash.visible=performance.now()<(u.flashUntil||0);const finish=v.finishes?.[v.weapon];if(g.userData.appliedFinish!==finish||g.userData.appliedWeapon!==v.weapon){applyFinish(g.userData.gun,v.weapon,finish);g.userData.appliedFinish=finish;g.userData.appliedWeapon=v.weapon;if(!seenFinishes.has(v.id))seenFinishes.set(v.id,[]);seenFinishes.get(v.id)[v.weapon]=finish;utilities.prepareDrop(v.weapon,dropLook(v.weapon,finish));}dressOperator(g,v.team,v.operator);outlineAgent(g,!!myTeam&&v.team!==myTeam);
   }
   for(const[k,g]of avatars)if(!state.players[k]){releaseAvatar(g);avatars.delete(k);}
   if(t-lastHUD>100){lastHUD=t;hud();}
@@ -1156,7 +1217,7 @@ function frame(t){
 }
 requestAnimationFrame(frame);
 // Local QA hook (only with ?qa=1): inspect state and aim the camera without pointer lock.
-if(qaMode)window.__ob={signals:{show:showSignal,ping:()=>sendSignal(pingTarget()),phrase:i=>sendSignal({phrase:i}),wheel:openWheel,lineup:()=>openLineup(null),closeLineup,loadingArt,portrait:(t,k)=>armory.portrait(t,k),get marks(){return liveMarks.length;}},moments:{feed:e=>addKillFeed($('feed'),e,id,0),banner:showKillBanner,hit:showHitMarker,mvp:showRoundMvp,podium:()=>{podiumFor=null;showPodium();},kill:(killerId,victimId,o={})=>{const v=state.players[victimId],k=state.players[killerId];v.hp=0;lethal(v,k,{headshot:!!o.headshot,total:100,hits:o.hits||2,lethal:true},o.weapon??3,[v.x,1,v.z],[0,0,1],clock.time,o.how||{});},get local(){return id;}},maps:MAPS,armory,deaths,utilities,assets:{createAgent,animateAgent,dressOperator,operatorDebug},get state(){return state;},get scene(){return scene;},handsCamera,get mapScene(){return mapScene;},wallDistance,effects,sfx,viewKick,postfx,renderer,camera,flashLights,smokeFX,inspection,THREE,get rewind(){return lastRewind;},get rewindClamped(){return rewindClamped;},get viewed(){return viewedId;},get ping(){return ping;},aim(y,p=0){yaw=y;pitch=p;},holdFlash(seconds=1){shotFlash=seconds;},inspect(){inspection.request(performance.now(),true,selected);},get local(){return local;},get gun(){return gun;},emit:e=>event(e),send:m=>!host&&upstream?.open&&sendPacket(upstream,m),get net(){return {drift,mirror,pendingShots,netStalled,banner:shownBanner,fast:guestFast?.readyState,signalingDown,connections,host};}};
+if(qaMode)window.__ob={signals:{show:showSignal,ping:()=>sendSignal(pingTarget()),phrase:i=>sendSignal({phrase:i}),wheel:openWheel,lineup:()=>openLineup(null),closeLineup,loadingArt,portrait:(t,k)=>armory.portrait(t,k),get marks(){return liveMarks.length;}},moments:{feed:e=>addKillFeed($('feed'),e,id,0),banner:showKillBanner,hit:showHitMarker,mvp:showRoundMvp,podium:()=>{podiumFor=null;showPodium();},kill:(killerId,victimId,o={})=>{const v=state.players[victimId],k=state.players[killerId];v.hp=0;lethal(v,k,{headshot:!!o.headshot,total:100,hits:o.hits||2,lethal:true},o.weapon??3,[v.x,1,v.z],[0,0,1],clock.time,o.how||{});},get local(){return id;}},maps:MAPS,armory,deaths,utilities,assets:{createAgent,animateAgent,dressOperator,operatorDebug},get state(){return state;},get ranked(){return {client:ranked,card:rankedCard,ticket:rankedTicket,show:()=>showLobbyView('ranked')};},get scene(){return scene;},handsCamera,get mapScene(){return mapScene;},wallDistance,effects,sfx,viewKick,postfx,renderer,camera,flashLights,smokeFX,inspection,THREE,get rewind(){return lastRewind;},get rewindClamped(){return rewindClamped;},get viewed(){return viewedId;},get ping(){return ping;},aim(y,p=0){yaw=y;pitch=p;},holdFlash(seconds=1){shotFlash=seconds;},inspect(){inspection.request(performance.now(),true,selected);},get local(){return local;},get gun(){return gun;},emit:e=>event(e),send:m=>!host&&upstream?.open&&sendPacket(upstream,m),get net(){return {drift,mirror,pendingShots,netStalled,banner:shownBanner,fast:guestFast?.readyState,signalingDown,connections,host};}};
 window.addEventListener('resize',()=>{sizeRenderer(renderer,innerWidth,innerHeight,viewDpr(),pacing.scale);camera.aspect=handsCamera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();handsCamera.updateProjectionMatrix()});
 $('quality').disabled=false;document.querySelectorAll('[data-controls]').forEach(b=>b.disabled=false);
 const graphicsLabels={realistic:'GRAFICA: REALISTICA',sharp:'GRAFICA: NITIDA',flat:'GRAFICA: NITIDA · NO OMBRE'};
@@ -1187,10 +1248,15 @@ const lineupEl=Object.assign(document.createElement('section'),{id:'lineup',hidd
 function lineupTeam(){return $('team')?.value==='orange'?'orange':'blue';}
 function pickLineup(kit){lineupKit=kit;armory.lineupPick=kit;for(const b of lineupEl.querySelectorAll('[data-kit]'))b.setAttribute('aria-pressed',String(b.dataset.kit===kit));const k=OPERATOR_KITS.find(x=>x.id===kit);lineupEl.querySelector('.lu-desc').textContent=k?k.name+' · '+k.tag:'';}
 function openLineup(next){lineupNext=next;lineupOpen=true;$('menu').hidden=true;const op=cleanOperator(career.data.operator);
- lineupEl.innerHTML='<div class="lu-head"><small>ORECCHIONI BATTLE / SQUADRA</small><h2>SCEGLI L’OPERATORE</h2><p class="lu-desc"></p></div><div class="lu-row">'+OPERATOR_KITS.map(k=>'<button type="button" data-kit="'+k.id+'"><b>'+k.name+'</b><small>'+k.tag+'</small></button>').join('')+'</div><div class="lu-actions"><button type="button" class="quiet" data-lu="back">INDIETRO</button><button type="button" class="primary" data-lu="go">ENTRA ↗</button></div><small class="lu-hint">← → SCEGLI · INVIO ENTRA · ESC INDIETRO</small>';
+ lineupEl.innerHTML='<div class="lu-head"><small>ORECCHIONI BATTLE / SQUADRA</small><h2>SCEGLI L’OPERATORE</h2><p class="lu-desc"></p></div><div class="lu-row">'+OPERATOR_KITS.map(k=>'<button type="button" data-kit="'+k.id+'"><b>'+k.name+'</b><small>'+k.tag+'</small></button>').join('')+'</div><div class="lu-actions"><button type="button" class="quiet" data-lu="back">INDIETRO</button><button type="button" class="primary" data-lu="go">ENTRA ↗</button></div><small class="lu-hint">CLIC SULL’OPERATORE: SCEGLI · SECONDO CLIC O INVIO: ENTRA · ESC INDIETRO</small>';
  lineupEl.hidden=false;armory.showLineup(lineupTeam(),op.kit);pickLineup(op.kit);lineupEl.querySelector('[data-lu="go"]').focus();}
-function closeLineup(go){if(!lineupOpen)return;lineupOpen=false;lineupEl.hidden=true;armory.hideLineup();$('menu').hidden=false;if(go){career.setOperator({...cleanOperator(career.data.operator),kit:lineupKit});armory.onOperator?.();lineupDone=true;const next=lineupNext;lineupNext=null;next?.();}}
-lineupEl.addEventListener('click',e=>{const k=e.target.closest('[data-kit]');if(k){pickLineup(k.dataset.kit);return;}const a=e.target.closest('[data-lu]');if(a)closeLineup(a.dataset.lu==='go');});
+function closeLineup(go){if(!lineupOpen)return;lineupOpen=false;document.body.style.cursor='';lineupEl.hidden=true;armory.hideLineup();$('menu').hidden=false;if(go){career.setOperator({...cleanOperator(career.data.operator),kit:lineupKit});armory.onOperator?.();lineupDone=true;const next=lineupNext;lineupNext=null;next?.();}}
+// Check Fable: the operators themselves are clickable. A click on one picks it (it steps forward); a click on the one already
+// picked, in the scene or on its button, enters the match with it.
+const lineupClick=kit=>{if(kit===lineupKit)closeLineup(true);else pickLineup(kit);};
+window.addEventListener('click',e=>{if(!lineupOpen||e.target.closest?.('#lineup button'))return;const kit=armory.lineupHit(e.clientX,e.clientY,innerWidth,innerHeight);if(kit)lineupClick(kit);});
+window.addEventListener('mousemove',e=>{if(!lineupOpen)return;document.body.style.cursor=!e.target.closest?.('#lineup button')&&armory.lineupHit(e.clientX,e.clientY,innerWidth,innerHeight)?'pointer':'';});
+lineupEl.addEventListener('click',e=>{const k=e.target.closest('[data-kit]');if(k){lineupClick(k.dataset.kit);return;}const a=e.target.closest('[data-lu]');if(a)closeLineup(a.dataset.lu==='go');});
 window.addEventListener('keydown',e=>{if(!lineupOpen)return;const i=OPERATOR_KITS.findIndex(k=>k.id===lineupKit);if(e.code==='ArrowRight'||e.code==='ArrowLeft'){e.preventDefault();pickLineup(OPERATOR_KITS[(i+(e.code==='ArrowRight'?1:-1)+OPERATOR_KITS.length)%OPERATOR_KITS.length].id);}else if(e.code==='Escape'){e.preventDefault();closeLineup(false);}else if(e.code==='Enter'&&!e.target.closest?.('[data-lu="back"]')){e.preventDefault();closeLineup(true);}});
 document.addEventListener('click',e=>{const b=e.target.closest?.('#practice,#create,#join');if(!b||b.disabled||lineupDone||lineupOpen||touch.enabled||mobileDevice||navigator.webdriver)return;e.stopImmediatePropagation();e.preventDefault();openLineup(()=>b.click());},true);
 setPortraitSource(mobileDevice?null:(team,kit)=>armory.portrait(team,kit));
@@ -1212,12 +1278,12 @@ function showPodium(){if(podiumFor===state.started)return;podiumFor=state.starte
  const fill=xp.querySelector('i'),label=xp.querySelector('b');let n=0;
  const step=()=>{const g=segs[n];if(!g)return;label.textContent='LIVELLO '+String(g.level).padStart(2,'0');fill.style.width=g.from*100+'%';const a=fill.animate?.([{width:g.from*100+'%'},{width:g.to*100+'%'}],{duration:calmMotion.matches?1:900,delay:n?120:500,easing:'cubic-bezier(.3,.7,.2,1)',fill:'forwards'});if(!a){fill.style.width=g.to*100+'%';return;}a.onfinish=()=>{fill.style.width=g.to*100+'%';n++;step();};};step();}
 function showResult(){
- if(resultHandled!==state.started){resultHandled=state.started;career.complete(state,id);ready=false;clearActions();aim=false;document.exitPointerLock?.();showCareer();}
- const p=state.players[id],other=p.team==='blue'?'orange':'blue',draw=state.score.blue===state.score.orange,won=state.score[p.team]>state.score[other];$('resulttitle').textContent=state.corsaWinner?(state.corsaWinner.id===id?'PRIMO AL TRAGUARDO.':state.corsaWinner.name.toUpperCase()+' VINCE.'):draw?'PAREGGIO.':won?'VITTORIA.':'SCONFITTA.';
+ if(resultHandled!==state.started){resultHandled=state.started;career.complete(state,id);ready=false;clearActions();aim=false;document.exitPointerLock?.();showCareer();if(state.ranked)rankedFinish();else rankedVerdict(null);}
+ const p=state.players[id],other=p.team==='blue'?'orange':'blue',draw=!state.forfeit&&state.score.blue===state.score.orange,won=state.forfeit?state.forfeit!==p.team:state.score[p.team]>state.score[other];$('resulttitle').textContent=state.corsaWinner?(state.corsaWinner.id===id?'PRIMO AL TRAGUARDO.':state.corsaWinner.name.toUpperCase()+' VINCE.'):draw?'PAREGGIO.':won?'VITTORIA.':'SCONFITTA.';
  $('resultsummary').hidden=false;const mvp=Object.values(state.players).filter(q=>!q.spectator).sort((a,b)=>(b.kills||0)-(a.kills||0)||(b.dealt||0)-(a.dealt||0)||(a.deaths||0)-(b.deaths||0))[0];
   $('resultsummary').textContent=(mvp&&(mvp.kills||0)>0?'MVP '+(mvp.id===id?'TU':mvp.name.toUpperCase())+' · ':'')+p.kills+' eliminazioni / '+p.deaths+' morti · +'+Math.max(0,career.data.xp-matchStartXP)+' XP · LIVELLO '+String(career.level).padStart(2,'0')+' · '+(1000-career.data.xp%1000).toLocaleString('it-IT')+' XP al prossimo';
  showPodium();
- $('resultactions').hidden=false;$('rematch').disabled=!host;$('rematch').textContent=host?'RIVINCITA ↗':'IN ATTESA DELL’HOST';$('pause').hidden=true;
+ $('resultactions').hidden=false;$('rematch').hidden=!!state.ranked;$('rematch').disabled=!host;$('rematch').textContent=host?'RIVINCITA ↗':'IN ATTESA DELL’HOST';$('pause').hidden=true;
 }
 $('rematch').onclick=()=>{$('board').hidden=true;$('resume').click();};$('exitresults').onclick=cleanup;
 function describeMode(){const mode=$('mode').value,rules=modeRules(mode,ACTIVE_MAP),target=$('matchtarget'),duration=$('matchduration');
@@ -1298,3 +1364,6 @@ $('visitpoint').onchange=()=>{
  const q=MAPS[ACTIVE_MAP].visits?.[$('visitpoint').value];if(!q||blocked(q[0],q[1]))return;
  const p=state.players[id];if(!p)return;clearActions();p.x=local.x=q[0];p.z=local.z=q[1];p.groundY=local.groundY=groundHeight(p.x,p.z);p.y=jump=local.y=p.groundY;p.yaw=yaw=q[2];p.pitch=pitch=0;jumpV=local.jumpV=local.vx=local.vz=0;localView.reset({...local,life:p.life});
 };
+// V50: a page reloaded in the middle of a ranked match opens on the ranked card, where the seat is offered back.
+// Asked last, once the lobby is up: during loading the answer would arrive too late to be read.
+if(ranked.enabled&&ranked.id)ranked.me().then(v=>{if(v.active&&!playing)showLobbyView('ranked');}).catch(()=>{});

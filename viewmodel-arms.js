@@ -75,11 +75,13 @@ export function untwist(t,share=1){
 // tube from the corner of the screen to the fingers. A glove gauntlet now closes over the end of the sleeve: a short
 // flared band round the wrist segment of the forearm (it turns with the forearm's twist), its radius taken from the
 // skin itself where it sits, with a rolled rim at the sleeve end. One shared material, two small lathes per rig.
-let cuffMaterial=null;
+let cuffMaterial=null,cuffTint=null;
+// Check Fable: the cuff takes the operator's dark colour (it stayed olive on every kit).
+export function setCuffColor(hex){cuffTint=hex;if(cuffMaterial)cuffMaterial.color.set(hex??0x353a31);}
 const cuffProfile=(r,len)=>[[r*.97,-.004],[r*1.03,0],[r*1.05,len*.35],[r*1.09,len*.8],[r*1.15,len*.92],[r*1.16,len],[r*1.1,len*1.06],[r*1.02,len*1.06]].map(([x,y])=>new THREE.Vector2(x,y));
 export function addCuffs(model){
  let skin=null;model.traverse(o=>{if(o.isSkinnedMesh&&!skin)skin=o;});if(!skin)return;model.updateMatrixWorld(true);
- cuffMaterial??=new THREE.MeshStandardMaterial({color:0x353a31,roughness:.9,metalness:0,envMapIntensity:.35,name:'arms-cuff'});
+ cuffMaterial??=new THREE.MeshStandardMaterial({color:cuffTint??0x353a31,roughness:.9,metalness:0,envMapIntensity:.35,name:'arms-cuff'});
  const sk=skin.skeleton,si=skin.geometry.attributes.skinIndex,sw=skin.geometry.attributes.skinWeight,n=si.count,v=V(),pa=V(),pb=V();
  for(const side of ['L','R']){
   const t1=model.getObjectByName('BoneTwist_01'+side),end=model.getObjectByName('BoneTwist_01'+side+'_end'),hand=model.getObjectByName('Hand_'+side),bi=sk.bones.indexOf(t1);if(!t1||!end||!hand||bi<0)continue;

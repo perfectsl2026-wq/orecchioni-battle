@@ -3,12 +3,13 @@ import {STANCE,RUN_SINK} from './player-feel.js?v=42.0';
 import {readableAlbedo} from './surface-detail.js?v=42.0';
 import {prepareKits} from './weapon-kits.js?v=42.0';
 import {createKnife} from './knife.js?v=42.0';
-import {shapeArms,wrapFingers,twistRig,untwist,addCuffs,ARM_SHAPE,palmOf} from './viewmodel-arms.js?v=42.0';
+import {shapeArms,wrapFingers,twistRig,untwist,addCuffs,ARM_SHAPE,palmOf,setCuffColor} from './viewmodel-arms.js?v=42.0';
 import {ensureNodes,baseVariant,applyVariant,classicLook,holdFor,fpSupportShift} from './weapon-variants.js?v=42.0';
 import {dressRig} from './weapon-fx.js?v=42.0';
-import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear,headScale,KITS,BODIES,cleanOperator as cleanOperatorLook} from './operator-kits.js?v=42.0';
+import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear,headScale,KITS,BODIES,cleanOperator as cleanOperatorLook,PALETTE_ON,TEAM_SIGNAL,signatureOf,styleOf,PRIME_GLSL,primeUniforms,OB_FORM} from './operator-kits.js?v=42.0';
 import {PAINTS} from './weapon-finish.js?v=42.0';
-import {WEAR_KITS,wearGeometry,wearLook,wearSuitLook,wearSuitGeometry,wearHeadLook,glovesOnly,skinPart} from './operator-wear.js?v=42.0';
+import {loadDetail,detailUniforms,DETAIL_GLSL,uvMetres} from './operator-detail.js?v=42.0';
+import {weaveTexture as wearWeaveTexture,WEAR_KITS,wearGeometry,wearLook,wearSuitLook,wearSuitGeometry,wearHeadLook,glovesOnly,skinPart,fingerToneLook,ensureFingerTone} from './operator-wear.js?v=42.0';
 const cleanMask=o=>!!cleanOperatorLook(o).mask;
 import {footPlants} from './agent-locomotion.js?v=42.0';
 import {dressAgentGear,throwPhase,heldCan} from './agent-gear.js?v=42.0';
@@ -22,7 +23,7 @@ import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
 export const muzzleOf=root=>root.getObjectByName('MuzzleSocket')||root.getObjectByName('MuzzleDeviceTip');
 const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder),loaded=new Map();
 const files=['smeriglio','assillo','roncola','tarlo','averla','soldier_tac'];
-export async function preloadAssets(progress){let done=0;const total=files.length+1;const r=await Promise.allSettled([...files.map(async name=>{const g=await loader.loadAsync('./assets/models/v4/'+name+'.glb');loaded.set(name,g);progress?.(++done,total)}),preloadOperatorGear().then(()=>progress?.(++done,total))]);for(const v of r)if(v.status==='rejected')console.error('Asset non caricato',v.reason);return r.filter(v=>v.status==='rejected').length;}
+export async function preloadAssets(progress){loadDetail();let done=0;const total=files.length+1;const r=await Promise.allSettled([...files.map(async name=>{const g=await loader.loadAsync('./assets/models/v4/'+name+'.glb');loaded.set(name,g);progress?.(++done,total)}),preloadOperatorGear().then(()=>progress?.(++done,total))]);for(const v of r)if(v.status==='rejected')console.error('Asset non caricato',v.reason);return r.filter(v=>v.status==='rejected').length;}
 // First-person sleeves and gloves: the shared 1024 px texture is stretched over the
 // whole forearm and reads as smeared leather. A fine twill weave, tiled 40 times over
 // the UVs, and a less yellow, slightly desaturated tint make it read as uniform fabric.
@@ -33,13 +34,17 @@ function weaveTexture(){
   const v=Math.round(255*(.58+.42*(over?warp*(.75+.25*weft):weft*(.75+.25*warp))));data[k]=data[k+1]=data[k+2]=v;data[k+3]=255;}
  weave=new THREE.DataTexture(data,n,n);weave.wrapS=weave.wrapT=THREE.RepeatWrapping;weave.magFilter=THREE.LinearFilter;weave.minFilter=THREE.LinearMipmapLinearFilter;weave.generateMipmaps=true;weave.anisotropy=8;weave.needsUpdate=true;return weave;
 }
+// Check Fable: the first-person sleeves and gloves take the chosen operator's main colour (they were olive camo for everyone).
+const armsTint={value:new THREE.Color(1,1,1),on:{value:0}};let armsKit=null;
+export function setArmsKit(kit){if(kit===armsKit)return;armsKit=kit;const sig=kit&&signatureOf(kit);if(!sig){armsTint.on.value=0;setCuffColor(null);return;}armsTint.value.set(sig.main);armsTint.on.value=1;setCuffColor(new THREE.Color(sig.accent).multiplyScalar(.4).getHex());}
 function fabricArms(m){
- const map=weaveTexture();m.customProgramCacheKey=()=>'fabric-arms-v30';
- m.onBeforeCompile=shader=>{shader.uniforms.uWeave={value:map};
-  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D uWeave;').replace('#include <map_fragment>',`#include <map_fragment>
+ const map=weaveTexture();m.customProgramCacheKey=()=>'fabric-arms-v31';
+ m.onBeforeCompile=shader=>{shader.uniforms.uWeave={value:map};shader.uniforms.uArmsTint=armsTint;shader.uniforms.uArmsOn=armsTint.on;
+  shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nuniform sampler2D uWeave;uniform vec3 uArmsTint;uniform float uArmsOn;').replace('#include <map_fragment>',`#include <map_fragment>
   #ifdef USE_MAP
   float weaveV=texture2D(uWeave,vMapUv*40.).r;float lum=dot(diffuseColor.rgb,vec3(.299,.587,.114));
   diffuseColor.rgb=mix(vec3(lum),diffuseColor.rgb,.62)*vec3(.94,1.,.9)*(.78+.42*weaveV);
+  diffuseColor.rgb=mix(diffuseColor.rgb,max(uArmsTint,vec3(.05))*(.45+2.2*lum)*(.82+.3*weaveV),.82*uArmsOn);
   #endif`).replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n  #ifdef USE_MAP\n  roughnessFactor=clamp(roughnessFactor+.08-.16*texture2D(uWeave,vMapUv*40.).r,.0,1.);\n  #endif');};
 }
 // Skinned casters keep their own depth material, so the shared one stops switching variant between bodies and walls.
@@ -71,7 +76,11 @@ function rig(index){
    if(/^Body/.test(mat.name)){mat.color.set(0x78836d);mat.roughness=.83;mat.metalness=.05;mat.normalScale?.set(.26,.26);readableAlbedo(mat,{contrast:.88,lift:.025});}
    else if(/Scope|Gun_Metal|Zinc|Screw|Metal_Stratched/.test(mat.name)){const scope=/Scope/.test(mat.name),bright=/Screw|Zinc/.test(mat.name);mat.color.set(scope?0x2f373a:bright?0x7d8a88:0x363f43);mat.roughness=scope?.62:bright?.48:.4;mat.metalness=scope?.5:.82;mat.envMapIntensity=scope?.5:.75;mat.normalScale?.set(.35,.35);}
    else if(/glass/i.test(mat.name)){mat.color.set(0x183b40);mat.roughness=.14;mat.metalness=.5;mat.envMapIntensity=1.2;}
-  }else if(index===0||index===3)mat.color.multiplyScalar(index===0?.72:.70);
+  }else if(index<4&&!/wood/i.test(mat.name)){
+   // V47: the series weapons were near black next to the Officina designs. A graphite body with a breath of the class's
+   // own light colour (ember, teal, emerald, amethyst) puts them in the same family; the RONCOLA's wood keeps its grain.
+   const [lift,r,g,b]=[[.98,1.08,.97,.95],[1.5,.94,1.04,1.04],[1.4,.95,1.05,.98],[.98,1,.96,1.1]][index];mat.color.setRGB(mat.color.r*lift*r,mat.color.g*lift*g,mat.color.b*lift*b);
+  }
  }});return model;
 }
 // `world`: a weapon seen in the arena (other players, drops, bodies), which wears the dim tier of a design's light.
@@ -117,6 +126,8 @@ export function createArmedModel(index,bare=false){
  const hip=data.hip||{pos:[.068,.144,-.052],boreRef:[0,-.1475,.055]},r=hip.boreRef;
  root.userData.hip=new THREE.Vector3(hip.pos[0]-r[0],hip.pos[2]-r[2],-hip.pos[1]+r[1]);
  root.userData.classic=index===4&&classicSniper;if(!S0&&SEAT[index])root.userData.seat=SEAT[index];if(S0?.hip)root.userData.hip.set(...(touchView&&S0.touch?.hip||S0.hip));
+ // V49: the OB-210 ASSILLO sat so near the eye that its stock ran across the corner of the view as a fat tube: lower, right and forward.
+ if(VIEW_SHIFT[index])root.userData.hip.add(new THREE.Vector3(...VIEW_SHIFT[index]));
  const gun=model.getObjectByName('Gun_'+files[index]);dressRig(gun,baseVariant(index)?classicLook(index):index,false);ensureNodes(gun,index);const socket=muzzleOf(model);
  const flash=new THREE.Group();const f=new THREE.Mesh(new THREE.ConeGeometry(.025,.12,6),new THREE.MeshBasicMaterial({color:0xffdab0,transparent:true,opacity:.9,depthWrite:false}));f.rotation.x=-Math.PI/2;f.position.z=-.04;flash.add(f);if(socket)socket.add(flash);else gun.add(flash);flash.visible=false;
  const mag=model.getObjectByName('Magazine'),bolt=model.getObjectByName('ChargingHandle');
@@ -160,7 +171,9 @@ export function createArmedModel(index,bare=false){
   if(d.seat&&leftHand&&leftAnchor)seatShoulder(root,d,d.seat);
  // V44 review: the SMG rig's support hand (ASSILLO, TAFANO, CICALA) pointed its thumb and index straight along the
  // fore-end; the fingers and thumb now close round it (a cylinder about the bore at the palm's height, 80 % of its reach).
- if(index===1&&leftHand){root.updateMatrixWorld(true);const palm=palmOf(leftHand,'L'),gl=gun.worldToLocal(palm.clone()),c=gun.localToWorld(new THREE.Vector3(0,gl.y,gl.z)),ax=gun.localToWorld(new THREE.Vector3(0,gl.y,gl.z+1)).sub(c);wrapFingers(model,'L',c,ax,c.distanceTo(palm)*.8,{thumb:true,open:.1});}
+ // Check Fable: the two stock rifles close the support hand round the fore-end the same way (their authored fingers stood open
+ // and read as a hand hanging off the rifle whenever it showed in profile).
+ if((index===1||index===2||index===3)&&leftHand){root.updateMatrixWorld(true);const palm=palmOf(leftHand,'L'),gl=gun.worldToLocal(palm.clone()),c=gun.localToWorld(new THREE.Vector3(0,gl.y,gl.z)),ax=gun.localToWorld(new THREE.Vector3(0,gl.y,gl.z+1)).sub(c);wrapFingers(model,'L',c,ax,c.distanceTo(palm)*.8,{thumb:true,open:.1});}
  // V44: the trigger hand's fingers close round the pistol grip (they stood open in front of it).
  if(index===0&&!bare&&SUPPORT_0.grip){root.updateMatrixWorld(true);const [p,a,r]=SUPPORT_0.grip,g=gun.localToWorld(new THREE.Vector3(...p)),dir=gun.localToWorld(new THREE.Vector3(...p).add(new THREE.Vector3(...a))).sub(g);wrapFingers(model,'R',g,dir,r*gun.getWorldScale(new THREE.Vector3()).x,{fingers:[1,2,3],open:.2});}
  return root;
@@ -244,6 +257,7 @@ const WORK={
  port4c:{at:[-.02,.03,.03],turn:[0,0,0]}
 };
 const workPart=(d,kind)=>kind==='scope'||kind==='port'||kind==='port4c'?d.port:kind==='handle'||kind==='handle4'?d.bolt:d.magSocket;
+const rideLift=new THREE.Vector3(),RIDE_LIFT=[0,.03,.035,.035];
 function inspectRig(root,d,ip,w){
  const rq=root.getWorldQuaternion(rigQ[1]),rqi=rigQ[0].copy(rq).invert(),p=d.pivot,R=rigQ[2].setFromEuler(rigE.set(ip.pitch*w,ip.yaw*w,ip.roll*w,'YXZ'));
  // Long guns are held further out when turned, so the whole piece stays in the frame.
@@ -257,6 +271,9 @@ function inspectRig(root,d,ip,w){
  if(d.index===5)return;
  // The support hand rides the fore-end, and leaves it to work a part or to make room.
  const gq=rigQ[4].copy(rq).multiply(R).multiply(rqi),ridePos=pv[3].copy(handPos).applyMatrix4(D),rideQ=rigQ[5].copy(gq).multiply(handQ),h=ip.hand*w;
+ // Check Fable: seen in profile the support hand hung open a few centimetres under the stock long guns; it closes up to the
+ // weapon as the piece turns (gun's own up axis), and is back at its fitted hold when the inspection settles.
+ if(d.index>=1&&d.index<=3){const lift=RIDE_LIFT[d.index]*turned;ridePos.add(rideLift.set(0,lift,0).applyQuaternion(R).applyQuaternion(rq));}
  if(h>.001){
   // Where the hand works: a part of the weapon (rest frame offsets turned with it), or a
   // low point out of the way (the pouch, when it carries a magazine).
@@ -278,7 +295,7 @@ function inspectRig(root,d,ip,w){
   if(ip.alt>.001&&d.bolt){const altPos=pv[7];aim(d.classic?'port4c':d.index===4?'handle4':'handle',altPos,aq);workPos.lerp(altPos,ip.alt);workQ.slerp(aq,ip.alt);}
   // Out of the way: straight down past the frame, never toward the camera (a forearm
   // pointed at the lens reads as a tube across the picture).
-  const away=pv[6].copy(handPos).add(pv[7].fromArray(ip.reload?[-.03,-.24,.12]:[-.09,-.22,-.02]).applyQuaternion(rq)),u=ip.target;
+  const away=pv[6].copy(handPos).add(pv[7].fromArray(ip.reload?[-.03,-.24,.12]:[-.09,-.34,-.02]).applyQuaternion(rq)),u=ip.target;
   workPos.lerp(away,u);workQ.slerp(handQ,u);
   ridePos.lerp(workPos,h).add(pv[7].set(-.035,-.035,.035).applyQuaternion(rq).multiplyScalar(Math.sin(Math.PI*h)));rideQ.slerp(workQ,h);
  }
@@ -338,6 +355,9 @@ function seatShoulder(root,d,S){
 }
 // The pistol rig (and the knife's, built on it): the glove a further size down, two hands round a grip 3 cm wide.
 const PISTOL_ARMS={...ARM_SHAPE,hand:.72};
+// Knife strike poses, camera space: x, y, z (metres), pitch, yaw, roll (radians).
+const KNIFE_CUT={pull:[.05,.03,.02,.05,-.15,.3],hit:[-.16,-.03,-.09,-.25,.3,-.75]},KNIFE_STAB={pull:[-.02,-.035,.07,.12,0,.12],hit:[-.085,.045,-.17,-.18,.12,-.28]};
+const VIEW_SHIFT={1:[.045,-.042,-.05]};
 const SEAT={1:{shoulder:[-.12,-.19,.15],pole:[-.35,-.8,.05]},2:{shoulder:[-.12,-.2,.16],pole:[-.35,-.8,.05]},3:{shoulder:[-.12,-.2,.16],pole:[-.35,-.8,.05]}};
 // A turn of the support hand between two holds, each given as the knuckle line (index to little finger) and the
 // palm's facing in the rifle's frame. The AVERLA's hand rests on the forward grip; on the magazine the knuckle line
@@ -354,7 +374,9 @@ export function animateViewmodel(root,{time,moving,aim,recoil,reloading,reloadDu
  // weapon back to the firing pose in about 60 ms instead of drifting back.
  if(raw){d.ipLast=raw;d.ipW=1;}else d.ipW=(d.ipW||0)*Math.exp(-dt/.018);const ipw=raw?1:d.ipW>.01?d.ipW:0,ip=ipw?d.ipLast:null;
  const target=d.motionTarget??=new THREE.Vector3();target.copy(hip);if(aim){target.x=0;target.y-=.015;target.z+=.025}target.x+=motion.weaponX||0;target.y+=motion.weaponY??bob;target.z+=recoil*.25;
- const slash=d.index===5&&strike>0?Math.sin(Math.PI*Math.min(1,strike)):0;
+ // V49: the knife's strike is its own layer (below), outside the smoothing that flattened it into a small tilt.
+ if(globalThis.__qaStrike){strike=globalThis.__qaStrike[0];heavy=!!globalThis.__qaStrike[1];}
+ const slash=0;
  target.y-=switchLower*.30;target.z+=switchLower*.09;
  if(slash){target.x-=slash*(heavy?.09:.14);target.y+=slash*(heavy?.02:.035);target.z-=slash*(heavy?.18:.07);}
  // Smoke throw (V42): the canister comes up into the middle while the pin is pulled, is drawn back
@@ -366,10 +388,14 @@ export function animateViewmodel(root,{time,moving,aim,recoil,reloading,reloadDu
   if(t>0){const a=Math.min(1,t/.1),b=t<.06?0:Math.min(1,(t-.06)/.22),e=Math.max(0,(t-.28)/.72);
    if(u.lob){target.y+=-.08*a+.12*b-.14*e;target.z-=.2*b;throwPitch+=.32*a-.72*b+.25*e;}
    else{target.x-=.03*b;target.y+=.07*a+.05*b-.22*e;target.z+=.12*a-.4*b+.1*e;throwPitch+=-.45*a+.95*b-.3*e;}}
-  else{target.z+=.05*u.cook;target.y+=.02*u.cook;throwPitch-=.14*u.cook;}}
+  // V49: a real wind-up while a button is held: the canister is drawn back beside the head (overhand) or swung
+  // down and back by the hip (underhand lob), so the throw starts from a loaded arm.
+  else if(u.under){target.y-=.07*u.cook;target.z+=.05*u.cook;throwPitch+=.3*u.cook;}
+  else{target.x+=.03*u.cook;target.z+=.09*u.cook;target.y+=.065*u.cook;throwPitch-=.42*u.cook;}}
  const cycle=cycling>0?Math.sin(Math.PI*cycling):0;const roll=cycle*.16,pitch=recoil*.8+cycle*.07+switchLower*.45+(d.index===5?slash*.45:0)+throwPitch;target.y-=cycle*.035;
  // Spring kick is layered on top of the smoothed base pose and removed before smoothing again.
  const kick=motion.kick,applied=d.appliedKick??={x:0,y:0,z:0,pitch:0,yaw:0,roll:0};
+ const ks=d.knifeSwing??={x:0,y:0,z:0,pitch:0,yaw:0,roll:0};root.position.x-=ks.x;root.position.y-=ks.y;root.position.z-=ks.z;root.rotation.x-=ks.pitch;root.rotation.y-=ks.yaw;root.rotation.z-=ks.roll;
  root.position.x-=applied.x;root.position.y-=applied.y;root.position.z-=applied.z;root.rotation.x-=applied.pitch;root.rotation.y-=applied.yaw;root.rotation.z-=applied.roll;
  // OB-510 AVERLA: the hip turn and cant fade out as an inspection or reload pose builds and back in as it settles
  // (V42 review: dropping them on the key swung the rifle end-on before the moves began, and back after they ended).
@@ -381,6 +407,18 @@ export function animateViewmodel(root,{time,moving,aim,recoil,reloading,reloadDu
  const rollGoal=roll+(motion.roll||0)-switchLower*.35-(d.index===5?slash*.65:0);
  root.position.lerp(target,1-Math.exp(-16*dt));root.rotation.x=THREE.MathUtils.damp(root.rotation.x,pitch,18,dt);root.rotation.y=THREE.MathUtils.damp(root.rotation.y,0,12,dt);root.rotation.z=THREE.MathUtils.damp(toward(root.rotation.z,rollGoal),rollGoal,12,dt);
  h4.yaw=S4?S4.yaw*h4.w:0;h4.roll=S4?S4.roll*h4.w:0;root.rotation.y+=h4.yaw;root.rotation.z+=h4.roll;
+ // Knife strike: a wind-up, the cut or the thrust, and the recovery. Light: drawn back to the right, then swept across
+ // to the left with the edge leading. Heavy: pulled back to the hip, then driven straight in, point first.
+ if(d.index===5&&strike>0&&strike<1){const seg=(a,b)=>{const x=Math.min(1,Math.max(0,(strike-a)/(b-a)));return x*x*(3-2*x);};
+  if(heavy){const back=seg(0,.3),go=seg(.3,.46),out=seg(.62,1),pull=back*(1-go),in_=go*(1-out);
+   ks.x=KNIFE_STAB.pull[0]*pull+KNIFE_STAB.hit[0]*in_;ks.y=KNIFE_STAB.pull[1]*pull+KNIFE_STAB.hit[1]*in_;ks.z=KNIFE_STAB.pull[2]*pull+KNIFE_STAB.hit[2]*in_;ks.pitch=KNIFE_STAB.pull[3]*pull+KNIFE_STAB.hit[3]*in_;ks.yaw=KNIFE_STAB.pull[4]*pull+KNIFE_STAB.hit[4]*in_;ks.roll=KNIFE_STAB.pull[5]*pull+KNIFE_STAB.hit[5]*in_;}
+  else{const back=seg(0,.22),go=seg(.22,.5),out=seg(.56,1),pull=back*(1-go),cut=go*(1-out);
+   ks.x=KNIFE_CUT.pull[0]*pull+KNIFE_CUT.hit[0]*cut;ks.y=KNIFE_CUT.pull[1]*pull+KNIFE_CUT.hit[1]*cut;ks.z=KNIFE_CUT.pull[2]*pull+KNIFE_CUT.hit[2]*cut;ks.pitch=KNIFE_CUT.pull[3]*pull+KNIFE_CUT.hit[3]*cut;ks.yaw=KNIFE_CUT.pull[4]*pull+KNIFE_CUT.hit[4]*cut;ks.roll=KNIFE_CUT.pull[5]*pull+KNIFE_CUT.hit[5]*cut;}}
+ else ks.x=ks.y=ks.z=ks.pitch=ks.yaw=ks.roll=0;
+ // The turn is about the grip, so the hand and blade turn in place and the forearm's cut end stays out of view.
+ if(ks.pitch||ks.yaw||ks.roll){const pv0=v[6].copy(d.pivot||v[7].set(0,0,0)).applyQuaternion(root.quaternion);root.rotation.x+=ks.pitch;root.rotation.y+=ks.yaw;root.rotation.z+=ks.roll;
+  const pv1=v[7].copy(d.pivot||v[7].set(0,0,0)).applyQuaternion(root.quaternion);ks.x+=pv0.x-pv1.x;ks.y+=pv0.y-pv1.y;ks.z+=pv0.z-pv1.z;}
+ root.position.x+=ks.x;root.position.y+=ks.y;root.position.z+=ks.z;
  const live=kick&&!raw&&d.index!==5?kick:null;for(const key of ['x','y','z','pitch','yaw','roll'])applied[key]=live?live[key]:0;
  root.position.x+=applied.x;root.position.y+=applied.y;root.position.z+=applied.z;root.rotation.x+=applied.pitch;root.rotation.y+=applied.yaw;root.rotation.z+=applied.roll;
  for(const arm of d.fpArms)if(arm){arm.joints.forEach((j,i)=>j.quaternion.copy(arm.rest[i]));if(arm.twist)arm.twist.bones.forEach((b,i)=>b.quaternion.copy(arm.twist.rest[i]));if(arm.leftAnchorRest)arm.leftAnchor.position.copy(arm.leftAnchorRest);if(arm.leftHand&&arm.leftRest){arm.leftHand.quaternion.copy(arm.leftRest);if(arm.handPosRest)arm.leftHand.position.copy(arm.handPosRest);}}
@@ -403,7 +441,10 @@ export function animateViewmodel(root,{time,moving,aim,recoil,reloading,reloadDu
     ring.visible=pull<.98;ring.position.copy(can.userData.ringRest);ring.position.x-=pull*.13;ring.position.y+=Math.sin(Math.PI*pull)*.09-pull*pull*.12;ring.rotation.set(pull*9,Math.PI/2,pull*5);
     can.userData.lever.rotation.x=-.1-(u.throw>.1?.9:0);}}
   // The free hand is lowered out of the way.
-  if(d.leftHand){root.updateMatrixWorld(true);placeHand(d.fpArms[0],d.leftHand.getWorldPosition(v[0]).add(v[1].set(-.14,-.10,.02).applyQuaternion(rq)),null,v[2].set(-.35,-.7,.02).applyQuaternion(rq));}
+  // V49: during a knife strike the whole rig travels forward; the free arm stays back and drops, out of the view.
+  if(d.leftHand){const kw=Math.min(1,Math.hypot(ks.x,ks.y,ks.z)/.08),L=d.fpArms[0];
+   if(kw>0&&L.leftAnchor){root.updateMatrixWorld(true);const p=L.leftAnchor.getWorldPosition(v[3]).add(v[4].set(-ks.x-.05*kw,-ks.y-.22*kw,-ks.z+.05*kw).applyQuaternion(rq));L.leftAnchor.position.copy(L.leftAnchor.parent.worldToLocal(p));}
+   root.updateMatrixWorld(true);placeHand(L,d.leftHand.getWorldPosition(v[0]).add(v[1].set(-.14-ks.x-.04*kw,-.10-ks.y-.2*kw,.02-ks.z+.05*kw).applyQuaternion(rq)),null,v[2].set(-.35,-.7,.02).applyQuaternion(rq));}
  }
  // V44 review: a design whose fore-end is shorter or sits higher than the rig's own takes the support hand back onto it
  // (the OB-315 MAGLIO's hand reached past its muzzle device on the RONCOLA's long fore-end); gun units, per design.
@@ -542,10 +583,15 @@ const teamLooks={},tintedLooks=new WeakSet();
 // clone shares the same skeleton rest) and expressed in each anchor bone's own frame, so a
 // cached template can be cloned onto any operator in any pose: the clone shares the
 // template's geometry and the team's materials, and only the gear groups change hands.
-const operatorRest={frames:null,anchors:null},gearTemplates=new Map(),GEAR_BONES={head:'Head',chest:'Spine2',hips:'Hips',shoulderL:'LeftArm',shoulderR:'RightArm'};
+const operatorRest={frames:null,anchors:null},gearTemplates=new Map(),GEAR_BONES={head:'Head',chest:'Spine2',hips:'Hips',shoulderL:'LeftArm',shoulderR:'RightArm',cape:'Spine2',forearmL:'LeftForeArm',forearmR:'RightForeArm',tail:'Hips'};
 function captureOperatorRest(root,bones){
  if(operatorRest.frames)return;root.updateMatrixWorld(true);const frames={},anchors={};
  for(const [anchor,name] of Object.entries(GEAR_BONES)){const bone=bones.get(name);if(!bone)continue;frames[anchor]=bone.matrixWorld.clone();anchors[anchor]=bone.getWorldPosition(new THREE.Vector3());}
+ if(PALETTE_ON&&bones.get('LeftForeArm'))anchors.elbowL=bones.get('LeftForeArm').getWorldPosition(new THREE.Vector3());
+ // V46g: the wrists, for gear laid along the forearms (LINCE's claws, on the forearm anchors).
+ if(PALETTE_ON)for(const [k,b] of [['handL','LeftHand'],['handR','RightHand']])if(bones.get(b))anchors[k]=bones.get(b).getWorldPosition(new THREE.Vector3());
+ // V46h: LINCE's tail pivots at the back of the belt (15 cm behind the hips, 3 cm down).
+ if(anchors.tail)anchors.tail.add(new THREE.Vector3(0,-.03,.148));
  anchors.head.y+=.105;anchors.side=Math.sign(bones.get('RightUpLeg')?.getWorldPosition(new THREE.Vector3()).x||1)||1;
  operatorRest.frames=frames;operatorRest.anchors=anchors;
 }
@@ -669,8 +715,8 @@ function bodyFit(kit,skin){
 // or all over if it has no mask, and their emissive bits glow in the team's light (under the bloom threshold, postfx.js, like
 // every agent); the rest keep the model's own colours. Painted plates, not chrome: one program per role for every body.
 const bodyLooks=new Map(),BODY_TEAM={blue:[.2,.33,.52],orange:[.72,.4,.17]},BODY_GLOW={blue:[.08,.42,1],orange:[1,.36,.05]};
-export function bodyLook(kit,team){
- const key=kit+':'+team;if(bodyLooks.has(key))return bodyLooks.get(key);
+export function bodyLook(kit,team,tw=''){
+ const key=kit+':'+team+(tw?':'+tw:'');if(bodyLooks.has(key))return bodyLooks.get(key);
  const fit=[...bodyFits.entries()].find(([k,f])=>f&&k.startsWith(kit+':'))?.[1],cfg=BODIES[kit]||{};if(!fit)return [];
  const looks=fit.parts.map(part=>{
   const src=part.material,m=src.clone();m.name='op-'+kit+'-'+src.name;m.userData.teamLook=true;m.transparent=false;m.depthWrite=true;m.alphaTest=0;m.side=THREE.DoubleSide;m.envMapIntensity=.45;
@@ -693,6 +739,10 @@ export function bodyLook(kit,team){
      .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\n metalnessFactor=.18;');};
    m.map=null;m.color.set(0xffffff);m.customProgramCacheKey=()=>'operator-body-v44-zones';m.needsUpdate=true;return m;}
   const role=/_Team/.test(src.name)?'team':'';
+  // V46 proposal (?oppal=1): the operator's signature palette instead of the team dye (operator-kits.js SIGNATURE); the glow is the team's signal.
+  const sig=signatureOf(kit,tw);if(sig){if(role)return paletteBody(m,src,kit,team,sig,cfg,part);if(!m.map&&!/visor/i.test(src.name)){const r=sig.helmet||'dark';m.color.set(sig[r]);[m.roughness,m.metalness]=sig.pbr[r];m.onBeforeCompile=sh=>{sh.fragmentShader=sh.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM);};m.customProgramCacheKey=()=>'operator-helm-form';}
+   // V46f: the visor tint chosen in the Officina (gold, smoke, emerald) over the visor's own reflections.
+   if(sig.visor&&/visor/i.test(src.name)){m.color.set(sig.visor);if(m.map)m.color.multiplyScalar(1.5);m.roughness=Math.min(m.roughness,.12);m.metalness=Math.max(m.metalness,.6);}m.needsUpdate=true;return m;}
   if(role){const u={bodyTeam:{value:new THREE.Color().setRGB(...(cfg[team]||BODY_TEAM[team]),THREE.SRGBColorSpace)},bodyMix:{value:cfg.mix??1},bodyDetail:{value:cfg.detail||0},bodyGlow:{value:new THREE.Color(...BODY_GLOW[team])}};
    m.onBeforeCompile=shader=>{Object.assign(shader.uniforms,u);shader.fragmentShader='uniform vec3 bodyTeam;uniform float bodyMix;uniform float bodyDetail;uniform vec3 bodyGlow;\n'+shader.fragmentShader
     .replace('#include <map_fragment>','#include <map_fragment>\n  {float lum=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));float k=diffuseColor.a*bodyMix*smoothstep(.002,.012,lum);diffuseColor.rgb=mix(diffuseColor.rgb,bodyTeam*(1.5*mix(sqrt(lum),1.32*pow(lum,.75),bodyDetail)+.28*smoothstep(0.,.04,lum)),k);diffuseColor.a=1.;}')
@@ -702,6 +752,97 @@ export function bodyLook(kit,team){
   m.needsUpdate=true;return m;
  });
  bodyLooks.set(key,looks);return looks;
+}
+// V46 proposal (?oppal=1): a whole body in its signature palette. The texture's team mask takes the main colour (or the accent
+// inside the kit's zones; the helmet takes the role SIGNATURE names), the unmasked undersuit is shaded in the dark colour, each
+// role with its own roughness and metalness; the emissive strips glow in the team's signal colour.
+function paletteBody(m,src,kit,team,sig,cfg,part){
+ // V46g PRIME (always on): the V46b premium terms rebuilt so no body reads as cling film. Root causes fixed here: the paint mask was
+ // the raw texture alpha (ONICE's is .68 everywhere with chips at 0, so 32% of the dark undersuit showed through every panel, and
+ // ASTORE's ragged mask edges let the black through in streaks), the shading followed the texture's baked light (swirls with a
+ // 10:1 range on ONICE), a screen-space edge term lit every texel step of that noise and every mask chip, and lacquer took the
+ // full wrinkled normal map at roughness .09. Now: the mask and the shade are read from a pre-filtered level of the map (never
+ // finer than mip 2, so chips and specks melt into the panel) and thresholded with a derivative-wide edge (crisp, never jagged);
+ // the shade is relative to the body's own median (BODIES[kit].lum), so each colour sits at its palette value with a soft share of
+ // the folds (cloth most, lacquer least); lacquer and metal flatten the normal map toward the surface's own normal and keep a floor
+ // of roughness; the rim reads the unperturbed normal; light strips and inlays come from PRIME_GLSL (operator-kits.js).
+ // Kinds per role (sig.kind: 0 cloth, 1 lacquer, 2 metal); one program for every body and team, all parameters are uniforms.
+ const C=h=>new THREE.Color(h),helmet=!/^Suit_Team$/.test(src.name),roles={main:0,accent:1,dark:2},z=sig.zones||[],Z=i=>new THREE.Vector4(...(z[i]||[9,8,0,0])),K=sig.kind||{};
+ const lum=(helmet?cfg.lum?.helmet:cfg.lum?.suit)||[.03,.012];
+ const u={palMain:{value:C(sig.main)},palDark:{value:C(sig.dark)},palAccent:{value:C(sig.accent)},palHelm:{value:helmet?roles[sig.helmet||'main']:-1},palZ0:{value:Z(0)},palZ1:{value:Z(1)},palZ2:{value:Z(2)},
+  palRough:{value:new THREE.Vector3(sig.pbr.main[0],sig.pbr.dark[0],sig.pbr.accent[0])},palMetal:{value:new THREE.Vector3(sig.pbr.main[1],sig.pbr.dark[1],sig.pbr.accent[1])},palKind:{value:new THREE.Vector3(K.main??1,K.accent??1,K.dark??0)},
+  palRim:{value:sig.rim??.16},palWeave:{value:wearWeaveTexture()},palRef:{value:new THREE.Vector3(...lum,sig.tone??1)},palCut:{value:new THREE.Vector2(sig.cut??-1,sig.cut===undefined?0:1)},bodyGlow:{value:C(TEAM_SIGNAL[team==='blue'?'blue':'orange'])},...primeUniforms(sig,team,helmet?0:1),...detailUniforms(kit,team),palUvm:{value:uvMetres(part?.geometry)}};
+ if(m.emissiveMap&&m.emissive.getHex()===0)m.emissive.set(0xffffff);if(/Glow/.test(src.name)&&!m.emissiveMap){m.emissive.copy(u.bodyGlow.value);m.emissiveIntensity=1;}
+ m.envMapIntensity=.8;
+ // Check Fable: OB_FORM (operator-kits.js) lifts near-black panels and adds a sky fill; the rim is a little stronger.
+ m.onBeforeCompile=shader=>{Object.assign(shader.uniforms,u);
+  shader.vertexShader='varying vec3 vPalP;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPalP=position/1.1e6;');
+  shader.fragmentShader='uniform vec3 palMain;uniform vec3 palDark;uniform vec3 palAccent;uniform float palHelm;uniform vec4 palZ0;uniform vec4 palZ1;uniform vec4 palZ2;uniform vec3 palRough;uniform vec3 palMetal;uniform vec3 palKind;uniform float palRim;uniform sampler2D palWeave;uniform vec3 palRef;uniform vec2 palCut;uniform vec3 bodyGlow;uniform float palUvm;varying vec3 vPalP;\n'+PRIME_GLSL+DETAIL_GLSL
+   +'float palBox(vec4 b){float ax=abs(vPalP.x),e=.015;return smoothstep(b.x-e,b.x+e,vPalP.y)*(1.-smoothstep(b.y-e,b.y+e,vPalP.y))*smoothstep(b.z-e,b.z+e,ax)*(1.-smoothstep(b.w-e,b.w+e,ax));}\n'
+   +'vec3 palBump(vec3 p,vec3 n,vec2 dH,float fd){vec3 sx=normalize(dFdx(p)),sy=normalize(dFdy(p)),r1=cross(sy,n),r2=cross(n,sx);float det=dot(sx,r1)*fd;return normalize(abs(det)*n-sign(det)*(dH.x*r1+dH.y*r2));}\n'+shader.fragmentShader
+   .replace('#include <map_fragment>',`#include <map_fragment>
+  float palLum=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));vec4 palB=diffuseColor;
+  #ifdef USE_MAP
+  {vec2 ts=vec2(textureSize(map,0)),du=dFdx(vMapUv*ts),dv=dFdy(vMapUv*ts);palB=textureLod(map,vMapUv,max(.5*log2(max(max(dot(du,du),dot(dv,dv)),1e-8)),3.2));}
+  #endif
+  float palLumB=dot(palB.rgb,vec3(.2126,.7152,.0722)),palAw=max(fwidth(palB.a)*.7,.03);
+  float palK=smoothstep(.3-palAw,.3+palAw,palB.a)*smoothstep(.0015,.006,palLumB);
+  // sig.cut: the paint ends on a clean line round the shins (a plane square to the shin, at that fraction from knee to ankle) instead
+  // of the texture's ragged mask; above it the panel is whole.
+  if(palCut.y>.5&&palHelm<-.5){vec3 kn=vec3(.134,.505,-.012),sh=vec3(.175,.128,-.076)-kn;float L=length(sh),cd=dot(vec3(abs(vPalP.x),vPalP.y,vPalP.z)-kn,sh/L)-palCut.x*L,ce=max(fwidth(cd),.002);palK=1.-smoothstep(-ce,ce,cd);}
+  vec3 palW=palHelm<-.5?vec3(1.-max(palBox(palZ0),max(palBox(palZ1),palBox(palZ2))),0.,0.):vec3(step(abs(palHelm),.5),step(abs(palHelm-1.),.5),step(abs(palHelm-2.),.5));
+  if(palHelm<-.5)palW.y=1.-palW.x;
+  vec3 palR=palW*palK+vec3(0.,0.,1.-palK);
+  vec3 palIsC=vec3(lessThan(palKind,vec3(.5))),palIsM=vec3(greaterThan(palKind,vec3(1.5)));
+  float palCloth=dot(palR,palIsC),palMet=dot(palR,palIsM),palLac=1.-palCloth-palMet;
+  vec2 palUv=vPalP.xy*vec2(9.,9.)+vPalP.zy*vec2(9.,0.);
+  #ifdef USE_MAP
+  palUv=vMapUv*40.;
+  #endif
+  vec4 palWv=texture2D(palWeave,palUv);
+  vec3 palTop=palMain*palW.x+palAccent*palW.y+palDark*palW.z;
+  float palS=clamp(sqrt(palLumB/max(mix(palRef.y,palRef.x,palK),1e-4)),.55,1.32),palFine=clamp(sqrt(palLum/max(palLumB,1e-4)),.72,1.22);
+  float palShade=mix(1.,palS,(palCloth*.7+palLac*.32+palMet*.45)*(1.-.75*odK.x)*(1.-odX.z))*mix(1.,palFine,(palCloth*.55+palMet*.2)*(1.-.75*odK.x)*(1.-odX.z));
+  vec3 palC=mix(palDark*.82,palTop*mix(1.,palRef.z,palW.x),palK)*palShade;
+  palC*=mix(.8,1.05,smoothstep(.1,1.7,vPalP.y));
+  palC*=mix(mix(1.,.86+.22*palWv.r,palCloth)*(.96+.06*palWv.g),1.,odK.x*odReady);
+  vec3 primeV=vec3(0.);if(primeW.w>0.&&palHelm<-.5)primeV=primeLines(vPalP);
+  palC*=(1.-.55*primeV.z)*(1.-.95*min(1.,primeV.x*1.6));palC=mix(palC,primeInlay*mix(.92,1.06,smoothstep(.6,1.5,vPalP.y)),primeV.y);
+  diffuseColor.rgb=palC;diffuseColor.a=1.;
+  // V47 detail (operator-detail.js): the shared micro-surface tiles at their physical size, the paint mask's edge as a seam with a
+  // stitch row (cloth) or chipped paint (hard parts), the kit's markings. The old 64 px weave bump steps aside where this is on.
+  vec2 odN=vec2(0.);float odRo=0.,odRf=-1.,odMe=-1.;
+  #ifdef USE_MAP
+  if(odK.x>.5){vec2 odU=vMapUv*palUvm;vec4 oc=texture2D(odCloth,odU/odSize.x),om=texture2D(odMetal,odU/odSize.y),op=texture2D(odPaint,odU/odSize.z);
+   odN=((oc.rg*2.-1.)*palCloth+(om.rg*2.-1.)*.7*palMet+(op.rg*2.-1.)*.45*palLac*(1.-.75*odX.x))*odReady;odRo=((oc.a-.5)*.5*palCloth+(om.a-.5)*.45*palMet+(op.a-.5)*.3*palLac)*odReady;
+   diffuseColor.rgb*=mix(1.,.84+.32*oc.b,palCloth*odReady)*(1.+.3*om.b*palMet*odReady);
+   if(odB.x+odB.y>0.&&palHelm<-.5){vec2 ts=vec2(textureSize(map,0)),du=dFdx(vMapUv*ts),dv=dFdy(vMapUv*ts);float L=max(.5*log2(max(max(dot(du,du),dot(dv,dv)),1e-8)),2.),tx=exp2(L)/ts.x,ty=exp2(L)/ts.y;
+    vec2 g=vec2(textureLod(map,vMapUv+vec2(tx,0.),L).a-textureLod(map,vMapUv-vec2(tx,0.),L).a,textureLod(map,vMapUv+vec2(0.,ty),L).a-textureLod(map,vMapUv-vec2(0.,ty),L).a)/vec2(2.*tx,2.*ty);
+    float gl=length(g),sd=(palB.a-.3)/max(gl,1e-4)*palUvm,ok=smoothstep(.06,.14,gl*tx)*(1.-smoothstep(.006,.009,abs(sd)))*odReady;
+    vec2 gt=vec2(-g.y,g.x)/max(gl,1e-6);float along=dot(odU,gt);
+    float seam=odLine(sd,.00055)*ok*odB.x,hi=odLine(sd-.0011,.00035)*ok*odB.x;diffuseColor.rgb*=(1.-.6*seam)*(1.+.35*hi);odN+=-sign(sd)*normalize(g+1e-9)*seam*.8;
+    float sc=palKind.x<.5?1.:-1.,st=odLine(sd-sc*.003,.00042)*step(.42,fract(along/.0042))*ok*odB.x;diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.55+.035,st*.85);odN+=sc*normalize(g+1e-9)*st*.25;
+    float cut=mix(.55,0.,smoothstep(0.,odK.y,sd)),ch=(1.-palCloth)*odB.y*ok*step(0.,sd)*(1.-smoothstep(cut-.025,cut+.025,op.b));
+    diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.46,.47,.49)*(.8+.35*om.r),ch);if(ch>.5){odMe=1.;odRf=.28;}}
+   // tailoring: seams (groove, a puff either side, topstitching on cloth or a clean panel line on hard suits), pads, pockets, zip
+   if(palHelm<-.5){float qu;vec4 sm=odSeams(vPalP,qu);float sd=sm.x,on=odReady*(1.-smoothstep(.006,.012,abs(sd)));
+    if(on>0.){vec2 g=odGrad(sd,odU);g/=max(length(g),1e-6);float cl=palCloth;
+     if(sm.z>.5){float tape=1.-smoothstep(.0055,.0065,abs(sd)),tooth=step(.5,fract(sm.y/.003+step(0.,sd)*.5))*(1.-smoothstep(.0018,.0026,abs(sd)));
+      diffuseColor.rgb=mix(diffuseColor.rgb,palDark*.7,tape*on);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(.55,.56,.58),tooth*on);if(tooth*on>.5){odMe=1.;odRf=.3;}odN+=sign(sd)*g*tape*on*.3;}
+     else{float gr=odLine(sd,.0013),pf=exp(-abs(sd)/.006)*(1.-gr),st=odLine(abs(sd)-.0034,.00055)*step(.42,fract(sm.y/.0045))*cl,hb=odLine(sd-.0016,.0005)*(1.-cl);
+      diffuseColor.rgb*=(1.-on*(.75*gr+.3*pf))*(1.+.7*hb*on);diffuseColor.rgb=mix(diffuseColor.rgb,diffuseColor.rgb*1.7+.05,st*on*.9);odN+=-sign(sd)*g*on*(gr*1.2+pf*.7)+sign(sd)*g*st*on*.3;}}
+    // V47c two-tone suit: yoke, side panels, thigh panels and the inside of pads and pockets in the kit's second tone (on the main
+    // colour only; its mask read from a coarse level, so specks and chips in a body's paint mask never punch dark holes in a panel)
+    {vec3 pp=vec3(abs(vPalP.x),vPalP.y,vPalP.z);float zy=odT.y*smoothstep(1.383,1.387,pp.y)*(1.-smoothstep(.148,.152,pp.x))*(1.-step(1.56,pp.y)),zs=odT.z*smoothstep(.116,.12,pp.x)*(1.-smoothstep(.198,.2,pp.x))*step(1.,pp.y)*(1.-smoothstep(1.383,1.387,pp.y)),zp=odT.w*sm.w;
+     float tm=smoothstep(.18,.32,textureLod(map,vMapUv,4.5).a),tk=max(max(zy,zs),zp)*tm*palW.x*odB.w*odReady,bl=max(dot(palMain,vec3(.2126,.7152,.0722)),.002);diffuseColor.rgb=mix(diffuseColor.rgb,odTone.x<0.?diffuseColor.rgb*odTone.y:odTone*dot(diffuseColor.rgb,vec3(.2126,.7152,.0722))/bl,tk);}
+    if(qu>0.){vec2 qt=vec2(vPalP.x+vPalP.y,vPalP.x-vPalP.y)/.028,qf=fwidth(qt)*.8+1e-5,qa=abs(fract(qt)-.5);float ql=(1.-smoothstep(.035-qf.x,.035+qf.x,.5-qa.x))+(1.-smoothstep(.035-qf.y,.035+qf.y,.5-qa.y));diffuseColor.rgb*=1.-.18*min(ql,1.)*qu*odReady;}}
+   vec2 dc=odDecal(vPalP);dc.x*=odReady*(1.-.6*smoothstep(.55,.85,op.b));if(dc.x>.01){diffuseColor.rgb=mix(diffuseColor.rgb,odCol[int(dc.y+.5)],dc.x*.92);if(dc.x>.5){odRf=.42;odMe=0.;}}}
+  #endif`)
+   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n  roughnessFactor=dot(palR,palRough.xzy)+(roughnessFactor-.5)*.05;roughnessFactor+=palCloth*(.5-palWv.r)*.12;roughnessFactor=max(roughnessFactor,mix(.05,.2,palLac));roughnessFactor+=palMet*(texture2D(palWeave,palUv*vec2(.15,4.)).r-.5)*.22;roughnessFactor=mix(roughnessFactor,.2,primeV.y);if(odRf>=0.)roughnessFactor=odRf;roughnessFactor=clamp(roughnessFactor+odRo,.05,1.);')
+   .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\n  metalnessFactor=mix(odMe>=0.?odMe:dot(palR,palMetal.xzy),max(palMetal.y,.25),primeV.y);')
+   .replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('texture2D( normalMap, vNormalMapUv )','texture( normalMap, vNormalMapUv, odK.x*2.6 )')+'\n  normal=normalize(mix(nonPerturbedNormal,normal,(palCloth+palLac*.14+palMet*.4)*(1.-.5*odK.x)));\n  {vec2 palDH=vec2(dFdx(palWv.r),dFdy(palWv.r))*palCloth*1.1*(1.-smoothstep(2.,7.,length(vViewPosition)))*(1.-odK.x*odReady);normal=palBump(-vViewPosition,normal,palDH,faceDirection);}\n  #ifdef USE_MAP\n  normal=odPerturb(normal,-vViewPosition,vMapUv*palUvm,odN);\n  #endif')
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM+'  #ifdef USE_EMISSIVEMAP\n  {float palE=max(totalEmissiveRadiance.r,max(totalEmissiveRadiance.g,totalEmissiveRadiance.b));totalEmissiveRadiance=bodyGlow*(smoothstep(.04,.7,palE)*1.05+smoothstep(.0,.25,palE)*.18);}\n  #endif\n  totalEmissiveRadiance+=primeLight*primeV.x*primeW.w+primeInlay*primeV.y*.05;\n  {float palF=pow(1.-clamp(dot(nonPerturbedNormal,normalize(-vViewPosition)),0.,1.),4.);totalEmissiveRadiance+=palF*(palRim+.08)*.17*(diffuseColor.rgb*1.4+.03)*(.7+.6*palLac);}');};
+ m.customProgramCacheKey=()=>'operator-body-v47-detail';m.needsUpdate=true;return m;
 }
 // One copy of a body per operator, built the first time it wears that kit (dressOperator); geometry shared by every operator.
 function attachBody(root,d,kit){
@@ -752,12 +893,12 @@ export const regionalKits=Object.keys(REGIONS);
 const skinName=s=>(s.userData.baseMaterial||s.material).name;
 function dressWear(d,team,look,armour){
  const kit=!armour&&WEAR_KITS.has(look.kit)?look.kit:null,skins=d.bodySkins||[],suit=skins.find(s=>skinName(s)==='Mil_Suit_R5'),head=skins.find(s=>/_Head$/.test(skinName(s)));
- for(const s of skins){const n=skinName(s);if(/Plate|Puches/.test(n))s.visible=!armour&&!kit;if(/Pads/.test(n)){s.userData.baseGeometry??=s.geometry;s.geometry=kit?glovesOnly(s):s.userData.baseGeometry;}if(kit&&s===suit)s.material=wearSuitLook(s.userData.baseMaterial,team,kit);if(kit&&s===head)s.material=wearHeadLook(s.userData.baseMaterial,team,kit);}
+ for(const s of skins){const n=skinName(s);if(/Plate|Puches/.test(n))s.visible=!armour&&!kit;if(/Pads/.test(n)){s.userData.baseGeometry??=s.geometry;s.geometry=kit?glovesOnly(s):s.userData.baseGeometry;s.userData.padsMaterial??=s.material;s.material=kit?fingerToneLook(s.userData.padsMaterial):s.userData.padsMaterial;}if(kit&&s===suit)s.material=wearSuitLook(s.userData.baseMaterial,team,kit,look.tw);if(kit&&s===head)s.material=wearHeadLook(s.userData.baseMaterial,team,kit);}
  // V43 oR rev: the suit takes the wear's tuck (pushed in under every panel) on a geometry sharing its attributes.
- if(suit)suit.userData.baseSuitGeometry??=suit.geometry;const geo=kit&&suit?wearGeometry(kit,look,suit,head):null;if(suit)suit.geometry=geo?wearSuitGeometry(geo,suit.userData.baseSuitGeometry):suit.userData.baseSuitGeometry;if(!geo){if(d.wear)d.wear.visible=false;return;}
- if(!d.wear){const m=new THREE.SkinnedMesh(geo,wearLook(team,look.accent));m.name='Operator wear';m.bind(suit.skeleton,suit.bindMatrix);m.position.copy(suit.position);m.quaternion.copy(suit.quaternion);m.scale.copy(suit.scale);
+ if(suit){suit.userData.baseSuitGeometry??=suit.geometry;ensureFingerTone(suit,suit.userData.baseSuitGeometry);}const geo=kit&&suit?wearGeometry(kit,look,suit,head):null;if(suit)suit.geometry=geo?wearSuitGeometry(geo,suit.userData.baseSuitGeometry):suit.userData.baseSuitGeometry;if(!geo){if(d.wear)d.wear.visible=false;return;}
+ if(!d.wear){const m=new THREE.SkinnedMesh(geo,wearLook(team,look.accent,kit,look.tw));m.name='Operator wear';m.bind(suit.skeleton,suit.bindMatrix);m.position.copy(suit.position);m.quaternion.copy(suit.quaternion);m.scale.copy(suit.scale);
   m.customDepthMaterial=skinDepth;m.castShadow=m.receiveShadow=true;m.frustumCulled=suit.frustumCulled;if(suit.boundingSphere)m.boundingSphere=suit.boundingSphere.clone();m.userData.ownedGeometry=false;suit.parent.add(m);d.wear=m;}
- d.wear.geometry=geo;d.wear.material=wearLook(team,look.accent);d.wear.visible=true;
+ d.wear.geometry=geo;d.wear.material=wearLook(team,look.accent,kit,look.tw);d.wear.visible=true;
 }
 // V44 op2: kits whose closed helmet is part of their wear: the soldier's eyes hide under it.
 const CLOSED_HELMETS=new Set(['mastino']);
@@ -768,13 +909,14 @@ export function dressOperator(root,team,operator){
  const key=operatorKey(team,operator);if(d.operatorKey===key)return;d.operatorKey=key;d.operatorKit=cleanOperatorLook(operator).kit;
  const old=[];root.traverse(o=>{if(o.userData.operatorGear)old.push(o);});for(const o of old)o.removeFromParent();
  const head=d.bones.get('Head'),shrink=headScale(operator);if(head){d.headRest??=head.scale.clone();head.scale.copy(d.headRest).multiplyScalar(shrink);}
- for(const {bone,group,local} of gearTemplate(team,operator)){const target=d.bones.get(bone);if(!target)continue;const clone=group.clone();clone.traverse(o=>{if(o.isMesh)o.userData.ownedGeometry=false;});local.decompose(clone.position,clone.quaternion,clone.scale);if(bone==='Head'){clone.position.divideScalar(shrink);clone.scale.divideScalar(shrink);}target.add(clone);}
+ d.cape=null;d.tail=null; for(const {bone,group,local} of gearTemplate(team,operator)){const target=d.bones.get(bone);if(!target)continue;const clone=group.clone();clone.traverse(o=>{if(o.isMesh)o.userData.ownedGeometry=false;});local.decompose(clone.position,clone.quaternion,clone.scale);if(bone==='Head'){clone.position.divideScalar(shrink);clone.scale.divideScalar(shrink);}target.add(clone);if(clone.name==='Gear / tail'){d.tail=clone;d.tailBase=clone.quaternion.clone();d.tailAxis=new THREE.Vector3(1,0,0).applyQuaternion(new THREE.Quaternion().setFromRotationMatrix(operatorRest.frames.tail).invert()).normalize();d.tailRest=new THREE.Quaternion().setFromRotationMatrix(operatorRest.frames.tail);d.tailSide=new THREE.Vector3(0,0,1).applyQuaternion(d.tailRest.clone().invert()).normalize();}
+  if(clone.name==='Gear / cape'){d.cape=clone;d.capeBase=clone.quaternion.clone();d.capeAxis=new THREE.Vector3(1,0,0).applyQuaternion(new THREE.Quaternion().setFromRotationMatrix(operatorRest.frames.cape).invert()).normalize();d.capeSide=new THREE.Vector3(0,0,1).applyQuaternion(new THREE.Quaternion().setFromRotationMatrix(operatorRest.frames.cape).invert()).normalize();}}
  // The export's cap and headset skins serve the reconnaissance kit; they ride the shared skeleton.
  // The export's cap skin serves the reconnaissance kit (its headset is authored adrift of the cap and stays hidden).
  // V43 oR: the reconnaissance kit now wears its own field cap (operator-wear.js): the export's cap stays hidden on every kit.
  root.traverse(o=>{if(o.isSkinnedMesh&&/GreenCap/.test(o.material.name))o.visible=false;});
  // V44: a whole-body kit swaps the soldier's skins for its body on the same skeleton (d.armour: the body on show).
- if(ready&&!d.bodies?.has(body))attachBody(root,d,body);const armour=ready&&!!d.bodies?.has(body),looks=armour?bodyLook(body,team):null;d.armour=armour?d.bodies.get(body):null;
+ if(ready&&!d.bodies?.has(body))attachBody(root,d,body);const armour=ready&&!!d.bodies?.has(body),looks=armour?bodyLook(body,team,look.tw):null;d.armour=armour?d.bodies.get(body):null;
  for(const s of d.bodySkins||[]){s.visible=!armour;s.userData.baseMaterial??=s.material;s.material=REGIONS[look.kit]&&!armour?regionalLook(s.userData.baseMaterial,team,look.kit):s.userData.baseMaterial;}
  for(const [kit,list] of d.bodies||[])list.forEach((m,i)=>{m.visible=armour&&kit===body;if(m.visible&&looks?.[i])m.material=looks[i];});
  // The soldier's eyes are a rigid mesh on the head bone, not one of its skins: they hide with the soldier (V44: they showed through the visors).
@@ -793,8 +935,12 @@ export function dressOperator(root,team,operator){
 // The gloves and boots under a whole body: the suit's own texture darkened to charcoal leather (no team dye: hands and feet stay dark).
 const kitPartLooks=new Map();
 function kitPartsLook(base){let m=kitPartLooks.get(base);if(m)return m;m=base.clone();m.name='op-gloves';m.userData.teamLook=true;m.color.set(0xffffff);
- m.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <map_fragment>','#include <map_fragment>\n{float v=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.,1.);diffuseColor.rgb=vec3(.075,.072,.068)*(.55+1.2*v);}');};
- m.defines={...base.defines};m.customProgramCacheKey=()=>'operator-gloves-v44';m.needsUpdate=true;kitPartLooks.set(base,m);return m;}
+ m.onBeforeCompile=s=>{s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float partTone;varying float vPartTone;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPartTone=partTone;');
+  // V49: each finger takes its own tone (operator-wear.js skinPart), so the hand no longer reads as a mitten.
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPartTone;').replace('#include <map_fragment>','#include <map_fragment>\n{float v=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.,1.);diffuseColor.rgb=vec3(.23,.225,.22)*(.35+2.1*v)*(1.+(vPartTone-1.)*2.2);}')
+  // V47: the gloves were so black that the fingers read as one block: graphite leather, more of the scan's contrast and a soft sheen on the knuckles.
+  .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=min(roughnessFactor,.62);');};
+ m.defines={...base.defines};m.customProgramCacheKey=()=>'operator-gloves-v49';m.needsUpdate=true;kitPartLooks.set(base,m);return m;}
 export function createAgent(team,weapon=3){
  const a=loaded.get('soldier_tac');if(!a)return null;
  const targetModel=tune(cloneSkeleton(a.scene),teamLooks[team]??=new Map()),tinted=tintedLooks;
@@ -828,13 +974,13 @@ export function createAgent(team,weapon=3){
   for(const f of ['Index','Middle','Ring','Pinky','Thumb'])for(let j=1;j<=3;j++){const bone=bones.get(side+'Hand'+f+j);if(bone)fingers[side].push({bone,f,j,axis:across.clone().applyQuaternion(bone.getWorldQuaternion(new THREE.Quaternion()).invert()).normalize(),q:new Map()});}}
  const shadow=contactShadow();root.add(shadow);
  root.userData={fingers,target,dst,rig,bones,weights:locomotionWeights(0),left,right,feet,legs,gaitPhase:0,sole,shadow,baseY:target.position.y,groundShift:0,bodyOffset:0,recoil:0,impact:0,
-  poseRootQ:new THREE.Quaternion(),chestQ:new THREE.Quaternion(),poseSourceQ:new THREE.Quaternion(),poseParentQ:new THREE.Quaternion(),lowerQ:new THREE.Quaternion(),upperQ:new THREE.Quaternion(),headQ:new THREE.Quaternion(),spineQ:new THREE.Quaternion(),spine1Q:new THREE.Quaternion(),gunQ:new THREE.Quaternion(),tempQ:new THREE.Quaternion(),tempV:new THREE.Vector3(),
+  poseRootQ:new THREE.Quaternion(),chestQ:new THREE.Quaternion(),poseSourceQ:new THREE.Quaternion(),poseParentQ:new THREE.Quaternion(),lowerQ:new THREE.Quaternion(),hipQ:new THREE.Quaternion(),aimQ:new THREE.Quaternion(),upperQ:new THREE.Quaternion(),headQ:new THREE.Quaternion(),spineQ:new THREE.Quaternion(),spine1Q:new THREE.Quaternion(),gunQ:new THREE.Quaternion(),tempQ:new THREE.Quaternion(),tempV:new THREE.Vector3(),
   weaponModels:new Map(),weapon:-1,gun:null,wrist:bones.get('RightHand'),wasReload:false,reloadStart:0,bodySkins:[]};
  target.traverse(o=>{if(o.isSkinnedMesh&&o.visible)root.userData.bodySkins.push(o);else if(o.isMesh&&o.visible&&/^Mil_Suit/.test(o.material?.name))(root.userData.bodyParts??=[]).push(o);});bodyBase??=root.userData.bodySkins[0]||null;warmBody??=root.userData.bodySkins.slice();
  captureOperatorRest(root,bones);dressOperator(root,team,DEFAULT_OPERATOR);attachWeapon(root,weapon);cullOperator(root);return root;
 }
 // The pose frame of each bone, chosen by name once instead of by regex every frame.
-const poseFrame=key=>/Hips|Leg|Foot|Toe/.test(key)?'lowerQ':key==='Spine'?'spineQ':key==='Spine1'?'spine1Q':key==='Spine2'?'chestQ':/Head|Neck/.test(key)?'headQ':/Arm|Hand|Shoulder|Thumb|Index|Middle|Ring|Pinky/.test(key)?'upperQ':'poseRootQ';
+const poseFrame=key=>key==='Hips'?'hipQ':/Hips|Leg|Foot|Toe/.test(key)?'lowerQ':key==='Spine'?'spineQ':key==='Spine1'?'spine1Q':key==='Spine2'?'chestQ':/Head|Neck/.test(key)?'headQ':/Arm|Hand|Shoulder|Thumb|Index|Middle|Ring|Pinky/.test(key)?'upperQ':'poseRootQ';
 export function prepareAgentEquipment(root){const d=root.userData;if(!d.weaponModels)return;const selected=d.weapon;for(let i=0;i<6;i++)attachWeapon(root,i);attachWeapon(root,selected);}
 // V34: an operator's held weapon is drawn in as few calls as its materials allow (the
 // The pistol export splits its frame into 12 meshes and its slide into 3, the knife has 8
@@ -858,7 +1004,16 @@ const twistV=new THREE.Vector3(),twistQ=new THREE.Quaternion();
 function spreadTwist(arm,share=.55){const hand=arm.leftHand,fore=hand?.parent;if(!fore||!fore.isBone)return;
  const axis=twistV.copy(hand.position).normalize(),q=hand.quaternion,d=axis.x*q.x+axis.y*q.y+axis.z*q.z;let angle=2*Math.atan2(d,q.w);if(angle>Math.PI)angle-=Math.PI*2;else if(angle<-Math.PI)angle+=Math.PI*2;
  twistQ.setFromAxisAngle(axis,angle*share);fore.quaternion.multiply(twistQ);hand.quaternion.premultiply(twistQ.invert());fore.updateWorldMatrix(false,false);hand.updateWorldMatrix(false,false);}
-const poseV=Array.from({length:6},()=>new THREE.Vector3());
+// V48 combat stance: how an armed operator stands and moves, on top of its own idle (STYLE). Radians and metres: the torso
+// leans into the gun (lean on the spine and shoulders, chest on the rib cage), the knees give (sink), the support side leads
+// (blade: left shoulder forward, stagger: left foot forward), the cheek comes down on the stock (head [pitch, roll]) and the
+// gun rises a little to the eye (raise). Bones only, a few centimetres: aim, shots, hit zones, eye height and speed never read it.
+// V48: half the distance between the feet (the legs stood 5 cm wider apart; an operator's own stance adds to it).
+const STANCE_WIDTH=.12;
+const COMBAT={lean:.085,leanMax:.15,chest:.07,sink:.03,blade:-.14,stagger:.075,head:[-.05,-.07],raise:.015};
+const poseV=Array.from({length:6},()=>new THREE.Vector3()),tailV=Array.from({length:3},()=>new THREE.Vector3()),
+ // Leg samples for the tail: [from the foot (else the knee), toward the knee (else the hip), capsule radius, fractions].
+ TAIL_SAMPLES=[[0,0,.09,[0,.5]],[1,1,.072,[0,.35,.7]]];
 // V43 b34: the support hand's throw (agent-gear.js throwPhase): its goal and elbow side blended over the hold's.
 const throwQ=new THREE.Quaternion(),hangQ=new THREE.Quaternion(),throwV=[new THREE.Vector3(),new THREE.Vector3()];
 function throwReach(root,rootQ,th,goal,pole,duck){const t=throwV[0].copy(th.hand);t.y-=duck*.48;goal.lerp(t.applyQuaternion(rootQ).add(root.position),th.w);pole.lerp(throwV[1].copy(th.pole).applyQuaternion(rootQ),th.w);}
@@ -877,46 +1032,89 @@ export function animateAgent(root,dt,moving,weapon=3,speed=4.7,pose={}){
  const yawNow=root.rotation.y,forward=-((pose.vx||0)*Math.sin(yawNow)+(pose.vz||0)*Math.cos(yawNow)),strafe=(pose.vx||0)*Math.cos(yawNow)-(pose.vz||0)*Math.sin(yawNow);
  d.leanForward=(d.leanForward||0)+(THREE.MathUtils.clamp(forward/5,-.6,1)*.1-(d.leanForward||0))*blend;d.leanSide=(d.leanSide||0)+(THREE.MathUtils.clamp(strafe/5,-1,1)*.075-(d.leanSide||0))*blend;
  const breath=Math.sin(time*.0019+root.id)*.014*d.weights.idle,side=d.leanSide;
- const pitch=THREE.MathUtils.clamp(pose.pitch||0,-1.15,1.15),upperPitch=pitch*.45-reloadWeight*.32+d.recoil*.025-d.impact*.12-d.leanForward+breath;
+ // V46e posture (operator-kits.js STYLE): the operator's own idle and the pick-screen pose-in, layered on the shared idle and faded
+ // out while it reloads, throws or fires. Bones only: aim, shots, hit zones, eye height and speed never read it.
+ const sty=styleOf(d.operatorKit),intro=pose.intro||null,sx=d.styleNow??={lean:0,roll:0,hip:0,twist:0,hy:0,hr:0,hp:0,carry:0,stance:0,sink:0};
+ if(sty){const w=d.weights.idle*(1-reloadWeight)*(1-Math.min(1,d.recoil*6))*(pose.throwAge!==undefined&&pose.throwAge<1400?0:1),S=sty,H=S.head||[0,0,0],bn=S.bounce?Math.sin(time*S.bounce[1]+root.id)*S.bounce[0]:0;
+  const aw=weapon===3?w:w*.5;sx.lean=(S.lean||0)*w;sx.roll=(S.roll||0)*aw;sx.hip=(S.hip||0)*w;sx.twist=(S.twist||0)*aw;sx.hy=H[0]*w;sx.hr=H[1]*w;sx.hp=H[2]*w;sx.carry=(S.carry||0)*aw;sx.stance=(S.stance||0)*w;sx.sink=((S.sink||0)-bn)*w;
+  // In the pick screen (pose.front) the operator faces the camera: its idle turn, head turn and shoulder roll stay small.
+  if(pose.front){sx.twist*=.25;sx.hy*=.25;sx.roll*=.5;}
+  if(intro&&S.in){const p=THREE.MathUtils.clamp(intro.t,0,1),I=S.in,low=Math.sin(Math.PI*THREE.MathUtils.clamp(p/.38,0,1)),up=Math.sin(Math.PI*THREE.MathUtils.clamp((p-.3)/.6,0,1));
+   sx.carry+=.12*(I.low||0)*low-(I.gun||0)*up;sx.sink+=(I.dip||0)*low;sx.lean-=.03*up;sx.hy+=(I.head||0)*up;}}
+ else sx.lean=sx.roll=sx.hip=sx.twist=sx.hy=sx.hr=sx.hp=sx.carry=sx.stance=sx.sink=0;
+ const breathK=sty?.breath??1;
+ // V43 b34: a grenade just thrown (its age in ms): the torso turns into the throw, the support hand throws, the gun drops.
+ const th=reloading?null:throwPhase(pose.throwAge,weapon===5),rt=!!th&&weapon!==5;
+ // V48: the stance's weight (long guns full, pistol part, knife none; out while it reloads or throws), a landing's dip (the knees
+ // take a drop, read from the body's own height), the shot's kick by weapon, and the step (the feet's own phase, agent-locomotion.js).
+ const cw=d.combat??={w:0,dip:0,land:0,air:false,vy:0,fall:0,y:null,life:null},cwGoal=(weapon===5?0:weapon===0?.6:1)*(1-reloadWeight)*(th?1-th.w:1);
+ if(cw.life!==d.life){cw.life=d.life;cw.w=cwGoal;cw.dip=cw.land=0;cw.air=false;cw.y=null;}
+ cw.w+=(cwGoal-cw.w)*(1-Math.exp(-9*dt));
+ {const y=root.position.y,inAir=pose.groundY!==undefined&&y-pose.groundY>.065;if(cw.y!==null&&dt>1e-4)cw.vy=(y-cw.y)/dt;cw.y=y;
+  if(cw.air&&!inAir)cw.land=THREE.MathUtils.clamp(-cw.fall/6,.3,1);if(inAir)cw.fall=cw.vy;cw.air=inAir;cw.land*=Math.exp(-8*dt);cw.dip+=(cw.land-cw.dip)*(1-Math.exp(-28*dt));}
+ const cs=cw.w*(pose.front?.45:1),kick=d.recoil*(weapon===4?2.2:weapon===0?1.5:weapon===1?.8:1),moveK=Math.min(1,speed/4.4),gph=(d.plants?.phase||0)*Math.PI*2,stepS=Math.sin(gph),stepB=.5-.5*Math.cos(gph*2);
+ const pitch=THREE.MathUtils.clamp(pose.pitch||0,-1.15,1.15),level=1-Math.abs(pitch)*.5,leanAll=Math.max(sx.lean,Math.min(sx.lean+COMBAT.lean*cs*level,COMBAT.leanMax)),
+  upperPitch=pitch*.45-reloadWeight*.32+kick*.025-d.impact*.12-d.leanForward+breath*breathK-leanAll-cw.dip*.07;
  d.plants??={};const oldX=d.plants.x??root.position.x,oldZ=d.plants.z??root.position.z;d.gaitPhase+=Math.hypot(root.position.x-oldX,root.position.z-oldZ)*Math.PI/.8;
  const duck=THREE.MathUtils.clamp(pose.duck||0,0,1);
  // V34: the skeleton is posed top down with fresh world matrices (see `rig`), and only
  // what the solve reads afterwards is kept current: the renderer's scene update
  // recomputes every node before drawing, so equipment, skins and fingers wait for it.
  // Same joint rotations as walking each read up to the root, at a fraction of the cost.
- d.target.position.y=d.baseY-duck*STANCE.drop-(RUN_SINK+(.5-.5*Math.cos(d.gaitPhase*2))*.012)*Math.min(1,speed/3);root.updateWorldMatrix(true,false);const rootQ=freshQuaternion(root,d.poseRootQ),axisX=d.tempV.set(1,0,0);
- // V43 b34: a grenade just thrown (its age in ms): the torso turns into the throw, the support hand throws, the gun drops.
- const th=reloading?null:throwPhase(pose.throwAge,weapon===5),rt=!!th&&weapon!==5,twist=th?th.twist*th.w:0,axisY=poseV[2].set(0,1,0);
- d.upperQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch)).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),-side));d.headQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisX,pitch*.85));
- d.spineQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist*.3)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch*.3));d.spine1Q.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist*.65)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch*.65));d.chestQ.copy(rootQ);if(twist)d.chestQ.multiply(d.tempQ.setFromAxisAngle(axisY,twist*.9));
- d.lowerQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(d.tempV.set(0,1,0),d.bodyOffset));
+ d.target.position.y=d.baseY-Math.max(sx.sink,COMBAT.sink*cs)-cw.dip*.05-duck*STANCE.drop-(RUN_SINK+.008-stepB*.022)*Math.min(1,speed/3);
+ // V48: the hips ride over the planted foot on each step and shift a little at rest.
+ d.baseX??=d.target.position.x;d.target.position.x=d.baseX+(-stepS*.012*moveK+Math.sin(time*.0007+root.id*1.7)*.008*d.weights.idle)*(d.swaySign??=Math.sign(Math.cos(d.target.rotation.y))||1);root.updateWorldMatrix(true,false);const rootQ=freshQuaternion(root,d.poseRootQ),axisX=d.tempV.set(1,0,0);
+ const twist0=(th?th.twist*th.w:0)+sx.twist,twist=twist0+cs*COMBAT.blade*(1-.5*moveK)-stepS*.05*moveK-kick*.02,axisY=poseV[2].set(0,1,0);
+ d.upperQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch)).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),-side-sx.roll));
+ // V48: the hands' frame keeps the aim: the stance's blade, the step and the kick turn the torso, not the gun.
+ d.aimQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist0)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch)).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),-side-sx.roll));
+ d.headQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,1,0),sx.hy)).multiply(d.tempQ.setFromAxisAngle(axisX,pitch*.85+sx.hp+cs*COMBAT.head[0]*level)).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),sx.hr+cs*COMBAT.head[1]));
+ d.spineQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist*.3)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch*.3));d.spine1Q.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY,twist*.65)).multiply(d.tempQ.setFromAxisAngle(axisX,upperPitch*.65));d.chestQ.copy(rootQ);if(twist)d.chestQ.multiply(d.tempQ.setFromAxisAngle(axisY,twist*.9));{const chestLean=cs*COMBAT.chest*level+cw.dip*.05;if(chestLean)d.chestQ.multiply(d.tempQ.setFromAxisAngle(axisX,-chestLean));}
+ d.lowerQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(d.tempV.set(0,1,0),d.bodyOffset+cs*COMBAT.blade*.5*(1-moveK)));if(sx.hip)d.lowerQ.multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),sx.hip));
+ // V48: the pelvis turns and drops with each step (the swinging leg's hip leads and hangs); the feet keep the legs' frame.
+ d.hipQ.copy(d.lowerQ);if(moveK>.01)d.hipQ.multiply(d.tempQ.setFromAxisAngle(d.tempV.set(0,1,0),stepS*.07*moveK)).multiply(d.tempQ.setFromAxisAngle(poseV[3].set(0,0,1),-stepS*.022*moveK));
  for(const r of d.rig){
   if(!r.bone){r.node.updateWorldMatrix(false,false);continue;}
   const q=d.poseSourceQ.copy(r.rest).premultiply(d[r.frame]),parent=freshQuaternion(r.bone.parent,d.poseParentQ).invert();r.bone.quaternion.copy(parent.multiply(q));r.bone.updateWorldMatrix(false,false);
  }
  // Procedural two-bone leg solve keeps feet under the body instead of adding
  // the source character's wide stance to the target character's rest pose.
- const plants=footPlants(d.plants,{x:root.position.x,z:root.position.z,y:root.position.y,groundY:pose.groundY||0,yaw:root.rotation.y+d.bodyOffset,speed,life:d.life,sole:d.sole},dt);
+ const plants=footPlants(d.plants,{x:root.position.x,z:root.position.z,y:root.position.y,groundY:pose.groundY||0,yaw:root.rotation.y+d.bodyOffset,speed,life:d.life,sole:d.sole,width:Math.max(.118,STANCE_WIDTH+sx.stance),stagger:COMBAT.stagger*cs*d.weights.idle*(1-duck*.5)},dt);
  for(let n=0;n<d.legs.length;n++){
   const leg=d.legs[n],plant=plants[n],foot=(d.legTarget??=new THREE.Vector3()).set(plant.x,plant.y,plant.z);
   solveHand(leg,foot,poseV[0].set(n===0?-.12:.12,0,-1).applyQuaternion(d.lowerQ),true);
   const desired=d.tempQ.copy(d.lowerQ).multiply(leg.rest),inverse=freshQuaternion(leg.leftHand.parent,d.poseParentQ).invert();leg.leftHand.quaternion.copy(inverse.multiply(desired));leg.leftHand.updateWorldMatrix(false,true);
  }
- d.gunQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(d.tempV.set(1,0,0),pitch-reloadWeight*(weapon===0?.42:.26)+d.recoil*.035-(th&&!rt?th.lower*.6:0)));
+ d.gunQ.copy(rootQ);{const turn=sx.twist*.9+stepS*.012*moveK;if(turn)d.gunQ.multiply(d.tempQ.setFromAxisAngle(d.tempV.set(0,1,0),turn));}d.gunQ.multiply(d.tempQ.setFromAxisAngle(d.tempV.set(1,0,0),pitch-sx.carry-reloadWeight*(weapon===0?.42:.26)+kick*.035-cw.dip*.1+Math.sin(gph*2+.6)*.012*moveK-(th&&!rt?th.lower*.6:0)));
  // V42 bO: a reload keeps the hands in front of the vest (they used to sink into the pouches); the pistol stays up, the long guns
  // come out in front of the chest, muzzle lower, so the stock and the right forearm clear the magazine pouches.
- const trigger=poseV[1].set(.16-reloadWeight*.035-(weapon===5?d.recoil*.12:0),-.025-reloadWeight*(weapon===0?.0:.06),(weapon===4?-.05:weapon===0?-.15:weapon===5?-.13:-.08)+reloadWeight*(weapon===0?-.06:weapon===4?-.04:-.1)-(weapon===5?d.recoil*.12:0)).applyQuaternion(d.upperQ).add(poseV[2].set(0,1.44-duck*.48,0).applyQuaternion(rootQ)).add(root.position);
+ const trigger=poseV[1].set(.16-reloadWeight*.035-(weapon===5?d.recoil*.12:0)+stepS*.006*moveK,-.025-sx.carry*.22-reloadWeight*(weapon===0?.0:.06)+cs*COMBAT.raise+(stepB-.5)*.014*moveK-cw.dip*.03,(weapon===4?-.05:weapon===0?-.15:weapon===5?-.13:-.08)+reloadWeight*(weapon===0?-.06:weapon===4?-.04:-.1)-(weapon===5?d.recoil*.12:0)).applyQuaternion(d.aimQ).add(poseV[2].set(0,1.44-duck*.48-sx.sink,0).applyQuaternion(rootQ)).add(root.position);
  // V43 b34 rev: the right hand throws (the gun goes down onto the sling in the support hand, below); the knife's left hand throws.
  const rpole=poseV[0].set(.45,-.7,.2).applyQuaternion(rootQ);if(rt)throwReach(root,rootQ,th,trigger,rpole,duck);
  solveHand(d.right,trigger,rpole,true);const rfree=rt&&throwQ.copy(d.right.leftHand.quaternion);orientGrip(d.right,d.gunQ);if(rfree){d.right.leftHand.quaternion.slerp(rfree,th.w);d.right.leftHand.updateWorldMatrix(false,false);}spreadTwist(d.right);
  if(rt)d.gunQ.slerp(hangQ.copy(rootQ).multiply(d.tempQ.setFromAxisAngle(axisY.set(0,1,0),.55)).multiply(d.tempQ.setFromAxisAngle(d.tempV.set(1,0,0),-1.1)),th.w);
  d.shadow.material.opacity=.20*Math.max(0,1-Math.max(0,root.position.y-(pose.groundY||0))*2);d.shadow.position.y=(pose.groundY||0)-root.position.y+.014;d.shadow.scale.set(1+speed*.025,1+speed*.025,1);
+ // V46e: CORVO's cape lags behind the body: it flares back with speed and the forward lean, and sways a little with the gait.
+ if(d.cape){const flare=Math.min(1,speed/5)*.42+Math.max(0,d.leanForward)*.8;d.capeFlare=(d.capeFlare||0)+(flare-(d.capeFlare||0))*(1-Math.exp(-4*dt));const sway=Math.sin(d.gaitPhase)*.05*Math.min(1,speed/3);
+  d.cape.quaternion.setFromAxisAngle(d.capeAxis,-d.capeFlare).multiply(d.tempQ.setFromAxisAngle(d.capeSide,sway)).multiply(d.capeBase);}
+ // V46h: LINCE's tail never meets the legs. Points along each thigh and calf are read from the tail's pivot in the hips' rest frame
+ // (the tail's own frame): each one the tail could reach asks for the angle that clears it, its radius and a margin included. The
+ // tail is lifted to that angle at once (it never lags into a leg) and falls back with a soft lag, swaying a little with the gait.
+ if(d.tail){const hips=d.bones.get("Hips");let need=.22;
+  if(hips){hips.updateWorldMatrix(true,false);d.tail.updateWorldMatrix(false,false);const inv=d.tempQ.setFromRotationMatrix(hips.matrixWorld).invert().premultiply(d.tailRest),pivot=tailV[2].setFromMatrixPosition(d.tail.matrixWorld);
+   for(const [a,b,c] of [['LeftUpLeg','LeftLeg','LeftFoot'],['RightUpLeg','RightLeg','RightFoot']]){const A=d.bones.get(a),Bn=d.bones.get(b),C=d.bones.get(c);if(!A||!Bn||!C)continue;C.updateWorldMatrix(true,false);
+    for(const [P0,P1,R,ts] of TAIL_SAMPLES){const p0=(P0?C:Bn).matrixWorld,p1=(P1?Bn:A).matrixWorld;
+     for(const t of ts){const v=tailV[0].setFromMatrixPosition(p0).lerp(tailV[1].setFromMatrixPosition(p1),t).sub(pivot).applyQuaternion(inv),ax=Math.max(0,Math.abs(v.x)-.034);if(ax>=R)continue;
+      const r=Math.sqrt(R*R-ax*ax),rho=Math.hypot(v.y,v.z);if(rho>.42+r||v.y>.02)continue;need=Math.max(need,Math.atan2(v.z,-v.y)+Math.asin(Math.min(1,r/Math.max(rho,1e-3)))+.2);}}}}
+  const target=Math.min(1.45,need),cur=d.tailLift??target;d.tailLift=target>cur?target:cur+(target-cur)*(1-Math.exp(-5*dt));
+  const sway=Math.sin(d.gaitPhase||0)*.06*Math.min(1,speed/3);
+  d.tail.quaternion.setFromAxisAngle(d.tailAxis,-d.tailLift).multiply(d.tempQ.setFromAxisAngle(d.tailSide,sway)).multiply(d.tailBase);}
  attachWeapon(root,weapon);
  if(d.gun){
   const inverse=freshQuaternion(d.wrist,d.poseParentQ).invert();d.gun.quaternion.copy(inverse).multiply(d.gunQ);
   const scale=freshScale(d.wrist,d.tempV),worldScale=d.gun.userData.worldScale||.5;d.gun.scale.set(worldScale/scale.x,worldScale/scale.y,worldScale/scale.z);
   const wrist=freshPosition(d.wrist,poseV[3]),offset=poseV[4].copy(d.gun.userData.trigger).multiplyScalar(worldScale).applyQuaternion(d.gunQ);
-  const palm=poseV[5].set(-.025,-.055,-.035+d.recoil*.025).applyQuaternion(d.gunQ);
+  const palm=poseV[5].set(-.025,-.055,-.035+kick*.025).applyQuaternion(d.gunQ);
   wrist.add(palm).sub(offset);if(rt)wrist.lerp(poseV[5].set(.04,1.08-duck*.48,-.27).applyQuaternion(rootQ).add(root.position).sub(offset),th.w);
   d.gun.position.copy(d.wrist.worldToLocal(wrist));
   const mag=d.gun.userData.magazine;if(mag&&d.gun.userData.magRest){mag.position.copy(d.gun.userData.magRest);mag.position.y-=reloadWeight*.13;mag.visible=!reloading||progress<.3||progress>.58;}
@@ -937,7 +1135,7 @@ export function animateAgent(root,dt,moving,weapon=3,speed=4.7,pose={}){
   }
  }
  if(weapon===5){const standby=poseV[3].set(-.24,1.17-duck*.48,-.16).applyQuaternion(rootQ).add(root.position),pole=poseV[4].set(-.3,-.7,.05).applyQuaternion(rootQ);if(th)throwReach(root,rootQ,th,standby,pole,duck);solveHand(d.left,standby,pole,true);}
- if(d.fingers){curlFingers(d.fingers.Right,rt&&th.w>.3&&th.open?'open':weapon===5?'knife':'trigger');curlFingers(d.fingers.Left,th&&!rt&&th.w>.3&&(th.carry||th.open)?(th.carry?'wrap':'open'):weapon===5?'guard':d.gun?.userData.hold?.roll||d.leftReach>.4?'wrap':'fore');}
+ if(d.fingers){curlFingers(d.fingers.Right,rt&&th.w>.3&&th.open?'open':weapon===5?'knife':d.recoil>.25?'fire':'trigger');curlFingers(d.fingers.Left,th&&!rt&&th.w>.3&&(th.carry||th.open)?(th.carry?'wrap':'open'):weapon===5?'guard':d.gun?.userData.hold?.roll||d.leftReach>.4?'wrap':'fore');}
  // V43 b34 rev: the throwing hand's palm, every pose (a can this body throws is first drawn there, utility-presentation.js):
  // the right hand, or the left with the knife. The can is not shown in the hand (the release is the grenade's birth).
  {const arm=weapon===5?d.left:d.right;if(arm.palm)heldCan(root,arm.leftHand,poseV[3].copy(arm.palm),pose.throwKind,!!th&&th.carry&&th.w>.05);}
@@ -947,7 +1145,7 @@ export function animateAgent(root,dt,moving,weapon=3,speed=4.7,pose={}){
 }
 // V42 bO: how far each joint of a finger closes (radians, joints 1-3) in each hold. The right index rests along the trigger
 // guard; a pistol's support hand wraps the shooting hand; under a fore-end the fingers close up its side.
-const CURL={trigger:{Index:[.3,.45,.3],Middle:[1.05,1.15,.75],Ring:[1.1,1.15,.75],Pinky:[1.15,1.1,.7],Thumb:[.25,.35,.25]},knife:{Index:[1,1.1,.7],Middle:[1.1,1.15,.75],Ring:[1.15,1.15,.75],Pinky:[1.2,1.1,.7],Thumb:[.35,.45,.3]},
+const CURL={fire:{Index:[.62,.78,.42],Middle:[1.05,1.15,.75],Ring:[1.1,1.15,.75],Pinky:[1.15,1.1,.7],Thumb:[.25,.35,.25]},trigger:{Index:[.3,.45,.3],Middle:[1.05,1.15,.75],Ring:[1.1,1.15,.75],Pinky:[1.15,1.1,.7],Thumb:[.25,.35,.25]},knife:{Index:[1,1.1,.7],Middle:[1.1,1.15,.75],Ring:[1.15,1.15,.75],Pinky:[1.2,1.1,.7],Thumb:[.35,.45,.3]},
  fore:{Index:[.8,.85,.55],Middle:[.9,.95,.6],Ring:[.95,.95,.6],Pinky:[1,.95,.6],Thumb:[.2,.25,.2]},wrap:{Index:[.85,.95,.6],Middle:[.95,1,.65],Ring:[1,1,.65],Pinky:[1.05,1,.65],Thumb:[.2,.3,.2]},open:{Index:[.35,.4,.3],Middle:[.4,.45,.3],Ring:[.45,.45,.3],Pinky:[.5,.45,.3],Thumb:[.1,.15,.1]},
  // the free hand beside a knife: a loose guarding fist, not a claw.
  guard:{Index:[.95,1.05,.7],Middle:[1.05,1.1,.75],Ring:[1.1,1.1,.75],Pinky:[1.15,1.05,.7],Thumb:[.3,.4,.3]}};
@@ -972,3 +1170,4 @@ export function disposeAgent(root){
  d.mixer?.stopAllAction();if(d.source)d.mixer?.uncacheRoot(d.source);
  root.removeFromParent();
 }
+

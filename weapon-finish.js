@@ -18,10 +18,12 @@ export function cleanLoadout(v){return Array.from({length:6},(_,i)=>cleanFinish(
 export const finishKey=v=>JSON.stringify(cleanFinish(v));
 const originals=new WeakMap();
 export function applyFinish(root,index,value){
- if(!root)return;const config=cleanFinish(value,index),key=finishKey(config);applyVariant(root,index,config);applyKit(root,index,config.kit,{...config,dye:config.style==='paint'?config.customPrimary||PAINTS[config.primary].hex:null});setFxEnabled(root,config.prime);setFxGlow(root,config.glow);if(root.userData.finishKey===key)return;root.userData.finishKey=key;
+ // V46g: a weapon slot only (0-5), and never an operator's own materials (userData.teamLook: body, wear, gear, band, gloves), which
+ // are shared by every operator of a kit and team: a finish on them repainted them all and collided their programs.
+ if(!root||!(index>=0&&index<6))return;const config=cleanFinish(value,index),key=finishKey(config);applyVariant(root,index,config);applyKit(root,index,config.kit,{...config,dye:config.style==='paint'?config.customPrimary||PAINTS[config.primary].hex:null});setFxEnabled(root,config.prime);setFxGlow(root,config.glow);if(root.userData.finishKey===key)return;root.userData.finishKey=key;
  root.traverse(o=>{if(!o.isMesh||o.userData.finishSplit||!(/Magazine|ChargingHandle|RearIronSight/i.test(o.name)))return;o.material=Array.isArray(o.material)?o.material.map(cloneFx):cloneFx(o.material);for(const m of Array.isArray(o.material)?o.material:[o.material])m.userData.finishRole='accent';o.userData.finishSplit=true;});
  const materials=new Set();root.traverse(o=>{if(!o.isMesh)return;for(const m of Array.isArray(o.material)?o.material:[o.material]){
-  if(!m||!m.isMeshStandardMaterial||materials.has(m)||m.name==='arms'||/glass|lens/i.test(m.name)||m.userData.finishProtected)continue;materials.add(m);
+  if(!m||!m.isMeshStandardMaterial||materials.has(m)||m.userData.teamLook||m.name==='arms'||/glass|lens/i.test(m.name)||m.userData.finishProtected)continue;materials.add(m);
   if(!originals.has(m))originals.set(m,{color:m.color.clone(),roughness:m.roughness,metalness:m.metalness,compile:m.onBeforeCompile,cache:m.customProgramCacheKey});const original=originals.get(m);
   if(config.style==='factory'){const classic=config.prime===false&&m.userData.classic;if(classic){m.color.setHex(classic[0]);m.metalness=classic[1];m.roughness=classic[2];}else{m.color.copy(original.color);m.roughness=original.roughness;m.metalness=original.metalness;}m.onBeforeCompile=original.compile;m.customProgramCacheKey=original.cache;m.needsUpdate=true;continue;}
   // V36: a paint job keeps the third-party material. Roughness and metalness maps stay in

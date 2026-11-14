@@ -16,8 +16,9 @@ const GOLD=[1,.72,.34],GOLD_HI=[1,.93,.78];
 // sdf: the mask's B channel is a distance field of the gold marks (V42 review: coverage showed the texel staircase on
 // the letters up close), cut at .5 in the shader with a screen-space edge, so they stay sharp at any distance.
 export const LOOKS={
- // OB-110 SMERIGLIO: ember red, a quick heartbeat that runs the slide's twin rails.
- 0:{mask:'./assets/models/v42/smeriglio-fx.webp',sdf:1,line:[1,.2,.12],lineHi:[1,.62,.42],flow:[1.7,.62,.03,.2],idle:[.26,.06,2.6,11],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.6,.03,.12,8],wave:[1.6,.45,.45,.25],waveSpeed:1.7,dash:[0,1,0,0],world:[.045,.13,1,0],wear:[.5,.22,.25,0],inspect:[.22,.5],parts:[[/gun_atlas/,[1,1,0,0]]]},
+ // OB-110 SMERIGLIO: ember red, a quick heartbeat that runs the slide's twin rails (V45: ember inlays on the slide and the
+ // dust cover, a gold filet under the rail, a brighter idle).
+ 0:{mask:'./assets/models/v42/smeriglio-fx.webp',sdf:1,line:[1,.2,.12],lineHi:[1,.62,.42],flow:[1.7,.62,.03,.2],idle:[.3,.06,2.6,11],inlay:[.85,.6,.9,.8],glyph:[.3,.12,2.2,30],head:[1.6,.03,.12,8],wave:[1.6,.45,.45,.25],waveSpeed:1.7,dash:[0,1,0,0],world:[.045,.13,1,0],wear:[.5,.22,.25,0],inspect:[.22,.5],parts:[[/gun_atlas/,[1,1,0,0]]]},
  // OB-210 ASSILLO: acid teal in short dashes that stream fast along the receiver, like a signal on a wire.
  1:{mask:'./assets/models/v42/assillo-fx.webp',sdf:1,line:[.1,1,.78],lineHi:[.66,1,.92],flow:[2.2,.5,.03,.24],idle:[.22,.05,1.9,10],inlay:[.8,.45,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.025,.12,7],wave:[1.5,.45,.45,.25],waveSpeed:1.6,gap:.4,dash:[46,.55,1.1,0],world:[.04,.13,1,0],wear:[.5,.2,.2,0],inspect:[.22,.5],parts:[[/^Maglow/,[.5,1,.5,0]],[/^material/,[.5,1,0,0]]]},
  // OB-310 RONCOLA: emerald inlay, one long slow pull from the chamber to the muzzle; the wood keeps its grain.
@@ -43,14 +44,17 @@ export const LOOKS={
  // OB-120 ZANZARA (V44 redesign): ultraviolet orchid, a wingbeat: short dashes that shiver fast along the chamfers, the vent rib and
  // the windows over the gold barrel, and a quick flicker under them; gold filets on the chamfers and the compensator's lips.
  zanzara:{cls:0,mask:'./assets/models/v42/zanzara-fx.webp',sdf:1,line:[.74,.14,1],lineHi:[.96,.78,1],flow:[2.6,1.25,.02,.1],idle:[.26,.07,9,22],inlay:[.8,.5,.9,.8],glyph:[.32,.12,2.2,30],head:[1.6,.025,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.9,gap:.3,dash:[34,.46,3.2,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^zanzara_/,[1,1,0,0]]]},
- // OB-130 CINGHIALE: molten amber, one slow heavy swell down the slide's inlay, the underlug and the vented rib.
+ // OB-130 CINGHIALE (V45 redesign: wedge slide, gold tusks): molten amber, one slow heavy swell down the slide's chamfers and
+ // windows, the fang inlay and the underlug's vents; gold leaf on the tusks and the hammer.
  cinghiale:{cls:0,mask:'./assets/models/v42/cinghiale-fx.webp',sdf:1,line:[1,.65,0],lineHi:[1,.88,.5],flow:[1.1,.22,.06,.45],idle:[.24,.05,1.1,6],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.4,.03,.14,6],wave:[1.7,.55,.45,.25],waveSpeed:1,gap:.35,dash:[0,1,0,0],world:[.045,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cinghiale_(?!wood)/,[1,1,0,0]]]},
  // OB-230 CICALA: acid green in rapid chirps along the receiver's channel, the magazine and the stock's butt.
- cicala:{cls:1,mask:'./assets/models/v42/cicala-fx.webp',sdf:1,line:[.05,1,0],lineHi:[.7,1,.6],flow:[2.8,.7,.025,.14],idle:[.24,.06,3.6,12],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.025,.12,7],wave:[1.5,.45,.45,.25],waveSpeed:1.7,gap:.4,dash:[40,.5,1.3,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cicala_/,[1,1,0,0]]]},
+ // Check Fable: a quieter idle and a softer highlight (the bright edges read as debug lines).
+ cicala:{cls:1,mask:'./assets/models/v42/cicala-fx.webp',sdf:1,line:[.05,1,0],lineHi:[.55,.9,.45],flow:[2.8,.7,.025,.14],idle:[.13,.06,3.6,12],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.025,.12,7],wave:[1.5,.45,.45,.25],waveSpeed:1.7,gap:.4,dash:[40,.5,1.3,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cicala_/,[1,1,0,0]]]},
  // V42 b4b. OB-330 SCURE: ruby red, a heavy pulse that walks the handguard's inserts, the receiver's seam and the stock's comb.
  scure:{cls:3,mask:'./assets/models/v42/scure-fx.webp',sdf:1,line:[1,0,.16],lineHi:[1,.6,.62],flow:[1.3,.26,.05,.4],idle:[.24,.05,1.2,7],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.4,.03,.12,6],wave:[1.6,.5,.45,.25],waveSpeed:1.15,gap:.35,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^scure_(?!lens)/,[1,1,0,0]]]},
  // OB-520 GHEPPIO: cobalt blue in long segments that run from the chamber to the suppressor, quick like the kestrel's dive.
- gheppio:{cls:4,mask:'./assets/models/v42/gheppio-fx.webp',sdf:1,line:[0,.1,1],lineHi:[.55,.66,1],flow:[2.2,.5,.03,.2],idle:[.24,.05,1.8,9],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.03,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.5,gap:.35,dash:[16,.7,.5,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^gheppio_(?!lens)/,[1,1,0,0]]]},
+ // V45: brighter idle and a fuller inlay colour, so the new feather barbs and the kestrel roundels read on the night-blue chassis.
+ gheppio:{cls:4,mask:'./assets/models/v42/gheppio-fx.webp',sdf:1,line:[0,.1,1],lineHi:[.55,.66,1],flow:[2.2,.5,.03,.2],idle:[.32,.06,1.8,9],inlay:[.85,.62,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.03,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.5,gap:.35,dash:[16,.78,.5,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^gheppio_(?!lens)/,[1,1,0,0]]]},
  // ARTIGLIO: magenta, a glint that rides the claw's curved edge to its point and rings the finger loop.
  artiglio:{cls:5,mask:'./assets/models/v42/artiglio-fx.webp',sdf:1,line:[1,.24,.62],lineHi:[1,.72,.9],flow:[1.5,.5,.03,.18],idle:[.22,.05,1.5,8],inlay:[.7,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.7,.03,.14,6],wave:[1.5,.45,.45,.25],waveSpeed:1.5,dash:[0,1,0,0],world:[.04,.13,1,0],wear:[.4,.25,.2,0],parts:[[/^karambit$/,[1,1,0,0]]]},
  // FARFALLA: chartreuse, segments that open along both handles and run the blade's edge.

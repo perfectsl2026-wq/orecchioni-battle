@@ -124,9 +124,9 @@ void main(){
 }`;
 // Map grading keeps team colours readable: restrained saturation and split toning only.
 export const GRADES={
- caldera:{exposure:1.0,saturation:1.09,contrast:.27,shadow:[.95,.985,1.045],high:[1.05,1.005,.94],vignette:.17,bloom:.055,ao:1.0,rays:.3,sun:[1,.93,.8]},
+ caldera:{exposure:1.1,saturation:1.09,contrast:.24,shadow:[1.0,1.0,1.0],high:[1.05,1.005,.94],vignette:.17,bloom:.055,ao:1.0,rays:.3,sun:[1,.93,.8]},
  forge:{exposure:1.0,saturation:1.06,contrast:.26,shadow:[1,1,1.01],high:[1.04,1.0,.96],vignette:.17,bloom:.05,ao:1.0,rays:.26,sun:[1,.95,.85]},
- sahra:{exposure:.97,saturation:1.08,contrast:.27,shadow:[.97,.98,1.03],high:[1.055,1.0,.93],vignette:.16,bloom:.06,ao:.94,rays:.5,sun:[1,.86,.62]}
+ sahra:{exposure:.97,saturation:1.08,contrast:.27,shadow:[1.03,.99,.95],high:[1.055,1.0,.93],vignette:.16,bloom:.06,ao:.94,rays:.5,sun:[1,.86,.62]}
 };
 export function supportsPostFX(renderer){return renderer.capabilities.isWebGL2&&(renderer.extensions.has('EXT_color_buffer_float')||renderer.extensions.has('EXT_color_buffer_half_float'));}
 export class PostFX{
@@ -190,4 +190,44 @@ export class PostFX{
   this.pass(this.compositeMaterial,this.ldr);this.finalMaterial.uniforms.uTime.value=this.time;this.pass(this.finalMaterial,null);r.autoClear=true;
  }
  dispose(){for(const t of [this.world,this.ldr,this.aoA,this.aoB,this.rays,this.sun,...this.levels])t.dispose();this.depth.dispose();for(const m of [this.aoMaterial,this.blurMaterial,this.raysMaterial,this.sunMaterial,this.downMaterial,this.upMaterial,this.compositeMaterial,this.finalMaterial])m.dispose();this.quad.geometry.dispose();}
+}
+// V46 enemy outline: a red line of constant screen width round every enemy of the local player (in training, the bots of the
+// other team). Each visible mesh of an enemy gets a back-face twin that shares its geometry, skeleton and bone pose; its vertex
+// shader pushes the silhouette out along the screen-space normal by a fixed number of pixels, so the line is as thick at 40 m
+// as at 4 m. It is part of the scene (works with or without the post-processing chain), is depth-tested (no outlines through
+// walls; the twin sits 4 cm behind its mesh so creases and layered gear do not show inner lines) and never touches the first-person hands or weapon, which are drawn by their own pass.
+// V46f: the outline is light by default (a hint you notice when you look for it): 1.2 px at 1080 p, half transparent, a deeper red,
+// under the bloom threshold so it never glows. Settings (local only, never sent): off, light, strong (2.2 px, opaque); red, yellow, violet.
+// Check Fable: a light hint, a little stronger than V46f; beyond 12 m the line thins with distance (at constant width a far
+// enemy read as a red blob).
+export const OUTLINE_MODES={off:null,leggero:{px:1.1,opacity:.26},marcato:{px:2.2,opacity:1}};
+export const OUTLINE_COLORS={rosso:{leggero:0xa81e18,marcato:0xff2a22},giallo:{leggero:0xb8960f,marcato:0xffd21a},viola:{leggero:0x7a3fc4,marcato:0xb06bff}};
+const outlineStyle={mode:'leggero',color:'rosso'};
+const outlineUniforms={uOutlinePx:{value:new THREE.Vector2(2/1080,2/1080)},uOutlineWidth:{value:1}};
+const outlineMaterial=new THREE.MeshLambertMaterial({color:0x000000,emissive:0xb3201b,side:THREE.BackSide,toneMapped:false,fog:false,transparent:true,opacity:.22,depthWrite:false});outlineMaterial.name='enemy-outline';
+outlineMaterial.onBeforeCompile=s=>{Object.assign(s.uniforms,outlineUniforms);
+ s.vertexShader='uniform vec2 uOutlinePx;uniform float uOutlineWidth;\n'+s.vertexShader.replace('#include <project_vertex>',`#include <project_vertex>
+ vec3 otn=normalize(transformedNormal);
+ #ifdef FLIP_SIDED
+ otn=-otn;
+ #endif
+ gl_Position=projectionMatrix*vec4(mvPosition.xy,mvPosition.z-.04,1.);
+ {vec2 od=(projectionMatrix*vec4(otn,0.)).xy;float ol=length(od);if(ol>1e-5)gl_Position.xy+=od/ol*uOutlineWidth*uOutlinePx*gl_Position.w*clamp(12./max(-mvPosition.z,.1),.4,1.);}`);};
+outlineMaterial.customProgramCacheKey=()=>'enemy-outline-v46b';
+export const outlineDebug={material:outlineMaterial,uniforms:outlineUniforms};
+// Viewport size for the constant width (call once a frame); the line is 2.2 px at 1080 p and scales with the screen height.
+export function setOutlineViewport(width,height){const M=OUTLINE_MODES[outlineStyle.mode]||OUTLINE_MODES.leggero;outlineUniforms.uOutlinePx.value.set(2/Math.max(1,width),2/Math.max(1,height));outlineUniforms.uOutlineWidth.value=Math.max(M.px*.8,M.px*height/1080);}
+export function setOutlineStyle(mode,color){outlineStyle.mode=Object.hasOwn(OUTLINE_MODES,mode)?mode:'leggero';outlineStyle.color=Object.hasOwn(OUTLINE_COLORS,color)?color:'rosso';const M=OUTLINE_MODES[outlineStyle.mode];
+ if(M){outlineMaterial.emissive.setHex(OUTLINE_COLORS[outlineStyle.color][outlineStyle.mode]);outlineMaterial.opacity=M.opacity;outlineMaterial.transparent=M.opacity<1;outlineMaterial.depthWrite=M.opacity>=1;outlineMaterial.needsUpdate=true;}return {...outlineStyle};}
+export const outlineEnabled=()=>!!OUTLINE_MODES[outlineStyle.mode];
+const outlineSkip=o=>o.userData.outline||o.userData.contactShadow||o.isSprite||o.isPoints||o.isLine||!o.geometry?.attributes?.normal||[o.material].flat().some(m=>!m||m.transparent&&m.opacity<.6||m.blending===THREE.AdditiveBlending);
+export function outlineAgent(root,on){
+ on=on&&outlineEnabled();const d=root.userData;if(!on&&!d.outlined)return;d.outlined=on;const list=d.outlineList??=[];list.length=0;
+ root.traverse(o=>{if(o.isMesh&&!outlineSkip(o)&&o!==d.shadow)list.push(o);});
+ for(const o of list){let h=o.userData.outlineHull;
+  if(!on||!o.visible){if(h)h.visible=false;continue;}
+  if(!h||h.parent!==o.parent){h=o.isSkinnedMesh?new THREE.SkinnedMesh(o.geometry,outlineMaterial):new THREE.Mesh(o.geometry,outlineMaterial);if(o.isSkinnedMesh)h.bind(o.skeleton,o.bindMatrix);
+   h.name='Enemy outline';h.userData.outline=true;h.userData.ownedGeometry=false;h.castShadow=h.receiveShadow=false;h.frustumCulled=false;h.renderOrder=-1;o.parent.add(h);o.userData.outlineHull=h;}
+  if(h.geometry!==o.geometry)h.geometry=o.geometry;if(o.isSkinnedMesh&&h.skeleton!==o.skeleton)h.bind(o.skeleton,o.bindMatrix);
+  h.position.copy(o.position);h.quaternion.copy(o.quaternion);h.scale.copy(o.scale);h.visible=true;}
 }

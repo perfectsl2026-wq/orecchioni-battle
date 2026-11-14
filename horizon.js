@@ -5,7 +5,7 @@ import {streetClock} from './street-props.js?v=42.0';
 // unlit, vertex-coloured mesh in three depth layers (near roofs or slopes, a mid
 // skyline with its landmarks, far ranges) baked with their own aerial perspective,
 // so a single draw call reaches the sky. Cosmetic: no shadows, no collision, no hits.
-// Phones keep the earlier surroundings and textures (game.js calls useLiteWorld()).
+// Phones keep the earlier textures and details (game.js calls useLiteWorld()); since V50 they draw the surroundings too.
 // ?lite=1 previews the phone path on a desktop (QA before/after boards).
 let lite=typeof location!=='undefined'&&/[?&]lite=1/.test(location.search);export function useLiteWorld(){lite=true;}export const liteWorld=()=>lite;
 function rng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
@@ -44,7 +44,8 @@ void main(){
  }else if(kind==2){
   // Rock: warped strata, rain streaks down the faces, crumbly grain.
   float warp=hzNoise(fp*.035)*6.;float strata=hzNoise(vec2(fp.x*.05,vHzW.y*.42+warp));float streak=hzNoise(vec2(fp.x*.55,vHzW.y*.035));
-  c*=(.74+.38*strata)*(.82+.3*streak)*(.9+.2*grain);
+  // Check Fable: snow is not banded by the rock strata (they drew grey stripes across the far glaciers), and the rock bands are softer.
+  float snowy=smoothstep(.42,.55,dot(c,vec3(.333)));c*=mix((.82+.24*strata)*(.88+.18*streak),.97+.05*hzNoise(fp*.02),snowy)*mix(.92+.16*grain,.98+.04*grain,snowy);
  }else if(kind==3){
   vec2 cell=fp*vec2(1.7,1.);float fw=fwidth(cell.x);c*=.84+.2*hzPulse(cell.x,.15,.65,fw)*(1.-smoothstep(.3,.6,fw));c*=.92+.12*grain;
  }else if(kind==4){
@@ -80,7 +81,8 @@ class Silhouette{
  surface(grid,color,{wrap=false}={}){
   const R=grid.length,Cn=grid[0].length,P=(i,j)=>grid[wrap?(i+R)%R:Math.max(0,Math.min(R-1,i))][Math.max(0,Math.min(Cn-1,j))],a=new T.Vector3(),b=new T.Vector3(),n=new T.Vector3();
   const N=grid.map((row,i)=>row.map((v,j)=>{a.fromArray(P(i+1,j)).sub(new T.Vector3().fromArray(P(i-1,j)));b.fromArray(P(i,j+1)).sub(new T.Vector3().fromArray(P(i,j-1)));n.crossVectors(a,b).normalize();if(n.x*-v[0]+n.z*-v[2]+n.y*40<0)n.negate();return n.clone();}));
-  const put=(i,j)=>{const v=grid[i%R][j],nn=N[i%R][j];this.vertex(v,nn,color(v[1],i,j),this.shade(nn),0);};
+  // Check Fable: half of the sun shading on these smooth ranges (the ridged normals drew light and dark stripes down every face).
+  const put=(i,j)=>{const v=grid[i%R][j],nn=N[i%R][j];this.vertex(v,nn,color(v[1],i,j),.5*this.shade(nn)+.48,0);};
   for(let i=0;i<(wrap?R:R-1);i++)for(let j=0;j<Cn-1;j++){put(i,j);put(i+1,j);put(i+1,j+1);put(i,j);put(i+1,j+1);put(i,j+1);}
  }
  // Box standing on y0 (no floor), turned by yaw about its centre.
@@ -112,11 +114,19 @@ class Silhouette{
 const outside=(x,z,bx,bz,m)=>Math.abs(x)>bx+m||Math.abs(z)>bz+m;
 // Districts of flat-roofed blocks between two radii; windows and storeys come from the shader (FACADE).
 function district(s,r,{seed,r0,r1,count,hMin,hMax,palette,bounds,arc=[0,Math.PI*2],bands=12}){
- const rand=rng(seed);let placed=0;
+ const rand=rng(seed),deco=rng(seed+101);let placed=0;
  for(let n=0;n<count*3&&placed<count;n++){const a=arc[0]+(arc[1]-arc[0])*rand(),rr=r0+(r1-r0)*rand(),x=Math.cos(a)*rr,z=Math.sin(a)*rr;if(bounds&&!outside(x,z,bounds[0],bounds[1],10))continue;
   const w=6+rand()*12,d=6+rand()*12,h=hMin+(hMax-hMin)*Math.pow(rand(),1.8),col=palette[(rand()*palette.length)|0],yaw=a+(rand()-.5)*.25;
   s.kind=FACADE;s.box(x,-1,z,w,h+1,d,col,{yaw});s.kind=PLAIN;s.box(x,h,z,w+.5,.7,d+.5,col.clone().multiplyScalar(1.08),{yaw});
   if(rand()<.45)s.cyl(x+(rand()-.5)*w*.5,h+.7,z+(rand()-.5)*d*.5,1.1,1.1,1.6,C(.62,.6,.56),{seg:6});
+  // Check Fable: the blocks were bare boxes. Each now has a darker ground floor, a roof stair-house, and by chance a set-back upper
+  // volume (the taller ones), balcony slabs on one face and a parapet wall; its own random stream, so the layout stays as it was.
+  {const c=Math.cos(yaw),sn=Math.sin(yaw),at=(u,v)=>[x+c*u+sn*v,z-sn*u+c*v],dk=col.clone().multiplyScalar(.74),lt=col.clone().multiplyScalar(1.12);
+   s.box(x,-1,z,w+.3,3.6,d+.3,dk,{yaw});
+   {const [px,pz]=at((deco()-.5)*w*.4,(deco()-.5)*d*.4);s.kind=FACADE;s.box(px,h+.7,pz,3.2,2.6,3.2,lt,{yaw});s.kind=PLAIN;s.box(px,h+3.3,pz,3.7,.3,3.7,dk,{yaw});}
+   if(h>12&&deco()<.7){const k=.55+deco()*.2,hh=3.5+deco()*7;s.kind=FACADE;s.box(x,h+.7,z,w*k,hh,d*k,col,{yaw});s.kind=PLAIN;s.box(x,h+.7+hh,z,w*k+.5,.6,d*k+.5,lt,{yaw});}
+   if(deco()<.6){const side=deco()<.5?-1:1;for(let y=3.4;y<h-1.5;y+=3.3){const [bx,bz]=at(0,side*(d/2+.45));s.box(bx,y,bz,w*.72,.22,.9,lt,{yaw});s.box(bx,y+.22,bz+0,w*.72,.75,.08,dk,{yaw});}}
+   for(const sgn of [-1,1]){const [qx,qz]=at(sgn*(w/2+.1),0);s.box(qx,h+.7,qz,.25,.9,d+.5,lt,{yaw});}}
   placed++;}
 }
 // ---------------------------------------------------------------- SAHRA
@@ -199,17 +209,18 @@ function caldera(){
  // Second range behind the rim, bluer and higher.
  s.ridge({a0:-Math.PI*.98,a1:Math.PI*.42,seg:140,radius:a=>222+Math.sin(a*2.7)*10,height:a=>34+Math.sin(a*4.1+1)*9+Math.sin(a*9.3)*5+Math.abs(Math.sin(a*17))*3,profile:[[-20,0],[-6,.75],[0,1],[30,.4]],base:-3,color:()=>C(.34,.36,.38)});
  // The volcano: a smooth stratocone with radial gullies and ridges, a crater lip and a thin plume, north.
- {const x=-42,z=-236,AS=128,RS=18,gully=(a,t)=>Math.pow(Math.abs(Math.sin(a*9+Math.sin(a*2.7)*1.8+t*1.6)),5)*Math.sin(Math.PI*Math.min(1,t*1.3))*t,outer=[],inner=[];
+ // Check Fable: the rim is open toward the station (da>0 wraps the angle), lava glows in the crater and runs down the upper gullies.
+ {const x=-42,z=-236,AS=128,RS=18,rimGap=a=>{const da=Math.atan2(Math.sin(a-1.39),Math.cos(a-1.39));return Math.exp(-da*da/.2);},gully=(a,t)=>Math.pow(Math.abs(Math.sin(a*9+Math.sin(a*2.7)*1.8+t*1.6)),5)*Math.sin(Math.PI*Math.min(1,t*1.3))*t,outer=[],inner=[];
   for(let i=0;i<AS;i++){const a=i/AS*Math.PI*2,row=[],cr=[];
-   for(let j=0;j<=RS;j++){const t=j/RS,r=(15+94*Math.pow(t,1.38))*(1+Math.sin(a*3+.5)*.05+Math.sin(a*7)*.022)+gully(a,t)*8;row.push([x+Math.cos(a)*r,86*Math.pow(1-t,1.6)-3+Math.sin(a*5)*1.4*(1-t)-gully(a,t)*3,z+Math.sin(a)*r]);}
-   for(const [r,y]of [[15*(1+Math.sin(a*3+.5)*.05+Math.sin(a*7)*.022),83+Math.sin(a*5)*1.4],[10,76],[4,72]])cr.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);
+   for(let j=0;j<=RS;j++){const t=j/RS,r=(15+94*Math.pow(t,1.38))*(1+Math.sin(a*3+.5)*.05+Math.sin(a*7)*.022)+gully(a,t)*8;row.push([x+Math.cos(a)*r,86*Math.pow(1-t,1.6)-3+Math.sin(a*5)*1.4*(1-t)-gully(a,t)*3-rimGap(a)*15*Math.pow(1-t,4)+Math.sin(a*2+1)*5*t*(1-t)*4*.4,z+Math.sin(a)*r]);}
+   for(const [r,y]of [[15*(1+Math.sin(a*3+.5)*.05+Math.sin(a*7)*.022),83+Math.sin(a*5)*1.4-rimGap(a)*15],[10,70],[4,66]])cr.push([x+Math.cos(a)*r,y,z+Math.sin(a)*r]);
    outer.push(row);inner.push(cr);}
   // The landmark keeps more of its own colour through the haze than the ranges around it.
   s.kind=ROCK;s.clear=.5;
   // Dark basalt above, ash fans below, banded by old eruptions; lava ribs darker still.
   s.surface(outer,(y,i,j)=>{const a=i/AS*Math.PI*2,t=j/RS,g=gully(a,t),upper=1-smooth(.15,.55,t),band=.5+.5*Math.sin(y*.42+Math.sin(a*3)*2.2);
-   const base=C(.5,.45,.39).lerp(C(.19,.17,.16),upper).lerp(C(.3,.24,.2),band*.35*(1-upper*.5));return g>.35?base.clone().multiplyScalar(.58):g<.05&&t>.3?base.clone().lerp(C(.58,.53,.46),.35):base;},{wrap:true});
-  s.surface(inner,()=>C(.13,.11,.1),{wrap:true});s.kind=PLAIN;s.clear=1;
+   const base=C(.5,.45,.39).lerp(C(.19,.17,.16),upper).lerp(C(.3,.24,.2),band*.35*(1-upper*.5));{const lim=a>1.39?.62:.36;if(g>.3&&t<lim&&rimGap(a)>.25)return C(1.5,.42,.08).lerp(C(.42,.1,.04),t/lim);}return g>.35?base.clone().multiplyScalar(.58):g<.05&&t>.3?base.clone().lerp(C(.58,.53,.46),.35):base;},{wrap:true});
+  s.surface(inner,y=>y<75?C(1.9,.6,.1):C(.5,.16,.06),{wrap:true});s.kind=PLAIN;s.clear=1;
   s.plume=[x,84,z];}
  const mesh=s.mesh('CALDERA / orizzonte');mesh.add(plume(s.plume,s.haze));return mesh;
 }
@@ -255,4 +266,5 @@ function forge(){
  return s.mesh('FORGE / orizzonte');
 }
 const BUILDERS={sahra,caldera,forge};
-export function addHorizon(scene,mapId){if(lite||!BUILDERS[mapId]||(typeof location!=='undefined'&&/[?&]horizon=0/.test(location.search)))return null;const mesh=BUILDERS[mapId]();mesh.updateMatrix();scene.add(mesh);return mesh;}
+// V50: phones get the surroundings too (one or two unlit draw calls, 7-20k triangles); they keep the lighter textures and details.
+export function addHorizon(scene,mapId){if(!BUILDERS[mapId]||(typeof location!=='undefined'&&/[?&]horizon=0/.test(location.search)))return null;const mesh=BUILDERS[mapId]();mesh.updateMatrix();scene.add(mesh);return mesh;}

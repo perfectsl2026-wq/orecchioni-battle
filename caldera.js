@@ -22,10 +22,11 @@ export function createCaldera(scene,renderer){
  const mat=(color,roughness=.86,metalness=0)=>new T.MeshStandardMaterial({color,roughness,metalness});
  const substrate=layer('v28/rough_plasterbrick_05');
  const render=color=>layeredWear(surface('v28/painted_plaster_wall',color,.84,.012,{amount:.1}),substrate,{edge:.3,base:.5,top:.16,scale:.8,tint:0xd8cfbf,strength:.85});
+ // Check Fable: the worn-concrete scan is a dark albedo (about 7% linear), so the quay and the halls read near black even in sun; lift it to a light worn concrete.
  const p={crateStamp:'CALDERA 07',concrete:surface(liteWorld()?'v28/concrete_wall_008':'v44/caldera_concrete',0xece6d8,.8,.02,{amount:.1}),chalk:render(0xf2eee4),chalkWarm:render(0xeee2cf),
   basalt:surface('v14/rock_face_03',0x8e8f88,.72,.02,{amount:.06,normal:.55}),stone:surface('v5/sandstone_blocks_05',0xd9d0bd,.78,.025,{amount:.08}),
-  paving:toneAlbedo(surface('v13/stone_tiles_02',0xf0eadc,.58,.06,{floor:true}),{saturation:.72,gain:1.5}),quay:surface('v28/concrete_floor_worn_001',0xdcd7ca,.8,.02,{floor:true,amount:.08}),
-  deck:surface('v13/weathered_planks',0xcaa883,.62,.02,{floor:true,normal:.35}),teal:surface('v14/blue_metal_plate',0xaad5c8,.85,.02,{amount:.06,normal:.17}),
+  paving:toneAlbedo(surface('v13/stone_tiles_02',0xf0eadc,.58,.06,{floor:true}),{saturation:.72,gain:1.75}),quay:toneAlbedo(surface('v28/concrete_floor_worn_001',0xdcd7ca,.8,.02,{floor:true,amount:.08}),{saturation:.85,gain:2.8}),
+  deck:toneAlbedo(surface('v13/weathered_planks',0xcaa883,.62,.02,{floor:true,normal:.35}),{gain:1.7}),teal:surface('v14/blue_metal_plate',0xaad5c8,.85,.02,{amount:.06,normal:.17}),
   corrugated:surface('v28/corrugated_iron',0xa3b5ae,.85,.01,{amount:.1,normal:.4}),wood:surface('v13/weathered_planks',0xd6b48a,.5)};
  Object.assign(p,{trim:mat(0xe9e5da),dark:mat(0x42585b,.94),black:mat(0x283f45,.9),steel:mat(0x617578,.58,.48),creamMetal:mat(0xc9caba,.48,.48),copper:mat(0x98734e,.43,.72),
   rust:mat(0xa85b3e,.72,.16),glass:mat(0x6f969a,.14,.75),glassLight:mat(0x829e9d,.2,.6),bolt:mat(0x87928c,.42,.75),lamp:mat(0xe1d5b0),tire:mat(0x2f3836),
@@ -108,7 +109,8 @@ export function createCaldera(scene,renderer){
   timber:desertTimber,
   building:(root,p,x,z,w,d,h,base)=>block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.8),
   facade:(x,z,width,h,angle,serial)=>{const face=stationFacade(x,z,width,h,angle,serial);decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:false});if(!calderaInterior(x,z)){const spot={x,z,width,height:h,angle,serial,ground:groundHeight(x,z)};facadeCondenser(sp,spot);facadeFixture(sp,spot);stationFixtures(sp,spot);}return face;},
-  roofCap:(root,p,x,z,w,d,h)=>{if(w<5||d<5)return;box(root,p.trim,x,h+.08,z,w+.06,.16,d+.06);if(w>7&&d>5){box(root,p.steel,x+w*.2,h+.55,z,1.6,.9,1.1);for(let a=-.6;a<.7;a+=.2)box(root,p.dark,x+w*.2+a,h+.58,z+.56,.05,.6,.03);cyl(root,p.creamMetal,x-w*.22,h+.7,z,.35,1.2,'y',.35,14);}}
+  // Check Fable: a weathered concrete roof (it was a flat white slab from every high view) with a low parapet round it.
+  roofCap:(root,p,x,z,w,d,h)=>{if(w<5||d<5)return;box(root,p.roofSlab||=toneAlbedo(surface('v28/concrete_wall_008',0xe6e1d6,.86,.02,{amount:.1,floor:true}),{saturation:.6,gain:1.6}),x,h+.08,z,w+.06,.16,d+.06);for(const side of [-1,1]){box(root,p.trim,x,h+.3,z+side*(d/2-.08),w+.06,.36,.16);box(root,p.trim,x+side*(w/2-.08),h+.3,z,.16,.36,d-.26);}if(w>7&&d>5){box(root,p.steel,x+w*.2,h+.55,z,1.6,.9,1.1);for(let a=-.6;a<.7;a+=.2)box(root,p.dark,x+w*.2+a,h+.58,z+.56,.05,.6,.03);cyl(root,p.creamMetal,x-w*.22,h+.7,z,.35,1.2,'y',.35,14);}}
  });
  portals(root,p,map.arches,{material:p.concrete,trim:(root,p,a)=>{const g=new T.Group();g.position.set(a.x,0,a.z);if(a.axis==='x')g.rotation.y=Math.PI/2;root.add(g);const band=cosmetic(p.steel);for(const side of [-1,1])box(g,band,0,a.spring+a.rise+.25,side*(a.depth/2+.03),a.width+.2,.18,.05);}});
  desertDoors(root,p,map.movementBoxes);
@@ -141,13 +143,14 @@ function backdrop(root,p,sp){
  const rock=cosmetic(p.rock),cream=cosmetic(p.creamMetal),concrete=cosmetic(p.concrete);
  // The caldera rim: one continuous ridge around the bay, open to the sea on the
  // west and south, softened by fog. Sea stacks stand off the quay. All cosmetic.
- const pos=[],uv=[],index=[],segments=160;
- const ridge=a=>{const n=Math.sin(a*3.1)*.5+Math.sin(a*7.3+1.2)*.3+Math.sin(a*13.7+.4)*.2;return {r:190+n*24,h:18+n*9+Math.max(0,Math.cos(a-.3))*12};};
+ // Check Fable: twice the segments, a jagged crest of peaks and saddles and a wider profile (it read as one even band of rock).
+ const pos=[],uv=[],index=[],segments=320;
+ const ridge=a=>{const n=Math.sin(a*3.1)*.5+Math.sin(a*7.3+1.2)*.3+Math.sin(a*13.7+.4)*.2,jag=(1-Math.abs(Math.sin(a*8.3+.7)))**2*11*(.45+.55*Math.sin(a*2.3+.4)**2)+(1-Math.abs(Math.sin(a*17.9+2.1)))**3*6*(.3+.7*Math.sin(a*3.7+1)**2)+Math.sin(a*41+Math.sin(a*5))*1.4;return {r:190+n*24,h:16+n*9+Math.max(0,Math.cos(a-.3))*12+jag};};
  for(let i=0;i<=segments;i++){const a=-Math.PI*.94+i/segments*Math.PI*1.28,{r,h}=ridge(a),c=Math.cos(a),sn=Math.sin(a);
   // The two ends taper into the sea as headlands, and the outer row reaches the water.
   const t=Math.min(1,Math.min(i,segments-i)/6),lift=v=>-3+(v+3)*t;
-  for(const [k,rr,yy]of [[0,r-60,-3],[1,r-14,lift(h*.55)],[2,r,lift(h)],[3,r+30,lift(h*.7)],[4,r+70,-3]]){pos.push(c*rr,yy,sn*rr);uv.push(i*.22,k*1.4);}
-  if(i<segments)for(let k=0;k<4;k++){const n=i*5+k;index.push(n,n+5,n+1,n+1,n+5,n+6);}}
+  for(const [k,rr,yy]of [[0,r-60,-3],[1,r-34,lift(h*.22)],[2,r-14,lift(h*.6)],[3,r-5,lift(h*.9)],[4,r,lift(h)],[5,r+30,lift(h*.7)],[6,r+70,-3]]){pos.push(c*rr,yy,sn*rr);uv.push(i*.11,k*1.1);}
+  if(i<segments)for(let k=0;k<6;k++){const n=i*7+k;index.push(n,n+7,n+1,n+1,n+7,n+8);}}
  const rim=new T.BufferGeometry();rim.setAttribute('position',new T.Float32BufferAttribute(pos,3));rim.setAttribute('uv',new T.Float32BufferAttribute(uv,2));rim.setIndex(index);rim.computeVertexNormals();
  // The rim takes its own aerial perspective (a hazy tint) instead of scene fog, so the
  // ridge keeps its texture and silhouette at 150 m.

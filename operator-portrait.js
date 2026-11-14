@@ -1,6 +1,6 @@
 // V45 operator portraits for the round MVP card and the end-of-match podium: a small flat
 // SVG bust per kit, cached per team, kit and accent. No WebGL, no extra render passes.
-import {cleanOperator,kitFor} from './operator-kits.js?v=42.0';
+import {cleanOperator,kitFor,signatureOf} from './operator-kits.js?v=42.0';
 const TEAM={blue:['#73bdde','#16303d'],orange:['#ff8a55','#3a2016']};
 // Per kit: helmet shape, visor, crest, mask. Original silhouettes, drawn for 64×64.
 const LOOKS={
@@ -21,16 +21,18 @@ export function portraitSVG(team,operator){
  if(source){const url=source(team==='orange'?'orange':'blue',o.kit);if(url)return '<img class="op-portrait shot" src="'+url+'" alt="'+(kitFor(o.kit)?.name||'OPERATORE')+'" width="64" height="64" decoding="async">';}
  if(cache.has(key))return cache.get(key);
  const [accent,shade]=TEAM[team]||TEAM.blue,l=LOOKS[o.kit]||LOOKS.assalto,id='pg'+cache.size;
+ // V46: the bust wears the operator's signature palette (helmet main, suit dark, trims in its third colour); the team stays in the band and glow.
+ const sig=signatureOf(o.kit),shell=sig?.main||'#323d43',suit=sig?.dark||'#1d262b',trim=sig?.accent||'#5b686e';
  const svg='<svg class="op-portrait" viewBox="0 0 64 64" role="img" aria-label="'+(kitFor(o.kit)?.name||'OPERATORE')+'"><defs><radialGradient id="'+id+'" cx="50%" cy="38%" r="70%"><stop offset="0" stop-color="'+shade+'"/><stop offset="1" stop-color="#0a1116"/></radialGradient></defs>'
   +'<rect width="64" height="64" fill="url(#'+id+')"/>'
-  +'<path d="M6 64c2-13 10-19 26-19s24 6 26 19z" fill="#1d262b"/><path d="M14 64c2-9 7-13 18-13s16 4 18 13z" fill="#2a353b"/><path d="M27 45h10v6H27z" fill="#161d21"/>'
+  +'<path d="M6 64c2-13 10-19 26-19s24 6 26 19z" fill="'+suit+'"/><path d="M14 64c2-9 7-13 18-13s16 4 18 13z" fill="'+(sig?shell:'#2a353b')+'" opacity="'+(sig?.85:1)+'"/><path d="M27 45h10v6H27z" fill="#161d21"/>'
   +'<path d="M8 60c3-6 8-9 14-10l2 4c-6 1-10 3-13 8z" fill="'+accent+'" opacity=".8"/>'
   +'<ellipse cx="32" cy="34" rx="10" ry="11" fill="#141b1f"/>'
-  +'<path d="'+l.helmet+'" fill="#323d43"/><path d="'+l.helmet+'" fill="none" stroke="#5b686e" stroke-width=".8"/>'
+  +'<path d="'+l.helmet+'" fill="'+shell+'"/><path d="'+l.helmet+'" fill="none" stroke="'+trim+'" stroke-width=".8"/>'
   +'<path d="'+l.visor+'" fill="'+(l.glow?accent:'#0b1215')+'"'+(l.glow?' opacity=".9"':'')+'/>'
   +(l.glow?'':'<path d="'+l.visor+'" fill="none" stroke="'+accent+'" stroke-width=".7" opacity=".7"/>')
   +(l.mask?'<path d="M25 36h14l-2 7H27z" fill="#20292d"/><circle cx="27.5" cy="39" r="2" fill="#3a464c"/><circle cx="36.5" cy="39" r="2" fill="#3a464c"/>':'')
-  +(l.crest?'<path d="M31 12h3l2 6h-6z" fill="'+accent+'"/>':'')
+  +(l.crest?'<path d="M31 12h3l2 6h-6z" fill="'+(sig?trim:accent)+'"/>':'')
   +'</svg>';
  cache.set(key,svg);return svg;
 }

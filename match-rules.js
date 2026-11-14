@@ -47,6 +47,8 @@ export function updateMatch(state,now,spawn,emit=()=>{}){
   if(now-state.started>=rules.durationMs||Math.max(state.score.blue,state.score.orange)>=rules.target)state.ended=true;
   return;
  }
+ // V50: a ranked match does not start its first round until the referee has everyone in (state.hold).
+ if(state.hold){state.phase='waiting';state.phaseUntil=0;return;}
  const players=Object.values(state.players).filter(p=>!p.loading),both=['blue','orange'].every(t=>players.some(p=>p.team===t));
  if(!both&&!(objectiveEnabled(state)&&state.phase==='live')){state.phase='waiting';state.phaseUntil=0;return;}
  if(state.phase==='waiting'){beginRound(state,now,spawn);emit({kind:'round',phase:'freeze',round:state.round});return;}
