@@ -18,14 +18,14 @@ const CLASSES={
  // profile held up broadside in the middle of the view, where the support hand thumbs the
  // magazine out, looks at it and slaps it home. Yaw does the showing; roll only cants. V42 review: both
  // profiles are held 4-13 cm further out (as far as the trigger arm reaches), so the rifle stays in the frame.
- rifle:{ms:4300,keys:[
+ rifle:{ms:4300,smooth:true,keys:[
   [0,     0,0,0,              0,0,0,          0,0,0,0],
   [.06,   .006,-.01,.004,     -.04,.06,-.06,  0,0,0,0],
-  [.18,   .01,.02,-.13,       .1,-.86,.34,    1,1,0,0],
-  [.31,   .008,.022,-.135,    .11,-.84,.38,   1,1,0,0],
+  [.18,   .012,.018,-.13,     .09,-.78,.26,   1,1,0,0],
+  [.31,   .006,.026,-.135,    .13,-.9,.44,    1,1,0,0],
   [.39,   -.035,.03,-.012,    .07,0,.1,       0,0,0,0],
-  [.5,    -.02,.045,-.08,     .1,.97,-.2,     0,0,0,0],
-  [.6,    -.024,.05,-.085,    .12,.97,-.25,   0,0,0,0],
+  [.5,    -.018,.043,-.08,    .09,.86,-.14,   0,0,0,0],
+  [.6,    -.026,.052,-.085,   .13,.95,-.3,    0,0,0,0],
   [.66,   -.03,.038,-.07,     .1,.55,-.18,    .7,0,0,0],
   [.70,   -.03,.036,-.06,     .1,.48,-.16,    1,0,0,0],
   [.74,   -.03,.032,-.06,     .08,.48,-.16,   1,0,1,0],
@@ -34,17 +34,19 @@ const CLASSES={
   [.92,   -.008,.01,-.004,    .03,.08,-.03,   .15,0,0,0],
   [1,     0,0,0,              0,0,0,          0,0,0,0]
  ]},
+ // V52: rifles, SMG and pistol take the knife's and the AVERLA's Catmull-Rom tangents (`smooth`) and each shown flank is two
+ // different keys, so the piece keeps turning in the light while it is shown instead of stopping dead twice.
  // Pistol: the support hand drops away, the wrist shows the left flank, then the right
  // flank in the middle of the view; then the magazine drops into the waiting palm, is
  // looked at and slapped home.
- pistol:{ms:3700,keys:[
+ pistol:{ms:3700,smooth:true,keys:[
   [0,     0,0,0,             0,0,0,           0,0,0,0],
   [.05,   0,-.006,.004,      -.05,-.02,.04,   .3,1,0,0],
-  [.17,   -.03,.045,-.05,    .14,.72,-.14,    1,1,0,0],
-  [.3,    -.035,.05,-.055,   .11,.8,-.2,      1,1,0,0],
+  [.17,   -.028,.043,-.04,   .15,.66,-.08,    1,1,0,0],
+  [.3,    -.037,.053,-.045,  .1,.84,-.26,     1,1,0,0],
   [.38,   -.06,.05,-.05,     .16,.2,.05,      1,1,0,0],
-  [.47,   -.105,.05,-.045,   .14,-.55,.3,     1,1,0,0],
-  [.58,   -.11,.052,-.045,   .12,-.6,.34,     1,1,0,0],
+  [.47,   -.1,.05,-.035,     .15,-.5,.24,     1,1,0,0],
+  [.58,   -.112,.056,-.035,  .11,-.66,.4,     1,1,0,0],
   [.66,   -.04,.05,-.05,     .1,.34,-.08,     1,0,0,0],
   [.72,   -.04,.052,-.052,   .05,.38,-.12,    1,0,1,0],
   [.8,    -.04,.052,-.052,   .06,.37,-.11,    1,0,1,0],
@@ -52,31 +54,34 @@ const CLASSES={
   [.91,   -.01,.016,-.02,    .03,.1,-.04,     .25,0,0,0],
   [1,     0,0,0,             0,0,0,           0,0,0,0]
  ]},
- // OB-510 AVERLA (V42): the left flank held up broadside, the swing through to the ejection side, then back to the
- // left, canted: the support hand drops the detachable magazine into the palm, looks at it and seats it with a bump,
- // draws the straight-pull bolt fully back by the left handle, lets go so the open chamber and its round show, then
- // drives it home and takes the forward grip again. The light wave runs at 28 % and 87 % (game.js).
- sniper:{ms:5200,keys:[
+ // OB-510 AVERLA (V52): one continuous piece in 4.4 s instead of three held poses and a long still tail. A small dip the
+ // other way first, then the left flank comes up broadside and keeps turning while it is shown (yaw .56 to .72, roll
+ // -.1 to -.38: the light travels along the barrel and the scope), over the top with the muzzle up to the right side
+ // (again turning through it), and back to the left, canted, held 3 cm higher and 2 cm further left than before so the
+ // receiver sits in the middle of the view: the support hand drops the magazine into the palm, shows it and seats it
+ // with a bump, draws the bolt by the left handle, lets go so the open chamber shows, drives it home and takes the
+ // forward grip again. Catmull-Rom tangents (`smooth`): the wrist never stops dead in a pose. The light wave still
+ // runs at 28 % (left flank) and 87 % (bolt going home).
+ sniper:{ms:4400,smooth:true,keys:[
   [0,     0,0,0,              0,0,0,          0,0,0,0,0,0],
-  [.05,   0,-.006,.004,       -.03,.03,.04,   0,0,0,0,0,0],
-  [.17,   -.05,.06,-.04,      .14,.6,-.2,     0,0,0,0,0,0],
-  [.29,   -.055,.064,-.045,   .12,.64,-.24,   0,0,0,0,0,0],
-  [.38,   -.03,.06,-.03,      .1,.05,.1,      0,0,0,0,0,0],
-  [.47,   -.01,.06,-.05,      .12,-.5,.32,    0,0,0,0,0,0],
-  [.55,   -.01,.062,-.05,     .1,-.52,.34,    0,0,0,0,0,0],
-  [.62,   -.05,.06,-.03,      .12,.38,-.3,    1,0,0,0,0,0],
-  [.65,   -.05,.058,-.03,     .11,.38,-.3,    1,0,1,0,0,0],
-  [.675,  -.05,.06,-.03,      .12,.38,-.3,    1,0,1,0,1,0],
-  [.73,   -.05,.062,-.03,     .13,.4,-.32,    1,.22,1,0,1,0],
-  [.775,  -.05,.06,-.03,      .12,.38,-.3,    1,0,.45,0,1,0],
-  [.8,    -.05,.07,-.03,      .16,.38,-.32,   1,0,0,0,0,0],
-  [.83,   -.05,.062,-.03,     .12,.38,-.3,    1,0,0,0,0,1],
-  [.855,  -.05,.06,-.03,      .11,.38,-.3,    1,0,0,1,0,1],
-  [.885,  -.052,.066,-.034,   .16,.44,-.4,    1,.5,0,1,0,0],
-  [.905,  -.052,.067,-.034,   .17,.45,-.41,   1,.5,0,1,0,0],
-  [.93,   -.05,.06,-.03,      .12,.39,-.31,   1,0,0,1,0,1],
-  [.95,   -.048,.058,-.026,   .1,.37,-.28,    1,0,0,0,0,1],
-  [.978,  -.012,.012,-.006,   .03,.08,-.06,   .25,0,0,0,0,0],
+  [.05,   .004,-.01,.006,     -.04,-.05,.06,  0,0,0,0,0,0],
+  [.17,   -.05,.07,-.045,     .12,.56,-.1,    0,0,0,0,0,0],
+  [.28,   -.058,.08,-.052,    .17,.72,-.38,   0,0,0,0,0,0],
+  [.37,   -.035,.085,-.03,    .21,.08,.1,     0,0,0,0,0,0],
+  [.46,   -.02,.082,-.058,    .14,-.52,.3,    0,0,0,0,0,0],
+  [.55,   -.016,.086,-.06,    .1,-.6,.46,     0,0,0,0,0,0],
+  [.610,   -.070,.100,-.01,      .12,.52,-.3,    1,0,0,0,0,0],
+  [.637,   -.070,.094,-.01,     .1,.52,-.3,     1,0,1,0,0,0],
+  [.664,   -.070,.098,-.01,     .12,.53,-.31,   1,.25,1,0,1,0],
+  [.705,  -.070,.100,-.01,      .13,.55,-.35,   1,.25,1,0,1,0],
+  [.741,  -.070,.098,-.01,     .12,.53,-.31,   1,0,.45,0,1,0],
+  [.764,    -.070,.110,-.01,      .17,.52,-.32,   1,0,0,0,0,0],
+  [.791,   -.070,.100,-.01,      .12,.52,-.3,    1,0,0,0,0,1],
+  [.818,   -.070,.098,-.004,    .1,.52,-.3,     1,0,0,1,0,1],
+  [.850,  -.073,.106,-.012,   .17,.6,-.44,    1,.45,0,1,0,0],
+  [.877,  -.070,.100,-.01,      .12,.53,-.31,   1,0,0,1,0,1],
+  [.900,   -.068,.096,-.016,   .09,.5,-.27,    1,0,0,0,0,1],
+  [.955,  -.03,.042,-.008,    .05,.2,-.11,    .45,0,0,0,0,0],
   [1,     0,0,0,              0,0,0,          0,0,0,0,0,0]
  ]},
  // Knife (V44): both flats shown broadside, the spine rolled up to the light, then cocked down and tossed end over end
@@ -101,8 +106,8 @@ const CLASSES={
  ]}
 };
 // RONCOLA: its long fixed stock ran past the right edge in the left profile, so the whole profile is held further left and a little higher.
-CLASSES.ak={ms:4300,keys:CLASSES.rifle.keys.map(f=>{const m=f[0]>.36&&f[0]<.9?Math.min(1,(f[0]-.36)/.06,(.9-f[0])/.06):0;return [f[0],f[1]-.045*m,f[2]+.015*m,...f.slice(3)];})};
-CLASSES.smg={ms:4000,keys:CLASSES.rifle.keys.map(f=>[f[0],f[1]*.85,f[2]*.9,f[3]*.85,f[4],f[5]*.92,f[6]*.92,...f.slice(7)])};
+CLASSES.ak={ms:4300,smooth:true,keys:CLASSES.rifle.keys.map(f=>{const m=f[0]>.36&&f[0]<.9?Math.min(1,(f[0]-.36)/.06,(.9-f[0])/.06):0;return [f[0],f[1]-.045*m,f[2]+.015*m,...f.slice(3)];})};
+CLASSES.smg={ms:4000,smooth:true,keys:CLASSES.rifle.keys.map(f=>[f[0],f[1]*.85,f[2]*.9,f[3]*.85,f[4],f[5]*.92,f[6]*.92,...f.slice(7)])};
 // Reloads (V32), timed to the foley already scheduled by the audio engine: rifles and
 // SMG magazine out at 16 %, seated at 58 %, bolt at 82 %; pistol 18/62/86 %; precision rifle bolt
 // back 14 %, magazine out 40 %, seated 62 %, bolt home 82 %. The support hand

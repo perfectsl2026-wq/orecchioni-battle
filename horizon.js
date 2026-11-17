@@ -164,14 +164,30 @@ function sahra(){
 // The port across the bay: a container terminal on a long mole with three
 // ship-to-shore cranes and a moored carrier; behind the rim, a second range and
 // the volcano that names the map; low islands on the open sea.
-function crane(s,x,z,yaw,paint,white){
- const c=Math.cos(yaw),sn=Math.sin(yaw),P=(u,v)=>[x+u*c+v*sn,z-u*sn+v*c];s.kind=TRUSS;
- for(const [u,v]of [[-8,-7],[8,-7],[-8,7],[8,7]]){const [px,pz]=P(u,v);s.box(px,-1,pz,2.2,37,2.2,paint,{yaw});}
- for(const u of [-8,8]){const [px,pz]=P(u,0);s.box(px,30,pz,1.8,2.2,16,white,{yaw});}
- for(const v of [-7,7]){const [px,pz]=P(0,v);s.box(px,34,pz,17.6,2.4,1.8,paint,{yaw});}
- const [bx,bz]=P(0,-12);s.box(bx,36.4,bz,4.2,2.6,58,white,{yaw});
- const [ax,az]=P(0,6);s.box(ax,36.4,az,3.4,16,3.4,paint,{yaw});s.kind=PLAIN;const [hx,hz]=P(0,9);s.box(hx,36.4,hz,7,5,7,white,{yaw});
- for(const v of [-38,-20,14]){const [tx,tz]=P(0,v),[ox,oz]=P(0,6);s.tri([ox,52.4,oz],[tx,39,tz],[tx+.4,39,tz+.4],white);}
+// V52 ship-to-shore gantry: box-girder portal on four legs, a lattice boom over the berth (one is stowed raised),
+// A-frame with stays, machinery house, cab and a spreader on its ropes. Members between two points are struts.
+function strut(s,a,b,w,color,o){const d=new T.Vector3(b[0]-a[0],b[1]-a[1],b[2]-a[2]),up=Math.abs(d.y)/d.length()>.9?new T.Vector3(1,0,0):new T.Vector3(0,1,0),p=new T.Vector3().crossVectors(d,up).normalize().multiplyScalar(w/2),q=new T.Vector3().crossVectors(d,p).normalize().multiplyScalar(w/2);
+ const c=[[1,1],[1,-1],[-1,-1],[-1,1]].map(([i,j])=>[p.x*i+q.x*j,p.y*i+q.y*j,p.z*i+q.z*j]);
+ for(let i=0;i<4;i++){const e=c[i],f=c[(i+1)%4];s.quad([a[0]+e[0],a[1]+e[1],a[2]+e[2]],[a[0]+f[0],a[1]+f[1],a[2]+f[2]],[b[0]+f[0],b[1]+f[1],b[2]+f[2]],[b[0]+e[0],b[1]+e[1],b[2]+e[2]],color,o);}}
+function crane(s,x,z,yaw,paint,white,{raised=false,load=null}={}){
+ const c=Math.cos(yaw),sn=Math.sin(yaw),W=(u,y,v)=>[x+u*c+v*sn,y,z-u*sn+v*c],dark=C(.13,.15,.17),warn=C(.78,.6,.12);s.kind=PLAIN;
+ for(const u of [-9,9])for(const v of [-7,7]){strut(s,W(u,1,v),W(u*.92,35,v),1.7,paint);const [bx,,bz]=W(u,0,v);s.box(bx,.9,bz,3.4,1.6,2.2,dark,{yaw});}
+ for(const v of [-7,7]){strut(s,W(-9,6.5,v),W(9,6.5,v),1.5,paint);strut(s,W(-8.3,35,v),W(8.3,35,v),1.9,paint);strut(s,W(-9,7.5,v),W(0,22,v),.8,paint);strut(s,W(9,7.5,v),W(0,22,v),.8,paint);strut(s,W(-8.6,22,v),W(8.6,22,v),1.1,paint);}
+ for(const u of [-8.3,8.3]){strut(s,W(u,35,-7),W(u,35,7),1.6,paint);strut(s,W(u*1.06,22,-7),W(u*1.06,22,7),1,paint);}
+ // Twin girders: backreach, then the boom hinged at the waterside leg.
+ const hinge=-9,tip=raised?[0,36.6+38*.93,hinge-38*.36]:[0,36.6,hinge-40],B=t=>[0,36.6+(tip[1]-36.6)*t,hinge+(tip[2]-hinge)*t];
+ for(const u of [-3.6,3.6]){strut(s,W(u,36.6,hinge),W(u,36.6,19),1.5,white);strut(s,W(u,B(0)[1],B(0)[2]),W(u,B(1)[1],B(1)[2]),1.7,white);}
+ for(const t of [.02,.26,.5,.74,.98])strut(s,W(-3.6,B(t)[1],B(t)[2]),W(3.6,B(t)[1],B(t)[2]),.7,white);
+ strut(s,W(-3.6,B(.93)[1],B(.93)[2]),W(3.6,B(.93)[1],B(.93)[2]),2.4,C(.66,.14,.1));
+ // A-frame and stays.
+ const apex=[0,56,-4];for(const u of [-3.6,3.6]){strut(s,W(u,36.6,-8.5),W(u*.4,apex[1],apex[2]),1,paint);strut(s,W(u,36.6,7),W(u*.4,apex[1],apex[2]),.9,paint);
+  if(!raised)for(const t of [.45,.92])strut(s,W(u*.4,apex[1],apex[2]),W(u,B(t)[1]+.8,B(t)[2]),.28,dark);strut(s,W(u*.4,apex[1],apex[2]),W(u,37.4,18),.28,dark);}
+ strut(s,W(-1.5,apex[1],apex[2]),W(1.5,apex[1],apex[2]),1.2,paint);
+ // Machinery house, stair tower, cab, spreader.
+ {const [mx,,mz]=W(0,0,10);s.kind=RIBBED;s.box(mx,37.4,mz,9.5,5.4,11,white,{yaw,top:C(.34,.36,.38)});s.kind=PLAIN;const [tx,,tz]=W(10.6,0,7);s.box(tx,2,tz,1.6,33,2.2,C(.5,.52,.53),{yaw});}
+ if(!raised){const v0=hinge-15,[kx,,kz]=W(2.2,0,v0+5);s.box(kx,31.2,kz,2.6,2.6,3.2,C(.86,.87,.85),{yaw,top:dark});const [qx,,qz]=W(0,0,v0);s.box(qx,35.2,qz,6.4,1.2,4.6,dark,{yaw});
+  const drop=load?17:24;for(const u of [-2.6,2.6])for(const v of [-1,1])strut(s,W(u,35.2,v0+v),W(u,drop+.7,v0+v),.14,dark);const [sx,,sz]=W(0,0,v0);s.box(sx,drop,sz,12.4,.7,2.6,warn,{yaw});
+  if(load){s.kind=RIBBED;s.box(sx,drop-2.6,sz,12.2,2.6,2.5,load,{yaw});s.kind=PLAIN;}}
 }
 // Fumarole plume: a dozen camera-facing soft puffs rising, growing and fading on the shared clock.
 function plume(at,haze){
@@ -193,21 +209,32 @@ void main(){float n=hzNoise(vUv*2.2+vS*17.+hzTime*.03)*.65+hzNoise(vUv*5.+vS*9.)
 }
 function caldera(){
  const s=new Silhouette(SKIES.caldera,[-72,64,34],{density:.0033,mist:.12});
- const paint=C(.62,.18,.08),white=C(.85,.86,.84),quay=C(.58,.58,.56);
+ const paint=C(.16,.29,.4),white=C(.8,.82,.81),quay=C(.58,.58,.56);
  // Mole and terminal on the far side of the bay (south-west), a long low line on the water.
  const mole=(a,r)=>[Math.cos(a)*r,Math.sin(a)*r];
- s.ridge({a0:1.55,a1:2.55,seg:30,radius:()=>150,height:()=>2.2,profile:[[-9,.2],[-8,1],[8,1],[9,.2]],base:-1.3,kind:CONCRETE,color:()=>quay});
- const stacks=[C(.55,.22,.16),C(.2,.33,.42),C(.62,.6,.54),C(.3,.42,.3),C(.66,.44,.18)],rand=rng(41);
- s.kind=RIBBED;for(let i=0;i<34;i++){const a=1.62+i*.026,[x,z]=mole(a,152+rand()*4),h=2.6*(1+((rand()*4)|0));s.box(x,2,z,6,h,2.5,stacks[(rand()*5)|0],{yaw:-a});}s.kind=PLAIN;
- for(const a of [1.72,1.9,2.08]){const [x,z]=mole(a,143);crane(s,x,z,-a+Math.PI/2,paint,white);}
- // A container carrier moored along the mole.
- {const a=2.24,[x,z]=mole(a,139);s.box(x,-1.3,z,72,9,13,C(.16,.2,.24),{yaw:-a+Math.PI/2,top:C(.5,.18,.14)});
-  for(let i=-3;i<=2;i++){const [cx,cz]=[x+Math.cos(-a+Math.PI/2)*i*9.5,z-Math.sin(-a+Math.PI/2)*i*9.5];s.kind=RIBBED;s.box(cx,7.7,cz,8.6,5.2,12,stacks[(i+5)%5],{yaw:-a+Math.PI/2});s.kind=PLAIN;}
-  const [bx,bz]=[x-Math.cos(-a+Math.PI/2)*31,z+Math.sin(-a+Math.PI/2)*31];s.box(bx,7.7,bz,6,14,12.5,white,{yaw:-a+Math.PI/2});s.cyl(bx,21.7,bz,1.4,1.4,4,C(.5,.18,.14),{seg:8});}
+ s.ridge({a0:1.5,a1:2.58,seg:36,radius:()=>150,height:()=>2.2,profile:[[-9.6,.1],[-9,1],[17,1],[18,.1]],base:-1.3,kind:CONCRETE,color:()=>quay});
+ const stacks=[C(.5,.2,.15),C(.17,.29,.38),C(.6,.58,.52),C(.24,.36,.27),C(.62,.42,.17),C(.3,.31,.33),C(.42,.16,.2)],rand=rng(41);
+ // Container yard behind the cranes: three rows of forty-footers in blocks with truck lanes between, stacked one to four high.
+ s.kind=RIBBED;for(let slot=0;slot<11;slot++){if(slot%4===3)continue;for(let row=0;row<3;row++){const r=158.5+row*3.1,a=1.57+slot*.085+row*.002,[x,z]=mole(a,r),n=Math.max(1,Math.min(4,Math.round(1.2+2.6*Math.abs(Math.sin(slot*1.7+row*.9))+rand()*.9)));
+  for(let k=0;k<n;k++)s.box(x,.9+k*2.62,z,12.2,2.6,2.5,stacks[(rand()*stacks.length)|0],{yaw:-a+Math.PI/2+(rand()-.5)*.012});}}
+ // Terminal shed at the root of the mole and high-mast lights along the yard.
+ {const a=2.5,[x,z]=mole(a,154);s.box(x,.9,z,30,8.5,13,C(.62,.64,.62),{yaw:-a+Math.PI/2,top:C(.36,.4,.42)});}s.kind=PLAIN;
+ for(const a of [1.6,1.84,2.08,2.32]){const [x,z]=mole(a,166.4);s.cyl(x,.9,z,.42,.26,33,C(.6,.62,.62),{seg:6,cap:false});s.cyl(x,33.9,z,1.9,1.9,.7,C(.82,.83,.8),{seg:8});}
+ crane(s,...mole(1.7,147),-1.7+Math.PI/2,paint,white,{load:stacks[1]});crane(s,...mole(1.89,147),-1.89+Math.PI/2,paint,white);crane(s,...mole(2.1,147),-2.1+Math.PI/2,paint,white,{raised:true});
+ // A container carrier at the berth: flared bow, boot-topping at the waterline, accommodation block and funnel aft, boxes in bays.
+ {const a=1.84,[x,z]=mole(a,129.5),yaw=-a+Math.PI/2,c=Math.cos(yaw),sn=Math.sin(yaw),W=(u,y,v)=>[x+u*c+v*sn,y,z-u*sn+v*c],hull=C(.1,.14,.19),boot=C(.42,.14,.1),deck=C(.36,.2,.16);
+  const st=[[-56,5.2,9.6],[-52,7.2,9.4],[-40,7.6,9.2],[20,7.6,9.2],[34,7.1,9.4],[44,5.4,10],[51,2.8,10.8],[56,.25,11.8]];s.kind=PLAIN;
+  for(let i=0;i<st.length-1;i++){const [u0,b0,d0]=st[i],[u1,b1,d1]=st[i+1];for(const sd of [-1,1]){s.quad(W(u0,-1.3,sd*b0*.86),W(u1,-1.3,sd*b1*.86),W(u1,1.1,sd*b1*.93),W(u0,1.1,sd*b0*.93),boot);s.quad(W(u0,1.1,sd*b0*.93),W(u1,1.1,sd*b1*.93),W(u1,d1,sd*b1),W(u0,d0,sd*b0),hull);}
+   s.quad(W(u0,d0,-b0),W(u1,d1,-b1),W(u1,d1,b1),W(u0,d0,b0),deck);}
+  s.quad(W(-56,-1.3,-4.5),W(-56,-1.3,4.5),W(-56,9.6,5.2),W(-56,9.6,-5.2),hull);
+  {const [bx,,bz]=W(-43,0,0);s.kind=FACADE;s.box(bx,9.4,bz,10,16.5,14.4,C(.86,.87,.84),{yaw});s.kind=PLAIN;s.box(bx,25.9,bz,5.4,2.8,19.6,C(.86,.87,.84),{yaw,top:C(.3,.32,.34)});s.cyl(bx,28.7,bz,.3,.2,7,C(.8,.8,.78),{seg:5,cap:false});
+   const [fx,,fz]=W(-51,0,0);s.box(fx,9.4,fz,4.4,13,5.4,C(.16,.18,.2),{yaw});s.box(fx,19.4,fz,4.6,1.6,5.6,C(.7,.52,.16),{yaw});}
+  s.kind=RIBBED;for(let bay=0;bay<11;bay++){const u=-33+bay*6.7;for(const [v,wd]of [[-4.9,4.8],[0,5],[4.9,4.8]]){const tiers=bay>9?1:Math.max(1,Math.round(2.4+1.8*Math.sin(bay*.9+v)+rand()*1.3));const [cx,,cz]=W(u,0,v);for(let k=0;k<tiers;k++)s.box(cx,9.3+k*2.62,cz,6.1,2.6,wd,stacks[(rand()*stacks.length)|0],{yaw});}}
+  s.kind=PLAIN;{const [mx,,mz]=W(50,0,0);s.cyl(mx,10.6,mz,.3,.18,9,C(.8,.8,.78),{seg:5,cap:false});}}
  // Islands on the open sea, low and very hazy.
  for(const [a,r,w,h]of [[2.9,262,40,14],[3.25,280,64,22],[1.2,270,50,12]])s.ridge({a0:a-w/r/2,a1:a+w/r/2,seg:12,radius:()=>r,height:b=>h*Math.max(0,Math.sin((b-a+w/r/2)/(w/r)*Math.PI))**.7-1.3,profile:[[-14,0],[-4,.8],[0,1],[10,0]],base:-1.3,color:()=>C(.34,.38,.36)});
  // Second range behind the rim, bluer and higher.
- s.ridge({a0:-Math.PI*.98,a1:Math.PI*.42,seg:140,radius:a=>222+Math.sin(a*2.7)*10,height:a=>34+Math.sin(a*4.1+1)*9+Math.sin(a*9.3)*5+Math.abs(Math.sin(a*17))*3,profile:[[-20,0],[-6,.75],[0,1],[30,.4]],base:-3,color:()=>C(.34,.36,.38)});
+ s.ridge({a0:-Math.PI*.98,a1:Math.PI*.42,seg:140,radius:a=>222+Math.sin(a*2.7)*10,height:a=>(34+Math.sin(a*4.1+1)*9+Math.sin(a*9.3)*5+Math.abs(Math.sin(a*17))*3)*smooth(0,.34,Math.PI*.42-a)*smooth(0,.34,a+Math.PI*.98)-3*(1-smooth(0,.1,Math.PI*.42-a)),profile:[[-20,0],[-6,.75],[0,1],[30,.4]],base:-3,color:()=>C(.34,.36,.38)});
  // The volcano: a smooth stratocone with radial gullies and ridges, a crater lip and a thin plume, north.
  // Check Fable: the rim is open toward the station (da>0 wraps the angle), lava glows in the crater and runs down the upper gullies.
  {const x=-42,z=-236,AS=128,RS=18,rimGap=a=>{const da=Math.atan2(Math.sin(a-1.39),Math.cos(a-1.39));return Math.exp(-da*da/.2);},gully=(a,t)=>Math.pow(Math.abs(Math.sin(a*9+Math.sin(a*2.7)*1.8+t*1.6)),5)*Math.sin(Math.PI*Math.min(1,t*1.3))*t,outer=[],inner=[];
@@ -224,31 +251,169 @@ function caldera(){
   s.plume=[x,84,z];}
  const mesh=s.mesh('CALDERA / orizzonte');mesh.add(plume(s.plume,s.haze));return mesh;
 }
-// Sea surface: two scrolling ripple octaves perturb the normal (no texture), so the sky
-// and sun break into glints, and the water darkens toward the quay.
+// V52 sea surface: a long swell under wind chop made of drifting noise (no regular stripes), its normal drawn per pixel so the
+// sky and the sun break into glints; deep blue offshore, greener over the shallows by the quay, crests catching light,
+// and the far water dissolving into the horizon haze so sea and sky meet without a line.
 export function seaSurface(material){
- if(lite)return material;const previous=material.onBeforeCompile,key=material.customProgramCacheKey?.()||'';
- material.onBeforeCompile=function(shader,renderer){previous?.call(this,shader,renderer);shader.uniforms.uSeaClock=streetClock;
+ if(lite)return material;const previous=material.onBeforeCompile,key=material.customProgramCacheKey?.()||'',haze=C(...SKIES.caldera.horizon).multiplyScalar(.97);
+ material.onBeforeCompile=function(shader,renderer){previous?.call(this,shader,renderer);shader.uniforms.uSeaClock=streetClock;shader.uniforms.uSeaHaze={value:haze};
   shader.vertexShader='varying vec3 vSeaW;\n'+shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvSeaW=(modelMatrix*vec4(transformed,1.)).xyz;');
-  shader.fragmentShader='uniform float uSeaClock;varying vec3 vSeaW;\nvec2 seaWave(vec2 p,vec2 d,float f,float s){float ph=dot(p,d)*f+uSeaClock*s;return d*cos(ph)*f;}\n'+shader.fragmentShader.replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
-{vec2 p=vSeaW.xz;vec2 g=seaWave(p,vec2(.8,.6),.21,1.3)*.5+seaWave(p,vec2(-.4,.92),.37,1.9)*.32+seaWave(p,vec2(.97,-.24),.83,2.7)*.16+seaWave(p,vec2(-.7,-.71),1.9,3.6)*.07+seaWave(p,vec2(.2,.98),4.1,5.1)*.03;
-float fade=1.-smoothstep(30.,220.,length(vViewPosition));vec3 wn=normalize(vec3(-g.x*.55*fade,1.,-g.y*.55*fade));normal=normalize((viewMatrix*vec4(wn,0.)).xyz);}`);};
- material.customProgramCacheKey=()=>key+'-sea44';return material;
+  shader.fragmentShader='uniform float uSeaClock;uniform vec3 uSeaHaze;varying vec3 vSeaW;\n'+DETAIL+`
+float seaH(vec2 p){float t=uSeaClock;vec2 w=p+vec2(hzNoise(p*.05+t*.02),hzNoise(p*.05+7.-t*.02))*5.;
+ return sin(dot(w,vec2(.11,.07))+t*.7)*.5+sin(dot(w,vec2(-.05,.16))+t*.9)*.28+hzNoise(w*.32+vec2(t*.22,t*.1))*.55+hzNoise(w*.83+vec2(-t*.3,t*.42))*.28;}
+float seaChop(vec2 p){float t=uSeaClock;return hzNoise(p*2.1+vec2(t*.7,-t*.5))*.6+hzNoise(p*4.7+vec2(-t*.9,t*1.1))*.4;}
+`+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+float seaD=length(vViewPosition),seaFar=smoothstep(140.,330.,seaD);
+{float shore=1.-smoothstep(34.,95.,length(vSeaW.xz));float tone=hzNoise(vSeaW.xz*.012+uSeaClock*.004);
+ diffuseColor.rgb=mix(vec3(.004,.026,.05),vec3(.012,.085,.095),shore*.8+tone*.2);}`).replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+{vec2 p=vSeaW.xz;float e=.18+seaD*.004;float h0=seaH(p);vec2 g=vec2(seaH(p+vec2(e,0.))-h0,seaH(p+vec2(0.,e))-h0)/e;
+ float near=1.-smoothstep(8.,70.,seaD);if(near>0.){float c0=seaChop(p);g+=vec2(seaChop(p+vec2(.07,0.))-c0,seaChop(p+vec2(0.,.07))-c0)/.07*.045*near;}
+ float fade=1.-smoothstep(60.,300.,seaD)*.8;vec3 wn=normalize(vec3(-g.x*.42*fade,1.,-g.y*.42*fade));normal=normalize((viewMatrix*vec4(wn,0.)).xyz);
+ // Lifted crests are lighter and a little rougher, like wind-ruffled water.
+ float crest=smoothstep(.55,1.25,h0);diffuseColor.rgb+=vec3(.012,.035,.04)*crest*(1.-seaFar);}`).replace('#include <tonemapping_fragment>',`gl_FragColor.rgb=mix(gl_FragColor.rgb,uSeaHaze*(.92+.1*dot(gl_FragColor.rgb,vec3(.333))),seaFar*seaFar*(3.-2.*seaFar)*.97);
+#include <tonemapping_fragment>`);};
+ material.fog=false;material.customProgramCacheKey=()=>key+'-sea52';return material;
 }
 // ---------------------------------------------------------------- FORGE
 // Alpine head of valley: a forested first range, the arch dam filling the notch to
 // the north with its crest road and spillway, a summit radio station, and snowy
 // peaks fading into blue haze behind.
-function forge(){
+// V52 Forge massif: one heightfield from the courtyard wall to the far ranges (true scale: summits 600-1000 m
+// above the plant, 1-2.5 km away), drawn by its own unlit shader. Per pixel: bedded rock, scree, alpine grass,
+// fir and larch canopy thinning at the tree line, snow that holds on shelves and lets cliffs show through;
+// sun shadows cast by the peaks are baked per vertex; haze thickens with distance and pools low in the valleys.
+// The depth of anything beyond three quarters of the far plane is compressed, so the range needs no longer frustum.
+const alpHash=(x,z)=>{let h=Math.imul(x|0,374761393)^Math.imul(z|0,668265263);h=Math.imul(h^h>>>13,1274126177);return((h^h>>>16)>>>0)/4294967296;};
+const alpNoise=(x,z)=>{const xi=Math.floor(x),zi=Math.floor(z),fx=x-xi,fz=z-zi,u=fx*fx*fx*(fx*(fx*6-15)+10),v=fz*fz*fz*(fz*(fz*6-15)+10),a=alpHash(xi,zi),b=alpHash(xi+1,zi),c=alpHash(xi,zi+1),d=alpHash(xi+1,zi+1);return a+(b-a)*u+(c-a)*v+(a-b-c+d)*u*v;};
+const alpRidged=(x,z,oct)=>{let sum=0,amp=.5,w=1;for(let i=0;i<oct;i++){let n=1-Math.abs(2*alpNoise(x+i*17.3,z-i*9.1)-1);n*=n*w*Math.min(1,oct-i);w=Math.min(1,Math.max(.15,n*2.4));sum+=n*amp;amp*=.5;const nx=(x*.8-z*.6)*2.07,nz=(x*.6+z*.8)*2.07;x=nx;z=nz;}return sum;};
+const ALP_DAM=-Math.PI/2,ALP_OPEN=.95;
+function alpField(terrainAt){
+ return (x,z,oct=7)=>{
+  const r=Math.hypot(x,z),a=Math.atan2(z,x),near=r<230?terrainAt(x,z):0;if(r<104)return near;
+  const wx=x+(alpNoise(x/430+3.1,z/430)-.5)*280,wz=z+(alpNoise(x/430-7.7,z/430+5.2)-.5)*280,m=alpRidged(wx/820+11.3,wz/820-4.7,Math.min(oct,Math.max(2.3,Math.log(820/((lite?.27:.19)*r))/.7275+1)));
+  // A side valley opens to the south-east and lets the eye run to the far ranges.
+  const dv=Math.atan2(Math.sin(a-ALP_OPEN),Math.cos(a-ALP_OPEN)),open=Math.exp(-((dv/.42)**2))*(1-smooth(1500,2500,r));
+  const env=smooth(100,1150,r)*(1-.72*open),crown=smooth(1300,2400,r);
+  let h=26+env*250+m*(120+env*860)+crown*m*260-open*14;
+  h=near+(h-near)*smooth(104,230,r);
+  // Rock abutments on both sides of the dam notch.
+  const dd=Math.abs(Math.atan2(Math.sin(a-ALP_DAM),Math.cos(a-ALP_DAM))),ab=smooth(.23,.33,dd)*(1-smooth(.62,1.05,dd))*smooth(99,117,r)*(1-smooth(210,330,r));
+  return Math.max(h,ab*(96+m*60+alpRidged(x/120+2.2,z/120-8.4,4)*74+alpNoise(x/17,z/17)*8));
+ };
+}
+const ALP_VERT=`attribute vec3 data;varying vec3 vAw,vAn,vAd;
+void main(){vAd=data;vAn=normal;vec4 w=modelMatrix*vec4(position,1.);vAw=w.xyz;vec4 mv=viewMatrix*w;vec4 clip=projectionMatrix*mv;
+ float A=projectionMatrix[2][2],B=projectionMatrix[3][2],far=B/(A+1.),zv=-mv.z,T=far*.72;
+ if(zv>T){float ze=T+far*.26*(1.-exp(-(zv-T)/900.));clip.z=(A*(-ze)+B)*zv/ze;}
+ gl_Position=clip;}`;
+const ALP_FRAG=`uniform vec3 aSun,aHaze,aSunCol;uniform vec4 aClimate;uniform float aAir;varying vec3 vAw,vAn,vAd;`+DETAIL+`
+vec2 alpGrad(vec2 p){float e=.35;return vec2(hzNoise(p+vec2(e,0))-hzNoise(p-vec2(e,0)),hzNoise(p+vec2(0,e))-hzNoise(p-vec2(0,e)));}
+void main(){
+ vec3 n=normalize(vAn),ray=vAw-cameraPosition;float d=length(ray);vec3 v=ray/d;vec3 q3=vAw*aClimate.z;vec2 p=q3.xz;float y=q3.y,px=d*.0019*aClimate.z;vec3 col;float sh=vAd.x;
+ if(vAd.z>.5){
+  // Fir or larch standing clear of the canopy.
+  vec3 leaf=vAd.y>.86?vec3(.17,.105,.03):mix(vec3(.014,.032,.02),vec3(.04,.07,.032),vAd.y);
+  float sun=max(dot(n,aSun)*.75+.25,0.)*sh;col=leaf*(aSunCol*sun*1.5+vec3(.3,.38,.5)*(.35+.4*vAd.y));
+ }else{
+  // Crags the mesh cannot carry: three bands of relief, each fading out before it turns into shimmer.
+  float f1=1.-smoothstep(6.,20.,px),f2=1.-smoothstep(1.2,4.,px),f3=1.-smoothstep(.25,.9,px);
+  vec2 g=alpGrad(p/46.)*1.5*f1+alpGrad(p/11.+3.7)*.9*f2+alpGrad(p/2.6+9.1)*.55*f3;
+  float steep=1.-n.y;vec3 nn=normalize(n-vec3(g.x,0.,g.y)*(.35+1.5*steep));float slope=1.-nn.y;
+  float lowN=hzNoise(p/95.),midN=hzNoise(p/23.+5.),fine=hzNoise(p/3.1)*f3+.5*(1.-f3);
+  float aspect=dot(normalize(n.xz+vec2(1e-4)),normalize(aSun.xz))*smoothstep(.02,.3,steep);
+  // Rock: dipping beds, joints running down the face, lichen and iron stains.
+  float bed=y*.085+dot(p,vec2(.027,.015))+lowN*4.;float st=hzNoise(vec2(bed,bed*.31+lowN));
+  vec2 dn=normalize(n.xz+vec2(1e-4));float run=hzNoise(vec2(dot(p,vec2(dn.y,-dn.x))*.22,y*.018+lowN));
+  // Cliffs are read on their own faces (projected from the side they turn to): fracture blocks, vertical joints, ledges.
+  vec2 tw=n.xz*n.xz+1e-4;tw/=tw.x+tw.y;
+  float blocks=hzNoise(q3.zy*vec2(.055,.04)+lowN*2.)*tw.x+hzNoise(q3.xy*vec2(.055,.04)+lowN*2.)*tw.y;
+  float joints=hzNoise(q3.zy*vec2(.36,.045)+7.)*tw.x+hzNoise(q3.xy*vec2(.36,.045)+7.)*tw.y;
+  float ledge=hzNoise(q3.zy*vec2(.028,.17)+3.+lowN*3.)*tw.x+hzNoise(q3.xy*vec2(.028,.17)+3.+lowN*3.)*tw.y;
+  vec3 rock=mix(vec3(.095,.1,.11),vec3(.3,.29,.27),blocks*.55+st*.25+fine*.2);rock=mix(rock,vec3(.26,.2,.14),smoothstep(.55,.85,hzNoise(p/160.+2.))*.45);
+  rock=mix(rock,rock*mix(vec3(.62,.56,.52),vec3(.98,.62,.4),smoothstep(.35,.7,lowN))+vec3(.01,.004,0.),aClimate.w);rock*=(.82+.36*run)*(1.-.5*(1.-smoothstep(0.,.08,abs(joints-.5)))*f2)*(1.-.42*(1.-smoothstep(0.,.1,abs(ledge-.5)))*f2)*mix(1.,.7+.6*hzNoise(p/9.+vec2(y*.11,3.7)),f2);
+  nn=normalize(nn+vec3(n.z,0.,-n.x)*(blocks-.5)*1.1*steep*f1);
+  vec3 scree=mix(vec3(.25,.25,.245),vec3(.4,.39,.37),run*.6+fine*.4);
+  vec3 grass=mix(vec3(.085,.1,.04),vec3(.2,.16,.065),smoothstep(.3,.75,midN*.6+lowN*.4+y*.0012))*(.8+.4*fine);
+  float crag=smoothstep(.34,.56,slope+(midN-.5)*.16);
+  col=mix(grass,scree,smoothstep(.22,.36,slope+(lowN-.5)*.2)*smoothstep(60.,150.,y+(lowN-.5)*80.));col=mix(col,rock,crag);
+  // Forest: dense in the valley, breaking into groups and single trees toward the tree line; larches turn gold.
+  float treeLine=aClimate.y+aspect*26.+(lowN-.5)*80.;
+  float stand=(1.-smoothstep(treeLine-70.,treeLine,y+(midN-.5)*46.))*(1.-smoothstep(.4,.6,slope));
+  float thin=smoothstep(treeLine-110.,treeLine-10.,y);stand*=smoothstep(.18+.3*thin,.4+.3*thin,hzNoise(p/34.+9.)*.7+midN*.3+.12);
+  if(stand>.01){
+   vec2 c=p/6.2,id=floor(c);vec2 o=vec2(hzHash(id),hzHash(id+7.3))-.5;vec2 q=fract(c)-.5-o*.5;float crown=1.-smoothstep(.16,.46,length(q));
+   float side=clamp(.5-dot(q,normalize(aSun.xz))*1.6,0.,1.),gold=step(.84,hzHash(id+3.1))*(1.-aClimate.w);float canopy=1.-smoothstep(1.,3.2,px);
+   vec3 fir=mix(vec3(.012,.026,.017),vec3(.05,.085,.035),side);fir=mix(fir,mix(vec3(.09,.06,.02),vec3(.22,.15,.045),side),gold);
+   vec3 far=mix(vec3(.022,.042,.024),vec3(.1,.075,.025),smoothstep(.62,.8,hzNoise(p/19.+4.))*.6)*(.75+.5*midN);
+   vec3 wood=mix(far,mix(col*.45,fir,crown),canopy*smoothstep(95.,150.,d));
+   // Close to the plant the modelled firs stand on needle litter and moss instead of a painted canopy.
+   wood=mix(mix(vec3(.05,.058,.03),vec3(.1,.09,.05),fine)*(.8+.4*midN),wood,smoothstep(95.,150.,d));
+   col=mix(col,wood,stand);nn=normalize(mix(nn,n,stand*.6));
+  }
+  // Snow: a line that climbs on the sunny side, held by shelves and gullies, shed by the steep faces.
+  float snowLine=aClimate.x+aspect*46.+(lowN-.5)*110.+(midN-.5)*34.;
+  float snow=smoothstep(snowLine-30.,snowLine+40.,y)*(1.-smoothstep(.4,.66,slope+(midN-.5)*.14+(fine-.5)*.08));
+  snow=max(snow,smoothstep(snowLine-120.,snowLine-40.,y)*smoothstep(.62,.8,lowN*.5+midN*.5-aspect*.12)*(1.-smoothstep(.3,.5,slope)));
+  col=mix(col,vec3(.8,.84,.88)*(.94+.1*fine),snow);
+  float ndl=max(dot(nn,aSun),0.);ndl=mix(ndl,ndl*.6+.3,snow*.5);
+  vec3 sky=vec3(.3,.39,.55)*(.5+.5*nn.y)*vAd.y*(.8+.5*clamp(dot(nn.xz,-normalize(aSun.xz)),-.4,1.)*(1.-nn.y));
+  col*=aSunCol*ndl*sh*1.25+sky+vec3(.1,.09,.075)*(1.-nn.y)*sh;
+  col+=aSunCol*pow(max(dot(reflect(aSun,nn),v),0.),14.)*.22*snow*sh;
+ }
+ // Air: a uniform veil plus haze that pools low, brighter toward the sun.
+ float dy=max(vAw.y-cameraPosition.y,1.)/130.;float opt=aAir*d*(1./3900.+(1./1250.)*(1.-exp(-dy))/dy);float k=1.-exp(-opt);
+ float sunward=pow(max(dot(v,aSun),0.),4.)*smoothstep(150.,900.,d);vec3 veil=aHaze*(1.+.35*sunward);float l=dot(col,vec3(.3,.59,.11));
+ col=mix(mix(col,vec3(l),k*.3),veil*mix(.86,1.1,clamp(l*2.,0.,1.)),min(k,.9));
+ gl_FragColor=vec4(col,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`;
+// The same rock, scrub and haze for any relief: climate = [snow line, tree line, pattern scale, volcanic 0-1] (geometry needs normal and data = [sun, sky, 0]).
+export function massifMaterial({sun,haze,climate=[262,188,1,0],air=1}){
+ const m=new T.ShaderMaterial({vertexShader:ALP_VERT,fragmentShader:ALP_FRAG,side:T.DoubleSide,fog:false,uniforms:{aSun:{value:sun},aHaze:{value:haze},aSunCol:{value:new T.Vector3(1.,.93,.83)},aClimate:{value:new T.Vector4(...climate)},aAir:{value:air}}});m.extensions={derivatives:true};m.userData.nonBallistic=true;m.userData.horizon=true;return m;
+}
+export const calderaRimMaterial=()=>massifMaterial({sun:new T.Vector3(-72,64,34).normalize(),haze:C(...SKIES.caldera.horizon).multiplyScalar(1.02),climate:[1e5,118,4.5,1],air:2.4});
+function forgeAlps(terrainAt,sunArr,haze){
+ const H=alpField(terrainAt),sun=new T.Vector3(...sunArr).normalize(),NA=lite?208:264,NR=lite?52:66,R0=27.5,R1=2650,TREES=lite?520:1150;
+ const pos=[],nor=[],dat=[],idx=[],ring=j=>R0*Math.pow(R1/R0,Math.pow(j/NR,1.12));
+ const shadow=(x,y,z)=>{let s=1;for(let k=0;k<17&&s>0;k++){const t=7*Math.pow(1.38,k),gap=y+1.5+sun.y*t-H(x+sun.x*t,z+sun.z*t,4);if(gap<0)s=Math.min(s,Math.max(0,1+gap/(t*.14)));}return s;};
+ const normal=(x,z,r)=>{const e=Math.max(1.2,r*.011);return [H(x-e,z)-H(x+e,z),2*e,H(x,z-e)-H(x,z+e),e];};
+ for(let j=0;j<=NR;j++){const r=ring(j);for(let i=0;i<NA;i++){const a=(i+(j%2)*.5)/NA*Math.PI*2,x=Math.cos(a)*r,z=Math.sin(a)*r,y=H(x,z),[nx,ny,nz,e]=normal(x,z,r),l=Math.hypot(nx,ny,nz);
+  const e3=e*3,lap=(H(x-e3,z,5)+H(x+e3,z,5)+H(x,z-e3,5)+H(x,z+e3,5))/4-y;
+  pos.push(x,y,z);nor.push(nx/l,ny/l,nz/l);dat.push(r<34?1:shadow(x,y,z),Math.max(.45,Math.min(1.12,1-lap/e3*1.4)),0);}}
+ for(let j=0;j<NR;j++)for(let i=0;i<NA;i++){const a=j*NA+i,b=j*NA+(i+1)%NA,c=a+NA,d=b+NA;if(j%2)idx.push(a,c,b,b,c,d);else idx.push(a,d,b,a,c,d);}
+ // Firs and larches as two stacked cones where the wood is thick enough to break the skyline.
+ const rand=rng(5211);let base=pos.length/3;
+ for(let n=0,tries=0;n<TREES&&tries<40000;tries++){const a=rand()*Math.PI*2,r=106*Math.pow(690/106,Math.pow(rand(),1.25)),x=Math.cos(a)*r,z=Math.sin(a)*r,y=H(x,z);
+  const dd=Math.abs(Math.atan2(Math.sin(a-ALP_DAM),Math.cos(a-ALP_DAM)));if(dd<.4&&r<135)continue;
+  const [nx,ny,nz]=normal(x,z,r),up=ny/Math.hypot(nx,ny,nz),line=178+(alpNoise(x/95,z/95)-.5)*70;if(up<.78||y>line||rand()<(y-(line-90))/90)continue;
+  const h=(9+rand()*7)*(1-.35*Math.max(0,(y-(line-90))/90))*(1+r/900),s=shadow(x,y+h*.6,z),tint=rand()<.09?.9+rand()*.1:rand()*.8,yaw=rand()*6.28;
+  for(const [y0,y1,rad]of [[.06,.68,.21],[.4,1,.14]]){const b=pos.length/3;pos.push(x,y+h*y1-.6,z);nor.push(0,1,0);dat.push(s,tint,1);
+   for(let k=0;k<6;k++){const t=yaw+k/6*Math.PI*2,cx=Math.cos(t),cz=Math.sin(t);pos.push(x+cx*h*rad,y+h*y0-.6,z+cz*h*rad);nor.push(cx*.92,.38,cz*.92);dat.push(s,tint,1);}
+   for(let k=0;k<6;k++)idx.push(b,b+1+k,b+1+(k+1)%6);}
+  n++;}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));g.setAttribute('data',new T.Float32BufferAttribute(dat,3));g.setIndex(idx);
+ const m=massifMaterial({sun,haze});
+ const mesh=new T.Mesh(g,m);mesh.name='FORGE / massiccio';mesh.frustumCulled=false;mesh.castShadow=mesh.receiveShadow=false;mesh.matrixAutoUpdate=false;mesh.renderOrder=6;mesh.userData.cosmetic=true;mesh.userData.keep=true;mesh.userData.horizon=true;mesh.userData.heightAt=H;return mesh;
+}
+// Distant lamps: warm (0) or red blinking (1) points, a few pixels wide whatever the distance.
+function forgeLamps(list){
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(list.flatMap(l=>l.slice(0,3)),3));g.setAttribute('tone',new T.Float32BufferAttribute(list.map(l=>l[3]),1));
+ const m=new T.ShaderMaterial({transparent:true,depthWrite:false,fog:false,blending:T.AdditiveBlending,uniforms:{hzTime:streetClock},
+  vertexShader:`attribute float tone;varying float vTone;void main(){vTone=tone;vec4 mv=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*mv;gl_PointSize=clamp(520./-mv.z,3.,7.);}`,
+  fragmentShader:`uniform float hzTime;varying float vTone;void main(){float r=length(gl_PointCoord-.5)*2.;float a=(1.-smoothstep(.15,1.,r));a*=a;float blink=vTone>.5?.35+.65*smoothstep(.0,.2,sin(hzTime*2.1)):1.;
+ gl_FragColor=vec4((vTone>.5?vec3(1.6,.12,.06):vec3(1.5,1.15,.7))*a*blink,1.);
+#include <tonemapping_fragment>
+#include <colorspace_fragment>
+}`});m.userData.nonBallistic=true;
+ const p=new T.Points(g,m);p.frustumCulled=false;p.renderOrder=7;p.userData.cosmetic=p.userData.keep=true;p.name='FORGE / luci';return p;
+}
+function forge({terrainAt=()=>0}={}){
  const s=new Silhouette(SKIES.forge,[-23.4,23.2,3],{density:.0029,mist:.1});
  const jag=a=>{let v=0,amp=1,f=3;for(let i=0;i<4;i++){v+=amp*(1-Math.abs(Math.sin(a*f+i*1.9)));amp*=.5;f*=2.13;}return v;};
  const notch=a=>1-smooth(.16,.36,Math.abs(a+Math.PI/2));
  const rock=C(.33,.34,.34),forest=C(.1,.15,.11),snow=C(.86,.9,.93),scree=C(.42,.42,.4);
  const col=(snowAt,forestAt)=>(y,a,k,yy)=>{const n=Math.sin(a*37)*3+Math.sin(a*91)*2;return y+n>snowAt?snow:y+n<forestAt?forest:(Math.sin(a*53+y*.2)>.6?scree:rock);};
- // First range overlapping the terrain's edge; the dam notch to the north.
- s.ridge({a0:-Math.PI,a1:Math.PI,seg:420,radius:a=>132+Math.sin(a*3.1)*8,height:a=>(68+jag(a)*24+Math.sin(a*2.2)*10)*(1-notch(a)*.6),profile:[[-40,0],[-24,.32],[-12,.66],[-4,.92],[0,1],[16,.7],[34,.2]],base:-2,color:col(84,44)});
- // Second range: high, glaciated peaks.
- s.ridge({a0:-Math.PI,a1:Math.PI,seg:200,radius:a=>218+Math.sin(a*2.4+1)*14,height:a=>122+jag(a*1.3+2)*44+Math.sin(a*1.7)*18,profile:[[-30,0],[-12,.55],[-4,.92],[0,1],[22,.5]],base:0,color:col(112,52)});
  // The arch dam: a curved concrete wall bowed toward the station, crest road with gate piers, dark spillway
  // chutes; the valley in front of it is carved low (forge.js terrainAt) so it reads from the courtyard.
  {const R=112,a0=-Math.PI/2-.32,a1=-Math.PI/2+.32,seg=40,concrete=C(.64,.64,.61),stain=C(.42,.42,.4),P=(a,r,y)=>[Math.cos(a)*r,y,Math.sin(a)*r];s.kind=CONCRETE;
@@ -260,11 +425,26 @@ function forge(){
   // Gate house at the toe of the wall, and the surge tower on the left abutment.
   s.box(0,4,-104,26,12,9,C(.66,.64,.6),{top:C(.36,.24,.2)});s.kind=PLAIN;
   s.cyl(Math.cos(a0-.1)*126,92,Math.sin(a0-.1)*126,5,5,26,C(.64,.64,.6),{seg:12});}
- // Summit radio station with its red-and-white mast on the first range's highest crest.
- {let best=0,ba=0;for(let a=-Math.PI;a<Math.PI;a+=.01){const h=(68+jag(a)*24+Math.sin(a*2.2)*10)*(1-notch(a)*.6);if(h>best){best=h;ba=a;}}
-  const r=132+Math.sin(ba*3.1)*8,x=Math.cos(ba)*r,z=Math.sin(ba)*r;s.box(x,best-2,z,9,5,6,C(.7,.68,.62),{top:C(.3,.32,.32)});for(let i=0;i<6;i++)s.cyl(x,best+3+i*3,z,.7,.6,3,i%2?C(.86,.86,.84):C(.62,.14,.1),{seg:6,cap:false});}
- return s.mesh('FORGE / orizzonte');
+ // V52: the massif itself (heightfield, forest, snow) is its own mesh; the station, the cableway and the lights sit on it.
+ const alps=forgeAlps(terrainAt,[-23.4,23.2,3],s.haze),H=alps.userData.heightAt,lamps=[];
+ // Summit radio station with its red-and-white mast on the highest shoulder within reach of the cableway.
+ let best=0,sx=0,sz=0;for(let a=-Math.PI;a<Math.PI;a+=.012)for(const r of [138,150,162]){const d=Math.abs(Math.atan2(Math.sin(a+Math.PI/2),Math.cos(a+Math.PI/2)));if(d<1.15)continue;const x=Math.cos(a)*r,z=Math.sin(a)*r,h=H(x,z);if(h>best){best=h;sx=x;sz=z;}}
+ {const yaw=-Math.atan2(sz,sx);s.kind=CONCRETE;s.box(sx,best-6,sz,11,7.5,7,C(.66,.64,.6),{yaw,top:C(.3,.32,.33)});s.kind=RIBBED;s.box(sx,best+1.5,sz,7,2.6,5,C(.5,.52,.5),{yaw,top:C(.26,.27,.28)});s.kind=PLAIN;
+  for(let i=0;i<8;i++)s.cyl(sx+3,best+1.5+i*3,sz+2,.55,.5,3,i%2?C(.86,.86,.84):C(.62,.14,.1),{seg:6,cap:false});for(const y of [10,17])s.cyl(sx+3,best+y,sz+2,1.5,1.5,.5,C(.8,.8,.78),{seg:8});
+  lamps.push([sx+3,best+26,sz+2,1],[sx+3,best+13.5,sz+2,1],[sx,best+2,sz,0]);
+  // Cableway from the plant yard to the station: two lattice towers, a cabin on the rope.
+  const bx=26,bz=30,by=terrainAt(bx,bz)+5,top=[sx*.96,best+3.4,sz*.96],at=t=>[bx+(top[0]-bx)*t,0,bz+(top[2]-bz)*t],pts=[],stops=[[bx,by,bz]];
+  s.box(bx,by-6,bz,5,7,7,C(.6,.6,.57),{yaw,top:C(.3,.2,.16)});
+  for(const t of [.34,.7]){const [x,,z]=at(t),g=H(x,z);s.kind=TRUSS;s.box(x,g-1,z,2.6,15,2.6,C(.5,.53,.52),{yaw});s.kind=PLAIN;s.box(x,g+14,z,6.4,.7,1.4,C(.56,.58,.57),{yaw});stops.push([x,g+15,z]);lamps.push([x,g+15.6,z,1]);}
+  stops.push(top);
+  for(let i=0;i<stops.length-1;i++){const p=stops[i],q=stops[i+1];for(let k=0;k<10;k++)for(const t of [k/10,(k+1)/10])for(const off of [-1.6,1.6])pts.push(p[0]+(q[0]-p[0])*t+Math.sin(yaw)*off,p[1]+(q[1]-p[1])*t-4*t*(1-t)*2.2,p[2]+(q[2]-p[2])*t+Math.cos(yaw)*off);}
+  {const p=stops[1],q=stops[2],t=.42,cx=p[0]+(q[0]-p[0])*t+Math.sin(yaw)*1.6,cy=p[1]+(q[1]-p[1])*t-4*t*(1-t)*2.2,cz=p[2]+(q[2]-p[2])*t+Math.cos(yaw)*1.6;s.box(cx,cy-4.1,cz,2.3,2.5,3.4,C(.66,.16,.1),{yaw,top:C(.84,.84,.82)});s.box(cx,cy-1.6,cz,.25,1.6,.25,C(.2,.21,.22),{yaw});}
+  const lg=new T.BufferGeometry();lg.setAttribute('position',new T.Float32BufferAttribute(pts,3));const lm=new T.LineBasicMaterial({color:0x23282b,fog:false});lm.userData.nonBallistic=true;s.ropes=new T.LineSegments(lg,lm);s.ropes.frustumCulled=false;s.ropes.userData.cosmetic=s.ropes.userData.keep=true;}
+ // Crest lamps on the dam and obstruction lights on the tower: small, steady points that give the wall its size.
+ for(let i=0;i<=40;i+=4){const a=-Math.PI/2-.32+.64*i/40;lamps.push([Math.cos(a)*112.5,109.6,Math.sin(a)*112.5,0]);}
+ lamps.push([Math.cos(-Math.PI/2-.42)*126,118.6,Math.sin(-Math.PI/2-.42)*126,1]);
+ const mesh=s.mesh('FORGE / orizzonte');mesh.add(alps,s.ropes,forgeLamps(lamps));return mesh;
 }
 const BUILDERS={sahra,caldera,forge};
 // V50: phones get the surroundings too (one or two unlit draw calls, 7-20k triangles); they keep the lighter textures and details.
-export function addHorizon(scene,mapId){if(!BUILDERS[mapId]||(typeof location!=='undefined'&&/[?&]horizon=0/.test(location.search)))return null;const mesh=BUILDERS[mapId]();mesh.updateMatrix();scene.add(mesh);return mesh;}
+export function addHorizon(scene,mapId,options){if(!BUILDERS[mapId]||(typeof location!=='undefined'&&/[?&]horizon=0/.test(location.search)))return null;const mesh=BUILDERS[mapId](options);mesh.updateMatrix();scene.add(mesh);return mesh;}

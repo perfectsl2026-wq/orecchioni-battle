@@ -6,7 +6,7 @@ import {createKnife} from './knife.js?v=42.0';
 import {shapeArms,wrapFingers,twistRig,untwist,addCuffs,ARM_SHAPE,palmOf,setCuffColor} from './viewmodel-arms.js?v=42.0';
 import {ensureNodes,baseVariant,applyVariant,classicLook,holdFor,fpSupportShift} from './weapon-variants.js?v=42.0';
 import {dressRig} from './weapon-fx.js?v=42.0';
-import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear,headScale,KITS,BODIES,cleanOperator as cleanOperatorLook,PALETTE_ON,TEAM_SIGNAL,signatureOf,styleOf,PRIME_GLSL,primeUniforms,OB_FORM} from './operator-kits.js?v=42.0';
+import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear,headScale,KITS,BODIES,cleanOperator as cleanOperatorLook,PALETTE_ON,TEAM_SIGNAL,signatureOf,styleOf,PRIME_GLSL,primeUniforms,OB_FORM,setPrimeLite} from './operator-kits.js?v=42.0';
 import {PAINTS} from './weapon-finish.js?v=42.0';
 import {loadDetail,detailUniforms,DETAIL_GLSL,uvMetres} from './operator-detail.js?v=42.0';
 import {weaveTexture as wearWeaveTexture,WEAR_KITS,wearGeometry,wearLook,wearSuitLook,wearSuitGeometry,wearHeadLook,glovesOnly,skinPart,fingerToneLook,ensureFingerTone} from './operator-wear.js?v=42.0';
@@ -767,9 +767,9 @@ function paletteBody(m,src,kit,team,sig,cfg,part){
  // the folds (cloth most, lacquer least); lacquer and metal flatten the normal map toward the surface's own normal and keep a floor
  // of roughness; the rim reads the unperturbed normal; light strips and inlays come from PRIME_GLSL (operator-kits.js).
  // Kinds per role (sig.kind: 0 cloth, 1 lacquer, 2 metal); one program for every body and team, all parameters are uniforms.
- const C=h=>new THREE.Color(h),helmet=!/^Suit_Team$/.test(src.name),roles={main:0,accent:1,dark:2},z=sig.zones||[],Z=i=>new THREE.Vector4(...(z[i]||[9,8,0,0])),K=sig.kind||{};
+ const C=h=>new THREE.Color(h),helmet=!/^Suit_Team$/.test(src.name),roles={main:0,accent:1,dark:2},z=sig.zones||[],Z=i=>new THREE.Vector4(...(z[i]||[9,8,0,0])),pl=sig.plates||[],PL=i=>new THREE.Vector4(...(pl[i]||[9,8,0,0])),K=sig.kind||{};
  const lum=(helmet?cfg.lum?.helmet:cfg.lum?.suit)||[.03,.012];
- const u={palMain:{value:C(sig.main)},palDark:{value:C(sig.dark)},palAccent:{value:C(sig.accent)},palHelm:{value:helmet?roles[sig.helmet||'main']:-1},palZ0:{value:Z(0)},palZ1:{value:Z(1)},palZ2:{value:Z(2)},
+ const u={palMain:{value:C(sig.main)},palDark:{value:C(sig.dark)},palAccent:{value:C(sig.accent)},palHelm:{value:helmet?roles[sig.helmet||'main']:-1},palZ0:{value:Z(0)},palZ1:{value:Z(1)},palZ2:{value:Z(2)},palP0:{value:PL(0)},palP1:{value:PL(1)},palP2:{value:PL(2)},
   palRough:{value:new THREE.Vector3(sig.pbr.main[0],sig.pbr.dark[0],sig.pbr.accent[0])},palMetal:{value:new THREE.Vector3(sig.pbr.main[1],sig.pbr.dark[1],sig.pbr.accent[1])},palKind:{value:new THREE.Vector3(K.main??1,K.accent??1,K.dark??0)},
   palRim:{value:sig.rim??.16},palWeave:{value:wearWeaveTexture()},palRef:{value:new THREE.Vector3(...lum,sig.tone??1)},palCut:{value:new THREE.Vector2(sig.cut??-1,sig.cut===undefined?0:1)},bodyGlow:{value:C(TEAM_SIGNAL[team==='blue'?'blue':'orange'])},...primeUniforms(sig,team,helmet?0:1),...detailUniforms(kit,team),palUvm:{value:uvMetres(part?.geometry)}};
  if(m.emissiveMap&&m.emissive.getHex()===0)m.emissive.set(0xffffff);if(/Glow/.test(src.name)&&!m.emissiveMap){m.emissive.copy(u.bodyGlow.value);m.emissiveIntensity=1;}
@@ -777,8 +777,11 @@ function paletteBody(m,src,kit,team,sig,cfg,part){
  // Check Fable: OB_FORM (operator-kits.js) lifts near-black panels and adds a sky fill; the rim is a little stronger.
  m.onBeforeCompile=shader=>{Object.assign(shader.uniforms,u);
   shader.vertexShader='varying vec3 vPalP;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPalP=position/1.1e6;');
-  shader.fragmentShader='uniform vec3 palMain;uniform vec3 palDark;uniform vec3 palAccent;uniform float palHelm;uniform vec4 palZ0;uniform vec4 palZ1;uniform vec4 palZ2;uniform vec3 palRough;uniform vec3 palMetal;uniform vec3 palKind;uniform float palRim;uniform sampler2D palWeave;uniform vec3 palRef;uniform vec2 palCut;uniform vec3 bodyGlow;uniform float palUvm;varying vec3 vPalP;\n'+PRIME_GLSL+DETAIL_GLSL
+  shader.fragmentShader='uniform vec3 palMain;uniform vec3 palDark;uniform vec3 palAccent;uniform float palHelm;uniform vec4 palZ0;uniform vec4 palZ1;uniform vec4 palZ2;uniform vec4 palP0;uniform vec4 palP1;uniform vec4 palP2;uniform vec3 palRough;uniform vec3 palMetal;uniform vec3 palKind;uniform float palRim;uniform sampler2D palWeave;uniform vec3 palRef;uniform vec2 palCut;uniform vec3 bodyGlow;uniform float palUvm;varying vec3 vPalP;\n'+PRIME_GLSL+DETAIL_GLSL
    +'float palBox(vec4 b){float ax=abs(vPalP.x),e=.015;return smoothstep(b.x-e,b.x+e,vPalP.y)*(1.-smoothstep(b.y-e,b.y+e,vPalP.y))*smoothstep(b.z-e,b.z+e,ax)*(1.-smoothstep(b.w-e,b.w+e,ax));}\n'
+   // V52 plates (sig.plates, boxes like the zones): designed panels of the main colour laid over the body where its own paint mask
+   // leaves it bare, cut on clean lines with a fine panel seam (x: cover, y: seam), crisp at any distance.
+   +'vec2 palPlate(vec4 b){float ax=abs(vPalP.x),sd=min(min(vPalP.y-b.x,b.y-vPalP.y),min(ax-b.z,b.w-ax)),aa=max(fwidth(sd),.0008);return vec2(smoothstep(-aa,aa,sd),1.-smoothstep(.0011-aa,.0011+aa,abs(sd)));}\n'
    +'vec3 palBump(vec3 p,vec3 n,vec2 dH,float fd){vec3 sx=normalize(dFdx(p)),sy=normalize(dFdy(p)),r1=cross(sy,n),r2=cross(n,sx);float det=dot(sx,r1)*fd;return normalize(abs(det)*n-sign(det)*(dH.x*r1+dH.y*r2));}\n'+shader.fragmentShader
    .replace('#include <map_fragment>',`#include <map_fragment>
   float palLum=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));vec4 palB=diffuseColor;
@@ -790,6 +793,7 @@ function paletteBody(m,src,kit,team,sig,cfg,part){
   // sig.cut: the paint ends on a clean line round the shins (a plane square to the shin, at that fraction from knee to ankle) instead
   // of the texture's ragged mask; above it the panel is whole.
   if(palCut.y>.5&&palHelm<-.5){vec3 kn=vec3(.134,.505,-.012),sh=vec3(.175,.128,-.076)-kn;float L=length(sh),cd=dot(vec3(abs(vPalP.x),vPalP.y,vPalP.z)-kn,sh/L)-palCut.x*L,ce=max(fwidth(cd),.002);palK=1.-smoothstep(-ce,ce,cd);}
+  float palK0=palK,palSeam=0.;if(palHelm<-.5&&palP0.x<palP0.y){vec2 a=palPlate(palP0),b=palPlate(palP1),c=palPlate(palP2);palK=max(palK,max(a.x,max(b.x,c.x)));palSeam=max(a.y,max(b.y,c.y));}
   vec3 palW=palHelm<-.5?vec3(1.-max(palBox(palZ0),max(palBox(palZ1),palBox(palZ2))),0.,0.):vec3(step(abs(palHelm),.5),step(abs(palHelm-1.),.5),step(abs(palHelm-2.),.5));
   if(palHelm<-.5)palW.y=1.-palW.x;
   vec3 palR=palW*palK+vec3(0.,0.,1.-palK);
@@ -801,10 +805,10 @@ function paletteBody(m,src,kit,team,sig,cfg,part){
   #endif
   vec4 palWv=texture2D(palWeave,palUv);
   vec3 palTop=palMain*palW.x+palAccent*palW.y+palDark*palW.z;
-  float palS=clamp(sqrt(palLumB/max(mix(palRef.y,palRef.x,palK),1e-4)),.55,1.32),palFine=clamp(sqrt(palLum/max(palLumB,1e-4)),.72,1.22);
+  float palS=clamp(sqrt(palLumB/max(mix(palRef.y,palRef.x,palK0),1e-4)),.55,1.32),palFine=clamp(sqrt(palLum/max(palLumB,1e-4)),.72,1.22);
   float palShade=mix(1.,palS,(palCloth*.7+palLac*.32+palMet*.45)*(1.-.75*odK.x)*(1.-odX.z))*mix(1.,palFine,(palCloth*.55+palMet*.2)*(1.-.75*odK.x)*(1.-odX.z));
   vec3 palC=mix(palDark*.82,palTop*mix(1.,palRef.z,palW.x),palK)*palShade;
-  palC*=mix(.8,1.05,smoothstep(.1,1.7,vPalP.y));
+  palC*=mix(.8,1.05,smoothstep(.1,1.7,vPalP.y))*(1.-.6*palSeam);
   palC*=mix(mix(1.,.86+.22*palWv.r,palCloth)*(.96+.06*palWv.g),1.,odK.x*odReady);
   vec3 primeV=vec3(0.);if(primeW.w>0.&&palHelm<-.5)primeV=primeLines(vPalP);
   palC*=(1.-.55*primeV.z)*(1.-.95*min(1.,primeV.x*1.6));palC=mix(palC,primeInlay*mix(.92,1.06,smoothstep(.6,1.5,vPalP.y)),primeV.y);
@@ -841,8 +845,8 @@ function paletteBody(m,src,kit,team,sig,cfg,part){
    .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n  roughnessFactor=dot(palR,palRough.xzy)+(roughnessFactor-.5)*.05;roughnessFactor+=palCloth*(.5-palWv.r)*.12;roughnessFactor=max(roughnessFactor,mix(.05,.2,palLac));roughnessFactor+=palMet*(texture2D(palWeave,palUv*vec2(.15,4.)).r-.5)*.22;roughnessFactor=mix(roughnessFactor,.2,primeV.y);if(odRf>=0.)roughnessFactor=odRf;roughnessFactor=clamp(roughnessFactor+odRo,.05,1.);')
    .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\n  metalnessFactor=mix(odMe>=0.?odMe:dot(palR,palMetal.xzy),max(palMetal.y,.25),primeV.y);')
    .replace('#include <normal_fragment_maps>',THREE.ShaderChunk.normal_fragment_maps.replace('texture2D( normalMap, vNormalMapUv )','texture( normalMap, vNormalMapUv, odK.x*2.6 )')+'\n  normal=normalize(mix(nonPerturbedNormal,normal,(palCloth+palLac*.14+palMet*.4)*(1.-.5*odK.x)));\n  {vec2 palDH=vec2(dFdx(palWv.r),dFdy(palWv.r))*palCloth*1.1*(1.-smoothstep(2.,7.,length(vViewPosition)))*(1.-odK.x*odReady);normal=palBump(-vViewPosition,normal,palDH,faceDirection);}\n  #ifdef USE_MAP\n  normal=odPerturb(normal,-vViewPosition,vMapUv*palUvm,odN);\n  #endif')
-   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM+'  #ifdef USE_EMISSIVEMAP\n  {float palE=max(totalEmissiveRadiance.r,max(totalEmissiveRadiance.g,totalEmissiveRadiance.b));totalEmissiveRadiance=bodyGlow*(smoothstep(.04,.7,palE)*1.05+smoothstep(.0,.25,palE)*.18);}\n  #endif\n  totalEmissiveRadiance+=primeLight*primeV.x*primeW.w+primeInlay*primeV.y*.05;\n  {float palF=pow(1.-clamp(dot(nonPerturbedNormal,normalize(-vViewPosition)),0.,1.),4.);totalEmissiveRadiance+=palF*(palRim+.08)*.17*(diffuseColor.rgb*1.4+.03)*(.7+.6*palLac);}');};
- m.customProgramCacheKey=()=>'operator-body-v47-detail';m.needsUpdate=true;return m;
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n  if(palHelm<-.5)diffuseColor.rgb*=primeAO(vPalP);\n'+OB_FORM+'  #ifdef USE_EMISSIVEMAP\n  {float palE=max(totalEmissiveRadiance.r,max(totalEmissiveRadiance.g,totalEmissiveRadiance.b));totalEmissiveRadiance=bodyGlow*(smoothstep(.04,.7,palE)*1.05+smoothstep(.0,.25,palE)*.18)*primeLive(vPalP);}\n  #endif\n  totalEmissiveRadiance+=primeGlow(vPalP,primeV,pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),2.));\n  {float palF=pow(1.-clamp(dot(nonPerturbedNormal,normalize(vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=palF*(palRim+.08)*.5*(diffuseColor.rgb*1.4+vec3(.03,.034,.04))*(.7+.6*palLac);}');};
+ m.customProgramCacheKey=()=>'operator-body-v52-live';m.needsUpdate=true;return m;
 }
 // One copy of a body per operator, built the first time it wears that kit (dressOperator); geometry shared by every operator.
 function attachBody(root,d,kit){
@@ -903,7 +907,7 @@ function dressWear(d,team,look,armour){
 // V44 op2: kits whose closed helmet is part of their wear: the soldier's eyes hide under it.
 const CLOSED_HELMETS=new Set(['mastino']);
 export function dressOperator(root,team,operator){
- const d=root.userData;if(!d.bones||!operatorRest.frames)return;
+ const d=root.userData;if(!d.bones||!operatorRest.frames)return;if(mobileAssets)setPrimeLite(true);
  // V44: until its body has loaded a whole-body kit wears the ASSALTO kit in its accent; the key changes when it arrives.
  const look=cleanOperatorLook(operator),body=BODIES[look.kit]?look.kit:null,ready=!!body&&bodyReady(body);if(body&&!ready){loadBody(body);operator={...look,kit:'assalto'};}
  const key=operatorKey(team,operator);if(d.operatorKey===key)return;d.operatorKey=key;d.operatorKit=cleanOperatorLook(operator).kit;
@@ -935,12 +939,12 @@ export function dressOperator(root,team,operator){
 // The gloves and boots under a whole body: the suit's own texture darkened to charcoal leather (no team dye: hands and feet stay dark).
 const kitPartLooks=new Map();
 function kitPartsLook(base){let m=kitPartLooks.get(base);if(m)return m;m=base.clone();m.name='op-gloves';m.userData.teamLook=true;m.color.set(0xffffff);
- m.onBeforeCompile=s=>{s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float partTone;varying float vPartTone;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPartTone=partTone;');
+ m.onBeforeCompile=s=>{s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float partTone;varying float vPartTone;varying float vPartY;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPartTone=partTone;vPartY=position.y;');
   // V49: each finger takes its own tone (operator-wear.js skinPart), so the hand no longer reads as a mitten.
-  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPartTone;').replace('#include <map_fragment>','#include <map_fragment>\n{float v=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.,1.);diffuseColor.rgb=vec3(.23,.225,.22)*(.35+2.1*v)*(1.+(vPartTone-1.)*2.2);}')
+  s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPartTone;varying float vPartY;').replace('#include <map_fragment>','#include <map_fragment>\n{float v=clamp(dot(diffuseColor.rgb,vec3(.2126,.7152,.0722)),0.,1.);diffuseColor.rgb=mix(vec3(.07,.066,.06)*(.6+1.1*v),vec3(.2,.196,.192)*(.35+2.1*v)*(1.+(vPartTone-1.)*2.2),smoothstep(300000.,340000.,vPartY));}')
   // V47: the gloves were so black that the fingers read as one block: graphite leather, more of the scan's contrast and a soft sheen on the knuckles.
   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=min(roughnessFactor,.62);');};
- m.defines={...base.defines};m.customProgramCacheKey=()=>'operator-gloves-v49';m.needsUpdate=true;kitPartLooks.set(base,m);return m;}
+ m.defines={...base.defines};m.customProgramCacheKey=()=>'operator-gloves-v52';m.needsUpdate=true;kitPartLooks.set(base,m);return m;}
 export function createAgent(team,weapon=3){
  const a=loaded.get('soldier_tac');if(!a)return null;
  const targetModel=tune(cloneSkeleton(a.scene),teamLooks[team]??=new Map()),tinted=tintedLooks;

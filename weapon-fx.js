@@ -41,20 +41,21 @@ export const LOOKS={
  classico:{cls:4,mask:'./assets/models/v42/classico-fx.webp',sdf:1,line:[.9,.92,1],lineHi:[1,1,1],flow:[2,.3,.04,.26],idle:[.4,.08,1.4,8],inlay:[.8,.62,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.06,.18,7],wave:[1.6,.5,.45,.25],waveSpeed:1.25,dash:[0,1,0,0],world:[.04,.13,1,0],wear:[.45,.2,.2,0],parts:[[/^(Body|Body_2|Gun_Metal|Metal_Stratched|Scope)$/,[1,1,0,0],1]]},
  // V42 b4a, the designs that are weapons of their own (Blender-built, one atlas per model: every material but the wood
  // and the optic's glass takes the whole mask).
- // OB-120 ZANZARA (V44 redesign): ultraviolet orchid, a wingbeat: short dashes that shiver fast along the chamfers, the vent rib and
- // the windows over the gold barrel, and a quick flicker under them; gold filets on the chamfers and the compensator's lips.
- zanzara:{cls:0,mask:'./assets/models/v42/zanzara-fx.webp',sdf:1,line:[.74,.14,1],lineHi:[.96,.78,1],flow:[2.6,1.25,.02,.1],idle:[.26,.07,9,22],inlay:[.8,.5,.9,.8],glyph:[.32,.12,2.2,30],head:[1.6,.025,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.9,gap:.3,dash:[34,.46,3.2,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^zanzara_/,[1,1,0,0]]]},
+ // OB-120 ZANZARA (V52 redesign): ultraviolet orchid in thin unbroken lines: the outline of the slide's flank relief, a hairline at
+ // its foot, the top flat and the striker plate. Gold only on the screw heads and the sight dots.
+ zanzara:{cls:0,mask:'./assets/models/v42/zanzara-fx.webp',sdf:1,line:[.74,.14,1],lineHi:[.96,.78,1],flow:[2.6,1.25,.02,.1],idle:[.2,.05,2.4,10],inlay:[.8,.5,.9,.8],glyph:[.32,.12,2.2,30],head:[1.6,.025,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.9,gap:.3,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^zanzara_/,[1,1,0,0]]]},
  // OB-130 CINGHIALE (V45 redesign: wedge slide, gold tusks): molten amber, one slow heavy swell down the slide's chamfers and
  // windows, the fang inlay and the underlug's vents; gold leaf on the tusks and the hammer.
  cinghiale:{cls:0,mask:'./assets/models/v42/cinghiale-fx.webp',sdf:1,line:[1,.65,0],lineHi:[1,.88,.5],flow:[1.1,.22,.06,.45],idle:[.24,.05,1.1,6],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.4,.03,.14,6],wave:[1.7,.55,.45,.25],waveSpeed:1,gap:.35,dash:[0,1,0,0],world:[.045,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cinghiale_(?!wood)/,[1,1,0,0]]]},
- // OB-230 CICALA: acid green in rapid chirps along the receiver's channel, the magazine and the stock's butt.
- // Check Fable: a quieter idle and a softer highlight (the bright edges read as debug lines).
- cicala:{cls:1,mask:'./assets/models/v42/cicala-fx.webp',sdf:1,line:[.05,1,0],lineHi:[.55,.9,.45],flow:[2.8,.7,.025,.14],idle:[.13,.06,3.6,12],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.025,.12,7],wave:[1.5,.45,.45,.25],waveSpeed:1.7,gap:.4,dash:[40,.5,1.3,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cicala_/,[1,1,0,0]]]},
- // V42 b4b. OB-330 SCURE: ruby red, a heavy pulse that walks the handguard's inserts, the receiver's seam and the stock's comb.
- scure:{cls:3,mask:'./assets/models/v42/scure-fx.webp',sdf:1,line:[1,0,.16],lineHi:[1,.6,.62],flow:[1.3,.26,.05,.4],idle:[.24,.05,1.2,7],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.4,.03,.12,6],wave:[1.6,.5,.45,.25],waveSpeed:1.15,gap:.35,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^scure_(?!lens)/,[1,1,0,0]]]},
- // OB-520 GHEPPIO: cobalt blue in long segments that run from the chamber to the suppressor, quick like the kestrel's dive.
- // V45: brighter idle and a fuller inlay colour, so the new feather barbs and the kestrel roundels read on the night-blue chassis.
- gheppio:{cls:4,mask:'./assets/models/v42/gheppio-fx.webp',sdf:1,line:[0,.1,1],lineHi:[.55,.66,1],flow:[2.2,.5,.03,.2],idle:[.32,.06,1.8,9],inlay:[.85,.62,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.03,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.5,gap:.35,dash:[16,.78,.5,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^gheppio_(?!lens)/,[1,1,0,0]]]},
+ // OB-230 CICALA: acid green in thin unbroken lines (V52): the wing pocket's outline and its hairline veins, the charging slot,
+ // the seam, a ring inside each collar of the shroud. Check Fable: a quieter idle and a softer highlight.
+ cicala:{cls:1,mask:'./assets/models/v42/cicala-fx.webp',sdf:1,line:[.05,1,0],lineHi:[.55,.9,.45],flow:[2.8,.7,.025,.14],idle:[.13,.05,2.2,10],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.025,.12,7],wave:[1.5,.45,.45,.25],waveSpeed:1.7,gap:.4,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cicala_/,[1,1,0,0]]]},
+ // V42 b4b. OB-330 SCURE: ruby red, a heavy pulse along thin lines (V52): the axe-head pocket's outline on the upper, the rail's foot,
+ // the handguard's relief groove and the optic's rear frame.
+ scure:{cls:3,mask:'./assets/models/v42/scure-fx.webp',sdf:1,line:[1,0,.16],lineHi:[1,.6,.62],flow:[1.3,.26,.05,.4],idle:[.2,.05,1.2,7],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.4,.03,.12,6],wave:[1.6,.5,.45,.25],waveSpeed:1.15,gap:.35,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^scure_(?!lens)/,[1,1,0,0]]]},
+ // OB-520 GHEPPIO: cobalt blue in thin unbroken lines (V52) that run from the chamber to the suppressor: the feather engraved in
+ // the receiver's pocket, the handguard's flank and spine, the rail's foot, thin rings on the scope.
+ gheppio:{cls:4,mask:'./assets/models/v42/gheppio-fx.webp',sdf:1,line:[0,.1,1],lineHi:[.55,.66,1],flow:[2.2,.5,.03,.2],idle:[.26,.06,1.8,9],inlay:[.85,.62,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.03,.12,7],wave:[1.6,.45,.45,.25],waveSpeed:1.5,gap:.35,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^gheppio_(?!lens)/,[1,1,0,0]]]},
  // ARTIGLIO: magenta, a glint that rides the claw's curved edge to its point and rings the finger loop.
  artiglio:{cls:5,mask:'./assets/models/v42/artiglio-fx.webp',sdf:1,line:[1,.24,.62],lineHi:[1,.72,.9],flow:[1.5,.5,.03,.18],idle:[.22,.05,1.5,8],inlay:[.7,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.7,.03,.14,6],wave:[1.5,.45,.45,.25],waveSpeed:1.5,dash:[0,1,0,0],world:[.04,.13,1,0],wear:[.4,.25,.2,0],parts:[[/^karambit$/,[1,1,0,0]]]},
  // FARFALLA: chartreuse, segments that open along both handles and run the blade's edge.

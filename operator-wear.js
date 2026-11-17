@@ -93,8 +93,8 @@ if(primeW.w>0.&&wearI!=5)primeV=primeLines(vPrimeP);diffuseColor.rgb*=(1.-.55*pr
    .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\nroughnessFactor=clamp(wearP.x+(.5-wearT)*.12*wearP.z+(wearM-.5)*.1,0.,1.);\n#ifdef WEAR_GLOW\nroughnessFactor=mix(max(roughnessFactor*.65,.2),roughnessFactor,wearCloth);roughnessFactor=mix(roughnessFactor,.2,primeV.y);if(wearP.y>.5)roughnessFactor=clamp(roughnessFactor+(texture2D(wearWeave,vWearUv*vec2(.15,4.)).r-.5)*.3,.05,1.);\nif(odRf>=0.)roughnessFactor=mix(odRf,.2,primeV.y);roughnessFactor=clamp(roughnessFactor+odRo,.05,1.);\n#endif')
    .replace('#include <metalnessmap_fragment>','#include <metalnessmap_fragment>\nmetalnessFactor=mix(odMe>=0.?odMe:wearP.y,.3,primeV.y);')
    .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n{vec2 wearDH=vec2(dFdx(wearT),dFdy(wearT))*wearP.z*1.2*(1.-smoothstep(2.5,8.,length(vViewPosition)));normal=wearBump(-vViewPosition,normal,wearDH,faceDirection);}\nnormal=odPerturb(normal,-vViewPosition,vWearUv/55.,odN);')
-   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM+'#ifdef WEAR_GLOW\nif(wearI==5)totalEmissiveRadiance+=wearCol[5]*.6;totalEmissiveRadiance+=primeLight*primeV.x*primeW.w+primeInlay*primeV.y*.05;\n{float wF=pow(1.-clamp(dot(normal,normalize(-vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=wF*.035*mix(vec3(.8,.86,1.),diffuseColor.rgb*2.+.05,.5)*(1.3-.7*wearCloth);}\n#endif');};
- m.customProgramCacheKey=()=>sig?'operator-wear-v47-detail':'operator-wear-v43r';looks.set(key,m);return m;}
+   .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef WEAR_GLOW\ndiffuseColor.rgb*=primeAO(vPrimeP);\n#endif\n'+OB_FORM+'#ifdef WEAR_GLOW\nif(wearI==5)totalEmissiveRadiance+=wearCol[5]*.6;totalEmissiveRadiance+=primeGlow(vPrimeP,primeV,pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),2.));\n{float wF=pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=wF*.1*mix(vec3(.8,.86,1.),diffuseColor.rgb*2.+.05,.5)*(1.3-.7*wearCloth);}\n#endif');};
+ m.customProgramCacheKey=()=>sig?'operator-wear-v52-prime':'operator-wear-v43r';looks.set(key,m);return m;}
 // ---- the suit under the wear: each kit's colour blocking ----------------------------------------
 // Zones in bind space: sleeves (out of the torso's width), legs (below the crotch), torso; the boots stay dark leather.
 // `pat`: 0 plain, 1 fine vertical rib (night cloth), 2 quilted bands (heavy undersuit), 3 ripstop squares (light field cloth).
@@ -111,7 +111,7 @@ export function wearSuitLook(base,team,kit,tw=''){
  const key=base.uuid+':'+team+':'+kit+(tw?':'+tw:'');if(suitLooks.has(key))return suitLooks.get(key);const S=SUIT[kit];if(!S){suitLooks.set(key,base);return base;}
  const t=TEAM[team==='blue'?'blue':'orange'],sig=signatureOf(kit,tw),col=k=>sig?new T.Color(k==='M'?sig.main:sig.dark).multiplyScalar(k==='K'?(DETAIL[kit]?1.9:.6):1):new T.Color(t[k]);
  // V46d: a kit can name the suit's role per zone (sig.suit): SFONDAMENTO's torso takes the vest's olive, so a fold that shows between panels does not read as a black blotch.
- const zone=z=>sig?.suit?.[z]?new T.Color(sig[sig.suit[z]]):col(S[z]);
+ const zone=z=>sig?.suit?.[z]?new T.Color(sig.suit[z][0]==='#'?sig.suit[z]:sig[sig.suit[z]]):col(S[z]);
  const m=base.clone();m.name=base.name+' '+kit;m.userData.teamLook=true;m.color.set(0xffffff);m.onBeforeCompile=null;
  const uniforms={suitTorso:{value:zone('torso')},suitSleeve:{value:zone('sleeve')},suitLegs:{value:zone('legs')},suitPat:{value:S.pat},...primeUniforms(sig,team,sig?1:0),...detailUniforms(sig?kit:'',team),odUvm:{value:2.1}};
  m.onBeforeCompile=s=>{Object.assign(s.uniforms,uniforms);
@@ -138,8 +138,8 @@ export function wearSuitLook(base,team,kit,tw=''){
   #endif`)
   .replace('#include <roughnessmap_fragment>','#include <roughnessmap_fragment>\n  roughnessFactor=clamp(mix(roughnessFactor,.22,primeV.y)+odRo,.05,1.);')
   .replace('#include <normal_fragment_maps>','#include <normal_fragment_maps>\n  #ifdef USE_MAP\n  normal=odPerturb(normal,-vViewPosition,vMapUv*odUvm,odN);\n  #endif')
-  .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n'+OB_FORM+'  totalEmissiveRadiance+=primeLight*primeV.x*primeW.w+primeInlay*primeV.y*.05;\n  if(odK.x>.5){float sF=pow(1.-clamp(dot(normal,normalize(-vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=sF*.05*(diffuseColor.rgb*2.2+.025);}');};
- m.defines={...base.defines,BOOT_TOP:'250000.0',BOOT_FADE:'15000.0',SUIT_TUCK:(TUCK*U).toFixed(1)};m.customProgramCacheKey=()=>'operator-wearsuit-v49';m.needsUpdate=true;
+  .replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n  if(primeW.w>0.)diffuseColor.rgb*=primeAO(vSuitP/1.1e6);\n'+OB_FORM+'  totalEmissiveRadiance+=primeGlow(vSuitP/1.1e6,primeV,pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),2.));\n  if(odK.x>.5){float sF=pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),3.);totalEmissiveRadiance+=sF*.14*(diffuseColor.rgb*2.2+.025);}');};
+ m.defines={...base.defines,BOOT_TOP:'250000.0',BOOT_FADE:'15000.0',SUIT_TUCK:(TUCK*U).toFixed(1)};m.customProgramCacheKey=()=>'operator-wearsuit-v52';m.needsUpdate=true;
  // V49: the suit's own hands take the finger tones too (attribute from ensureFingerTone).
  {const inner=m.onBeforeCompile;m.onBeforeCompile=(s,r)=>{inner(s,r);s.vertexShader=s.vertexShader.replace('#include <common>','#include <common>\nattribute float partTone;varying float vPartTone;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPartTone=partTone;');
   s.fragmentShader=s.fragmentShader.replace('#include <common>','#include <common>\nvarying float vPartTone;').replace('#include <roughnessmap_fragment>','{float ft=vPartTone-1.;diffuseColor.rgb=max(vec3(0.),diffuseColor.rgb*(1.+ft*2.2)+vec3(.05,.052,.058)*ft*3.5);}\n#include <roughnessmap_fragment>');};}

@@ -1,10 +1,13 @@
 import * as T from './vendor/three.module.js';
 import {groundHeight,blocked} from './shared.js?v=42.0';
-import {box,cyl,bevel,label} from './graphics.js?v=42.0';
+import {box,cyl,bevel,label,mergeStatic} from './graphics.js?v=42.0';
 import {metricBlock as block} from './caldera-architecture.js?v=42.0';
 import {cornice,sill,course,keystone,scupper,downspout,cosmetic,ORNAMENT_HEIGHT} from './trim-kit.js?v=42.0';
 import {sahraInterior} from './sahra-layout.js?v=42.0';
 import {vehicleGreenhouse} from './vehicles.js?v=42.0';
+import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
+import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
+import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
 let awningMat=null;
 function awning(){
  if(awningMat)return awningMat;
@@ -288,10 +291,80 @@ function sidePanel(d,wz){
  s.lineTo(front+.16,.745);s.quadraticCurveTo(front+.01,.735,front,.6);s.lineTo(front,.4);s.quadraticCurveTo(front,.2,front+.14,.195);
  const g=new T.ExtrudeGeometry(s,{depth:.1,bevelEnabled:false,curveSegments:10});g.rotateY(-Math.PI/2);g.translate(.05,0,0);return g;
 }
+// V52: the parked car is an authored model (an original boxy saloon, built by script in
+// Blender: lofted body with cut wheel arches, framed glass with rubber seals, bumpers,
+// lamps, lathed wheels, and one baked map of ambient occlusion and settled dust) that
+// stands inside the same shared envelope: 2.1 x 4.4 m footprint, body from .195 to
+// .745 m, cabin on the windscreen and rear-window slopes, wheels on the shot cylinders.
+// The stepped-box car below remains the build without a browser and the fallback.
+const carModel={load:null,jobs:[]};
+function carParts(){
+ if(!carModel.load)carModel.load=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder).loadAsync('./assets/models/v52/auto.wasm').then(gltf=>{
+  const parts={};gltf.scene.updateMatrixWorld(true);
+  gltf.scene.traverse(o=>{if(!o.isMesh)return;const geometry=o.geometry.clone();geometry.applyMatrix4(o.matrixWorld);geometry.computeBoundingSphere();parts[o.material.name.replace('car_','')]={geometry,map:o.material.map};});
+  if(!parts.paint?.map||!parts.glass||!parts.chrome||!parts.trim||!parts.lens)throw new Error('modello incompleto');
+  parts.paint.map.anisotropy=4;return parts;
+ }).catch(e=>{console.error('Auto non caricata',e);return null;});
+ return carModel.load;
+}
+export const carsReady=()=>Promise.all(carModel.jobs);
+let carShade=null;
+function carShadow(){
+ if(carShade)return carShade;
+ const c=document.createElement('canvas');c.width=64;c.height=128;const x=c.getContext('2d'),img=x.createImageData(64,128);
+ for(let j=0;j<128;j++)for(let i=0;i<64;i++){const u=Math.abs(i-31.5)/31.5,v=Math.abs(j-63.5)/63.5,e=Math.max(0,1-Math.max((u-.62)/.38,(v-.8)/.2,0)),a=e*e*(3-2*e);img.data.set([0,0,0,Math.round(a*150)],(j*64+i)*4);}
+ x.putImageData(img,0,0);const t=new T.CanvasTexture(c);
+ carShade=new T.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,toneMapped:false});carShade.userData.nonBallistic=true;return carShade;
+}
+// The detailed model does not go through the shadow pass: a 150-triangle proxy of the same envelope (body box,
+// cabin prism, four wheels), invisible to the camera, casts the car's shadow for it.
+let carCaster=null;
+function carShadowProxy(w,d){
+ const {zf,zb,zt,zr,top,width:cw}=vehicleGreenhouse(w,d),cabin=new T.ExtrudeGeometry(new T.Shape([new T.Vector2(zf,.74),new T.Vector2(zb,.74),new T.Vector2(zr,top-.01),new T.Vector2(zt,top-.01)]),{depth:cw-.08,bevelEnabled:false});
+ cabin.rotateY(-Math.PI/2);cabin.translate((cw-.08)/2,0,0);
+ const body=new T.BoxGeometry(w-.06,.54,d-.12);body.translate(0,.2+.27,0);
+ const wheels=[-1,1].flatMap(s=>[-d*.3,d*.3].map(dz=>{const c=new T.CylinderGeometry(.29,.29,.17,10);c.rotateZ(Math.PI/2);c.translate(s*(w*.46-.015),.31,dz);return c;}));
+ const g=mergeGeometries([cabin,body,...wheels].map(q=>{const n=q.index?q.toNonIndexed():q;for(const k of Object.keys(n.attributes))if(k!=='position'&&k!=='normal')n.deleteAttribute(k);return n;}),false);
+ if(!carCaster){carCaster=new T.MeshBasicMaterial({colorWrite:false,depthWrite:false});carCaster.userData.nonBallistic=true;}
+ const mesh=new T.Mesh(g,carCaster);mesh.castShadow=true;mesh.receiveShadow=false;mesh.userData.keep=true;mesh.name='Auto / ombra';return mesh;
+}
+function modelMaterials(m,paint,parts){
+ if(!m.model){const map=parts.paint.map;m.model={trim:new T.MeshStandardMaterial({map,roughness:.86}),lens:new T.MeshStandardMaterial({map,roughness:.16,metalness:.1,emissive:0xffffff,emissiveMap:map,emissiveIntensity:.2}),
+  glass:new T.MeshStandardMaterial({color:0x42565d,roughness:.04,metalness:1,envMapIntensity:1.35}),chrome:new T.MeshStandardMaterial({color:0xcdd3d0,roughness:.2,metalness:1}),paints:new Map()};}
+ let body=m.model.paints.get(paint);
+ if(!body){body=paint.clone();body.onBeforeCompile=paint.onBeforeCompile;body.customProgramCacheKey=paint.customProgramCacheKey;body.map=parts.paint.map;body.roughness=.42;body.metalness=.22;body.envMapIntensity=1.1;body.needsUpdate=true;m.model.paints.set(paint,body);}
+ return {...m.model,paint:body};
+}
 export function desertCar(root,p,x,y,z,w,d){
+ if(typeof window==='undefined')return boxCar(root,p,x,y,z,w,d);
  const g=new T.Group();g.position.set(x,y,z);root.add(g);
- const paints=p.carPaints||[p.carPaint],serial=p.carSerial=(p.carSerial??-1)+1;
- const m=carMaterials(p),paint=paints[serial%paints.length],dust=dusty(m,paint),live=p.vehicle||{},half=w/2,front=-d/2,back=d/2,wz=d*.3;
+ const paints=p.carPaints||[p.carPaint],serial=p.carSerial=(p.carSerial??-1)+1,paint=paints[serial%paints.length],live=p.vehicle||{};
+ carModel.jobs.push(carParts().then(parts=>{
+  if(!parts){root.remove(g);const old=boxCar(root,p,x,y,z,w,d,paint);old.traverse(o=>{o.updateMatrix();});old.updateMatrixWorld(true);return;}
+  const m=carMaterials(p),mm=modelMaterials(m,paint,parts),body=new T.Group(),half=w/2,{zt,zr,top,width:cw}=vehicleGreenhouse(w,d);body.scale.set(w/2.1,1,d/4.4);g.add(body);
+  for(const k of ['paint','trim','lens','glass','chrome']){const mesh=new T.Mesh(parts[k].geometry,mm[k]);mesh.castShadow=false;mesh.receiveShadow=k!=='lens';mesh.userData.keep=true;mesh.name='Auto / '+k;body.add(mesh);}
+  g.add(carShadowProxy(w,d));
+  // Soft contact shadow under the sills, plates on the front bumper and in the boot recess.
+  const shade=new T.Mesh(new T.PlaneGeometry(w+.5,d+.5),carShadow());shade.rotation.x=-Math.PI/2;shade.position.y=.012;shade.renderOrder=2;shade.userData.keep=true;g.add(shade);
+  for(const [zz,yy,turn,wide,high]of [[d/2+.006,.345,0,.44,.1],[-(d/2-.075)-.009,.555,Math.PI,.5,.115]]){const tag=label(g,'OB · 29 · 07',0,yy,zz,wide,high,turn,{background:'#e9e6da',color:'#24313a',font:96});tag.material.userData.nonBallistic=true;tag.castShadow=false;tag.userData.keep=true;}
+  if(live.stripe)for(const s of [-1,1]){box(g,m.bar,s*(half-.003),.6,0,.004,.05,1.84).userData.keep=true;const logo=label(g,live.logo||'',s*(half-.001),.665,.5,.56,.14,s*Math.PI/2,{background:'#e4e3dc',color:'#2b4a4d',font:84});logo.material.userData.nonBallistic=true;logo.userData.keep=true;}
+  // The roof kit is batched per material while still detached, so its boxes cost two draws instead of thirteen.
+  const kit=new T.Group();carRoofKit(kit,m,live,zt,zr,top,cw,1);mergeStatic(kit);kit.traverse(o=>{o.userData.keep=true;});g.add(kit);
+  g.traverse(o=>{o.updateMatrix();o.matrixAutoUpdate=false;});g.updateMatrixWorld(true);
+ }));
+ return g;
+}
+// Cosmetic roof equipment: a rack with a jerrycan, or a station light bar and whip antenna.
+function carRoofKit(g,m,live,zt,zr,top,cw,nose=-1){
+ if(live.rack){for(const s of [-1,1]){box(g,m.rack,s*.55,top+.075,(zt+zr)/2,.035,.035,zr-zt-.1);for(const zz of [zt+.16,zr-.16])box(g,m.rack,s*.55,top+.035,zz,.03,.08,.05);}for(const zz of [zt+.1,(zt+zr)/2-.3,(zt+zr)/2+.3,zr-.1])box(g,m.rack,0,top+.06,zz,1.14,.03,.035);
+  box(g,m.can,.2,top+.21,(zt+zr)/2+.25,.3,.26,.14);box(g,m.rack,.2,top+.36,(zt+zr)/2+.22,.06,.04,.08);
+  box(g,m.rack,-.25,top+.13,(zt+zr)/2-.2,.5,.1,.5);}
+ if(live.lightbar){box(g,m.bar,0,top+.07,nose<0?zt+.22:zr-.26,cw-.4,.08,.16);cyl(g,m.rack,cw/2-.12,top+.55,nose<0?zr-.15:zt+.15,.008,1.1,'y',.008,5);}
+}
+function boxCar(root,p,x,y,z,w,d,fixedPaint=null){
+ const g=new T.Group();g.position.set(x,y,z);root.add(g);
+ const paints=p.carPaints||[p.carPaint],serial=fixedPaint?0:p.carSerial=(p.carSerial??-1)+1;
+ const m=carMaterials(p),paint=fixedPaint||paints[serial%paints.length],dust=dusty(m,paint),live=p.vehicle||{},half=w/2,front=-d/2,back=d/2,wz=d*.3;
  const {zc,L,width:cw,zf,zt,zr,zb,top}=vehicleGreenhouse(w,d);
  // Lower body: dark core seen through the arches (its top stays under the deck),
  // dusty side and end panels, a flush deck, arch flares and sill cladding.

@@ -9,14 +9,21 @@ export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.1
  if(distance>.00001){state.direction.x=dx/distance;state.direction.z=dz/distance;}
  const stride=.28+Math.min(1,speed/5)*.12;
  state.phase+=distance/(4*stride);
- const direction=state.direction,c=Math.cos(yaw),s=Math.sin(yaw),moving=speed>.12&&distance>.00001,airborne=y-groundY>.065;
+ // V52: a body that has stopped is standing at once. The drawn position eases onto its stop for about 0.4 s, a few
+ // millimetres a frame, and that used to count as moving: the feet stayed frozen a stride apart all that time before the
+ // settling step. Now the body is moving only above 0.3 m/s of real travel, so the trailing foot steps in as it halts.
+ const direction=state.direction,c=Math.cos(yaw),s=Math.sin(yaw),moving=speed>.12&&distance>.00001&&(!(dt>1e-4)||distance>.3*dt),airborne=y-groundY>.065;
  const result=state.feet.map((f,n)=>{
   const phase=(state.phase+n*.5)%1,side=n===0?-width:width;
   // V48: an armed stance leads with the support side (left foot ahead, right foot behind).
   const ahead=.025+(n===0?stagger:-stagger*.8),centre={x:x+c*side-s*ahead,z:z-s*side-c*ahead};
   if(!f){f=state.feet[n]={x:centre.x,z:centre.z,startX:centre.x,startZ:centre.z,swing:false};}
   let lift=0;
-  if(airborne){f.x=centre.x;f.z=centre.z;f.swing=false;lift=.055+Math.min(.13,(y-groundY)*.45);}
+  // V52: in the air the legs are no longer a matched pair snapped under the body. The feet ease there from where the
+  // step left them (no pop at take-off) and split along the travel: the left leads and tucks higher, the right trails.
+  if(airborne){const k=Math.min(1,speed/4),up=Math.min(1,(y-groundY)/.22),reach=(n===0?.05+.13*k:-.04-.11*k)*up,ease=dt>1e-4?1-Math.exp(-16*dt):1;
+   const rx=f.x-(centre.x-dx),rz=f.z-(centre.z-dz);f.x=centre.x+rx+(direction.x*reach-rx)*ease;f.z=centre.z+rz+(direction.z*reach-rz)*ease;f.swing=false;f.step=false;
+   lift=.055+Math.min(.13,(y-groundY)*.45)+(n===0?.05*k*up:0);}
   else if(!moving){
    // V48: a standing body steps into place, one foot at a time (it used to slide both feet under itself): a foot more than
    // 10 cm from where it belongs is lifted and set down there in a fifth of a second; small corrections ease in on the ground.

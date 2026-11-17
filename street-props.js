@@ -65,7 +65,12 @@ export const PARTS={
  estintore:{file:'v40/estintore',shadow:false},
  telecamera:{file:'v40/telecamera',shadow:false},
  scala:{file:'v40/scala',shadow:false},
- condotto:{file:'v40/condotto',matte:.25,shadow:false}
+ condotto:{file:'v40/condotto',matte:.25,shadow:false},
+ // V52: ground clutter along the walls, real scanned props (Poly Haven, CC0) cut to game weight; the private preview host serves new models as .wasm.
+ vaso_coccio:{file:'v52/planter_pot_clay',ext:'wasm',twoSided:true},
+ pianta_grassa:{file:'v52/potted_plant_04',ext:'wasm',twoSided:true,shadow:false},
+ secchio:{file:'v52/wooden_bucket_01',ext:'wasm',twoSided:true},
+ pentola:{file:'v52/brass_pot_01',ext:'wasm',shadow:false}
 };
 const FILES=[...new Set(Object.values(PARTS).map(p=>p.file))];
 const scenes=new Map(),parts=new Map();
@@ -94,14 +99,14 @@ function buildPart(id){
  if(!pieces.length)return null;
  const centre=bounds.getCenter(new T.Vector3()),size=bounds.getSize(new T.Vector3());
  const m=new T.Matrix4().makeRotationY(spec.front||0).multiply(new T.Matrix4().makeTranslation(-centre.x,-bounds.min.y,-centre.z));
- for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;if(spec.tone&&!p.material.userData.toned){p.material.userData.toned=true;p.material.color.multiply(new T.Color(...spec.tone));}if(spec.matte){p.material.metalness=spec.matte;p.material.metalnessMap=null;p.material.roughness=Math.max(.55,p.material.roughness);}if(spec.leaves)windMotion(p.material,spec.leaves,true);if(spec.solidAlpha){p.material.transparent=false;p.material.alphaTest=.35;}if(spec.glow){p.material.emissive.set(spec.glow);p.material.emissiveMap=p.material.map;p.material.emissiveIntensity=1.5;}if(spec.wind)windMotion(p.material,spec.wind);}
+ for(const p of pieces){p.geometry.applyMatrix4(m);p.geometry.computeBoundingBox();p.geometry.computeBoundingSphere();p.material.userData.nonBallistic=true;p.material.userData.streetProp=true;if(spec.tone&&!p.material.userData.toned){p.material.userData.toned=true;p.material.color.multiply(new T.Color(...spec.tone));}if(spec.matte){p.material.metalness=spec.matte;p.material.metalnessMap=null;p.material.roughness=Math.max(.55,p.material.roughness);}if(spec.twoSided)p.material.side=T.DoubleSide;if(spec.leaves)windMotion(p.material,spec.leaves,true);if(spec.solidAlpha){p.material.transparent=false;p.material.alphaTest=.35;}if(spec.glow){p.material.emissive.set(spec.glow);p.material.emissiveMap=p.material.map;p.material.emissiveIntensity=1.5;}if(spec.wind)windMotion(p.material,spec.wind);}
  const part={pieces,size:(spec.front&&Math.abs(Math.sin(spec.front))>.5)?new T.Vector3(size.z,size.y,size.x):size};parts.set(id,part);return part;
 }
 // Only the files a map uses are downloaded: a palm has no business on Forge's first load.
 const fileLoads=new Map();
 export async function loadStreetProps(files=FILES){
  const loader=new GLTFLoader().setMeshoptDecoder(MeshoptDecoder);
- await Promise.all(files.map(file=>{if(!fileLoads.has(file))fileLoads.set(file,loader.loadAsync(DIR+file+'.glb').then(g=>{scenes.set(file,bake(g.scene));}).catch(e=>console.error('Arredo non caricato',file,e)));return fileLoads.get(file);}));
+ await Promise.all(files.map(file=>{if(!fileLoads.has(file))fileLoads.set(file,loader.loadAsync(DIR+file+'.'+(Object.values(PARTS).find(q=>q.file===file)?.ext||'glb')).then(g=>{scenes.set(file,bake(g.scene));}).catch(e=>console.error('Arredo non caricato',file,e)));return fileLoads.get(file);}));
  for(const id of Object.keys(PARTS))if(!parts.has(id)&&scenes.has(PARTS[id].file))buildPart(id);
  // Dark core inside a third-party crate: slatted models are not watertight and the box behind them must still stop a sightline.
  if(!parts.has('nucleo')){const core=new T.BoxGeometry(1,1,1);core.translate(0,.5,0);parts.set('nucleo',{pieces:[{geometry:core,material:new T.MeshStandardMaterial({color:0x1c1712,roughness:.95})}],size:new T.Vector3(1,1,1)});}

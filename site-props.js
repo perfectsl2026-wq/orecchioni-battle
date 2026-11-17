@@ -243,7 +243,18 @@ export function calderaSiteProps(root,site){
 // V44 street clutter: jars, planters, sacks and baskets in four shapes, instanced (one draw
 // per shape), standing against continuous wall runs only (never in doorways, on stairs or
 // in open floor), small and cosmetic: no collision, no ballistics, no navigation change.
-export function groundClutter(root,{walk,walls,ground,seed=7,max=80,avoid=[]}){
+// V52: with a StreetProps set (`sp`) the five kinds are real scanned props (clay pots, a lidded pot, a wooden
+// bucket, a potted succulent) placed on the same spots; the lathed shapes remain the fallback and the build
+// without models. Every piece gets a soft contact shadow so it sits on the paving instead of floating on it.
+const CLUTTER_MODELS=[['vaso_coccio',2.7],['pentola',1.55],['secchio',.8],['vaso_coccio',1.7],['pianta_grassa',2.5]];
+let clutterShade=null;
+function contactShade(){
+ if(clutterShade)return clutterShade;
+ const S=32,data=new Uint8Array(S*S*4);for(let y=0;y<S;y++)for(let x=0;x<S;x++){const r=Math.hypot(x-15.5,y-15.5)/15.5,e=Math.max(0,1-r),a=e*e*(3-2*e);data.set([0,0,0,Math.round(a*170)],(y*S+x)*4);}
+ const t=new T.DataTexture(data,S,S);t.magFilter=t.minFilter=T.LinearFilter;t.needsUpdate=true;
+ clutterShade=flag(new T.MeshBasicMaterial({map:t,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2,toneMapped:false}));return clutterShade;
+}
+export function groundClutter(root,{walk,walls,ground,seed=7,max=80,avoid=[],sp=null,chance=.11}){
  let r=seed*7919+17;const rand=()=>((r=(r*16807)%2147483647)/2147483647);
  const solid=(x,z,m=0)=>walls.some(w=>w[5]===0&&w[4]>2.2&&Math.abs(x-w[0])<=w[2]/2-m&&Math.abs(z-w[1])<=w[3]/2-m);
  const blocked=(x,z)=>walls.some(w=>Math.abs(x-w[0])<=w[2]/2+.35&&Math.abs(z-w[1])<=w[3]/2+.35&&!(w[5]===0&&w[4]>2.2));
@@ -255,22 +266,30 @@ export function groundClutter(root,{walk,walls,ground,seed=7,max=80,avoid=[]}){
   {g:new T.SphereGeometry(.27,8,5).scale(1,.62,.82).translate(0,.16,0),m:sackM},
   {g:new T.CylinderGeometry(.24,.18,.32,8,1,true).translate(0,.16,0),m:reed},
   {g:lathe([[0,0],[.18,0],[.24,.32],[.27,.36],[0,.36]]),m:stone,plant:true}];
+ // Nothing is left on a doorstep: the facade doors of the dressing set keep a clear threshold.
+ const doors=sp?sp.items.filter(it=>it.part==='porta'):[];
  const placed=shapes.map(()=>[]),plants=[];let total=0;
  for(const [x0,x1,z0,z1]of walk)for(const [ax,az,nx,nz,len]of [[x0,z0,0,-1,x1-x0],[x0,z1,0,1,x1-x0],[x0,z0,-1,0,z1-z0],[x1,z0,1,0,z1-z0]]){
   const along=nx?[0,1]:[1,0];
-  for(let t=.8;t<len-.8&&total<max;t+=.9){if(rand()>.11)continue;
+  for(let t=.8;t<len-.8&&total<max;t+=.9){if(rand()>chance)continue;
    const ex=ax+along[0]*t,ez=az+along[1]*t,px=ex-nx*.34,pz=ez-nz*.34;
    if(!solid(ex+nx*.45,ez+nz*.45)||!solid(ex+nx*.45+along[0]*1.3,ez+nz*.45+along[1]*1.3)||!solid(ex+nx*.45-along[0]*1.3,ez+nz*.45-along[1]*1.3))continue;
-   if(solid(px,pz)||blocked(px,pz)||avoid.some(([ox,oz,rad])=>Math.hypot(px-ox,pz-oz)<rad))continue;
+   if(solid(px,pz)||blocked(px,pz)||avoid.some(([ox,oz,rad])=>Math.hypot(px-ox,pz-oz)<rad)||doors.some(q=>Math.hypot(px-q.x,pz-q.z)<1.9))continue;
    const y=ground(px,pz);if(Math.abs(ground(px+.5,pz)-y)>.04||Math.abs(ground(px,pz+.5)-y)>.04||Math.abs(ground(px-.5,pz)-y)>.04||Math.abs(ground(px,pz-.5)-y)>.04)continue;
    const n=1+(rand()*3|0);for(let i=0;i<n&&total<max;i++){const kind=rand()*shapes.length|0,off=(i-(n-1)/2)*.52;placed[kind].push([px+along[0]*off,y,pz+along[1]*off,rand()*6.28,.85+rand()*.3]);total++;}
   }
  }
  const dummy=new T.Object3D();
- shapes.forEach((s,i)=>{const list=placed[i];if(!list.length)return;const mesh=new T.InstancedMesh(s.g,s.m,list.length);
+ {const all=placed.flatMap((list,i)=>list.map(q=>[q,i]));if(all.length){const g=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),mesh=new T.InstancedMesh(g,contactShade(),all.length);
+  all.forEach(([[x,y,z,,k],i],n)=>{dummy.position.set(x,y+.01,z);dummy.rotation.set(0,0,0);dummy.scale.setScalar((i===0?1.15:i===2?.72:.86)*k);dummy.updateMatrix();mesh.setMatrixAt(n,dummy.matrix);});
+  mesh.castShadow=mesh.receiveShadow=false;mesh.renderOrder=2;mesh.userData.keep=true;mesh.userData.cosmetic=true;mesh.name='ombre di contatto';root.add(mesh);}}
+ const lathed=(s,i)=>{const list=placed[i];if(!list.length)return;const mesh=new T.InstancedMesh(s.g,s.m,list.length);
   list.forEach(([x,y,z,yaw,k],n)=>{dummy.position.set(x,y,z);dummy.rotation.set(0,yaw,0);dummy.scale.setScalar(k);dummy.updateMatrix();mesh.setMatrixAt(n,dummy.matrix);if(s.plant)plants.push([x,y+.36*k,z,k]);});
-  mesh.castShadow=mesh.receiveShadow=true;mesh.userData.keep=true;mesh.userData.cosmetic=true;root.add(mesh);});
- if(plants.length){const g=new T.IcosahedronGeometry(.3,0).scale(1,.85,1),mesh=new T.InstancedMesh(g,leaf,plants.length);plants.forEach(([x,y,z,k],n)=>{dummy.position.set(x,y+.16*k,z);dummy.rotation.set(0,n,0);dummy.scale.setScalar(k*(.9+(n%3)*.15));dummy.updateMatrix();mesh.setMatrixAt(n,dummy.matrix);});mesh.castShadow=true;mesh.userData.keep=true;root.add(mesh);}
+  mesh.castShadow=mesh.receiveShadow=true;mesh.userData.keep=true;mesh.userData.cosmetic=true;root.add(mesh);
+  if(s.plant)foliage();};
+ const foliage=()=>{if(plants.length){const g=new T.IcosahedronGeometry(.3,0).scale(1,.85,1),mesh=new T.InstancedMesh(g,leaf,plants.length);plants.forEach(([x,y,z,k],n)=>{dummy.position.set(x,y+.16*k,z);dummy.rotation.set(0,n,0);dummy.scale.setScalar(k*(.9+(n%3)*.15));dummy.updateMatrix();mesh.setMatrixAt(n,dummy.matrix);});mesh.castShadow=true;mesh.userData.keep=true;root.add(mesh);}};
+ if(sp)shapes.forEach((s,i)=>{const [part,scale]=CLUTTER_MODELS[i],fallback=()=>lathed(s,i);for(const [x,y,z,yaw,k]of placed[i])sp.add(part,{x,y,z,yaw,scale:scale*k,tag:'ground',fallback});});
+ else shapes.forEach(lathed);
  return total;
 }
 // V44 jetty dressing (MOLO, x -8..8, z 18..28): bollards against the sea wall, rope coils, net piles with floats, low fish crates and two lamps on the wall top.

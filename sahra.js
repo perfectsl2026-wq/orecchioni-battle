@@ -1,5 +1,5 @@
 import {sahraSiteDetails} from './sahra-sites.js?v=42.0';
-import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=42.0';
+import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,carsReady,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=42.0';
 import {sahraStairAt} from './sahra-terrain.js?v=42.0';
 import * as T from './vendor/three.module.js';
 import {WALLS,MAPS,groundHeight,wallDistance} from './shared.js?v=42.0';
@@ -42,7 +42,9 @@ export function createSahra(scene,renderer){
  const inTunnel=(x,z)=>!!sahraInterior(x,z),paved=(x,z)=>PAVED.has(zone(x,z)),road=(x,z)=>zone(x,z)==='VIA ALTOPIANO';
  terrainMeshes(root,WALLS,{stairAt:sahraStairAt,drift:sandAt,range:[-60,60,-66,66],surfaces:[[p.floor,(x,z)=>!sahraStairAt(x,z)&&!inTunnel(x,z)&&!paved(x,z)&&!road(x,z)],[p.tunnelFloor,inTunnel],[p.road,(x,z)=>!sahraStairAt(x,z)&&!inTunnel(x,z)&&road(x,z)],[p.paving,(x,z)=>!inTunnel(x,z)&&(sahraStairAt(x,z)||paved(x,z))]]});
  const sp=new StreetProps();
- p.facadeDoor=(x,y,z,angle)=>sp.add('porta',{x:x+Math.sin(angle)*.2,y,z:z+Math.cos(angle)*.2,yaw:angle,scale:1.02,tag:'facade'});
+ // V52: no door behind a piece of cover: a stall or a crate stack parked on a threshold reads as a mistake.
+ const doorstepTaken=(x,z)=>MAPS.sahra.walls.some(w=>w[5]&&w[5]!==7&&Math.abs(x-w[0])<w[2]/2+1.1&&Math.abs(z-w[1])<w[3]/2+1.1);
+ p.facadeDoor=(x,y,z,angle)=>{if(doorstepTaken(x+Math.sin(angle)*1.2,z+Math.cos(angle)*1.2))return;sp.add('porta',{x:x+Math.sin(angle)*.2,y,z:z+Math.cos(angle)*.2,yaw:angle,scale:1.02,tag:'facade'});};
  wallMeshes(root,p,WALLS,{feature:(root,p,role,x,z,w,d,top,base)=>{if(role!=='trunk')return desertFeature(root,p,role,x,z,w,d,top,base);desertFeature(root,p,role,x,z,w,d,top,base,'bark');sp.add('palma',{x,y:base,z,yaw:x*2.3+z,scale:1.12+Math.abs(Math.sin(x+z))*.2,tag:'palm',fallback:()=>desertFeature(root,p,role,x,z,w,d,top,base,'crown')});},
   annex:desertAnnex,car:desertCar,crate:(root,p,x,z,w,d,top,base,metal)=>coverSkin(sp,metal?'pod':'crate',{x,z,w,d,top,base,fallback:()=>desertCrate(root,p,x,z,w,d,top,base,metal)}),
   column:desertColumn,
@@ -55,7 +57,9 @@ export function createSahra(scene,renderer){
   roofCap:(root,p,x,z,w,d,h)=>{if(!(w>5&&d>5))return;box(root,p.roofSlab||=toneAlbedo(surface('v13/stone_tiles_02',0xf6e2c4,.7,.04,{floor:true}),{saturation:.7,gain:2.0}),x,h+.1,z,w+.08,.2,d+.08);for(const side of [-1,1]){box(root,p.trim,x,h+.45,z+side*(d/2-.12),w,.7,.24);box(root,p.trim,x+side*(w/2-.12),h+.45,z,.24,.7,d-.48);}if(w>9&&d>7){cyl(root,p.blue,x+w*.1,h+.9,z,.9,1.2,'y',.9,20);box(root,p.dark,x-w*.2,h+.6,z+1,1.4,.9,.9);}}});
  portals(root,p,MAPS.sahra.arches,{material:p.stone,vault:desertVaultGeometry,trim:desertArchTrim});
  // V38 street dressing: roof clutter over the streets and wall condensers (cosmetic, instanced, loaded after the build).
- roofClutter(sp,MAPS.sahra,{walkable:(x,z)=>sahraWalkable(x,z)&&!sahraInterior(x,z),maxHeight:11,chance:.85,recipes:['cisterne','parabole','impianto','cisterne','parabole','barili','pallet','sacchi'],cap:w=>w[2]>5&&w[3]>5?.2:0});
+ roofClutter(sp,MAPS.sahra,{walkable:(x,z)=>sahraWalkable(x,z)&&!sahraInterior(x,z),maxHeight:11,chance:.85,recipes:['cisterne','parabole','impianto','cisterne','parabole','cisterne','pallet','impianto'],cap:w=>w[2]>5&&w[3]>5?.2:0});
+ // V52: placed before the dressing set is built, so the scanned pots, buckets and plants load with it.
+ groundClutter(root,{walk:SAHRA_WALK_RECTS,walls:MAPS.sahra.walls,ground:groundHeight,seed:13,max:liteWorld()?24:32,chance:.04,sp,avoid:[...MAPS.sahra.spawns.orange,...MAPS.sahra.spawns.blue].map(([x,z])=>[x,z,2.5]).concat(MAPS.sahra.sites.map(s=>[s.x,s.z,s.radius+.5]))});
  palmGrove(sp);laundry(sp,[[-29,24,5.1,true],[-29,31,5.4,true],[17,-13,5.2,true],[-21,-10,5,true],[-21,-14,5.5,true],[0,30,5.2,true],[0,36,5.6,true],[16,-20,5.3,true]]);manholes(sp,MAPS.sahra.walk,1,{limit:10,skip:(x,z)=>!!sahraInterior(x,z)});pending.push(sp.build(root));
  desertDoors(root,p,MAPS.sahra.movementBoxes);
  // Covered souk, hammam and loggia: slabs with skylight slots between them.
@@ -66,7 +70,6 @@ export function createSahra(scene,renderer){
  sahraSiteDetails(root,p,MAPS.sahra.sites);
  sahraSiteProps(root,p);
  if(!liteWorld())floorDecals(root,{walk:SAHRA_WALK_RECTS,ground:groundHeight,seed:44,count:170,skip:(x,z)=>!!sahraStairAt(x,z),avoid:MAPS.sahra.sites.map(s=>[s.x,s.z,s.radius+.3])});
- groundClutter(root,{walk:SAHRA_WALK_RECTS,walls:MAPS.sahra.walls,ground:groundHeight,seed:13,max:90,avoid:[...MAPS.sahra.spawns.orange,...MAPS.sahra.spawns.blue].map(([x,z])=>[x,z,2.5]).concat(MAPS.sahra.sites.map(s=>[s.x,s.z,s.radius+.5]))});
  // Fort towers and mosque silhouette sit outside the playable boundary.
  for(const [x,z,h]of [[-52,-46,16],[-51,-20,13]]){cyl(root,p.stone,x,h/2,z,2.3,h,'y',2.7,20);cyl(root,p.trim,x,h+.15,z,2.8,.4,'y',2.8,20);}
  const dome=new T.Mesh(new T.SphereGeometry(4.8,28,16,0,Math.PI*2,0,Math.PI/2),p.blue);dome.position.set(-36,12,-55);root.add(dome);
@@ -78,6 +81,7 @@ export function createSahra(scene,renderer){
  const wire=new T.MeshStandardMaterial({color:0x4a524b,roughness:.9});wire.userData.nonBallistic=true;
  // Lamp cables strung between facades over the fountain court and the alleys.
  for(const line of [[[22,7.2,-6],[32,6.3,-6.4],[42,7.2,-6]],[[22,7.4,6],[32,6.6,6.3],[42,7.4,6]],[[-32,6.6,24],[-29,5.9,24.2],[-26,6.6,24]],[[-12,6.8,38],[0,6,38.5],[12,6.8,38]]])cable(root,line,wire,.018);
+ pending.push(carsReady());
  mergeStatic(root);root.userData.materials=p;root.userData.ready=Promise.all(pending);return root;
 }
 function paintWall(root,text,origin,direction,w,h){

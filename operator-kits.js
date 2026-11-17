@@ -67,16 +67,17 @@ export const TEAM_SIGNAL={blue:'#2a8cff',orange:'#ff2e2a'};
 // groove (a panel seam) and is lacquered smoother than the panel round it; a motif can carry both: a light core inside an inlay.
 // Per kit (SIGNATURE[kit].prime) only weights and widths change: all uniforms, one program for every kit and team.
 export const PRIME_MOTIFS=['leg','arm','cuff','calf','thigh','chevron','waist','spine','collar','shoulder','knee','flank'];
-export const PRIME_GLSL=`uniform vec4 primeL[3];uniform vec4 primeI[3];uniform vec4 primeW;uniform vec3 primeLight;uniform vec3 primeInlay;
+export const PRIME_GLSL=`uniform vec4 primeL[3];uniform vec4 primeI[3];uniform vec4 primeW;uniform vec3 primeLight;uniform vec3 primeInlay;uniform vec4 primeFx;uniform vec4 primeFy;uniform float primeT;uniform float primeAmp;
+float primeHalo=0.;
 float primeK(float d,float w){float aa=fwidth(d)*.75+1e-6;return 1.-smoothstep(w-aa,w+aa,abs(d));}
 float primeIn(float y,float a,float b){return smoothstep(a-.012,a+.012,y)*(1.-smoothstep(b-.012,b+.012,y));}
 vec2 primeRing(vec3 p,vec3 a,vec3 b,float t,float r){vec3 n=b-a;float L=length(n);n/=L;float s=dot(p-a,n);return vec2(s-t*L,1.-smoothstep(r,r+.02,length(p-a-n*s)));}
 vec2 primeStripe(vec3 p,vec3 a,vec3 b,vec3 sd,float t0,float t1,float r){vec3 n=b-a;float L=length(n);n/=L;float s=dot(p-a,n),f=s/L;vec3 q=p-a-n*s,u=normalize(sd-n*dot(sd,n)),v=cross(n,u);
  return vec2(dot(q,v),smoothstep(.0,.025,dot(q,u))*smoothstep(t0-.02,t0+.02,f)*(1.-smoothstep(t1-.02,t1+.02,f))*(1.-smoothstep(r,r+.02,length(q))));}
-vec3 primeAcc(vec3 o,vec2 m,float l,float i){if(l+i<=0.)return o;float wl=primeW.x,wi=primeW.y,k=m.y;
+vec3 primeAcc(vec3 o,vec2 m,float l,float i){if(l+i<=0.)return o;float wl=primeW.x,wi=primeW.y,k=m.y;if(primeFy.y>0.)primeHalo+=l*k*exp(-m.x*m.x/.00026);
  return o+vec3(l*primeK(m.x,wl),i*primeK(m.x,wi),i*(primeK(m.x,wi+primeW.z)-primeK(m.x,wi)))*k;}
 // x: light, y: inlay, z: groove round the inlay.
-vec3 primeLines(vec3 P){vec3 p=vec3(abs(P.x),P.y,P.z),o=vec3(0.);
+vec3 primeLines(vec3 P){vec3 p=vec3(abs(P.x),P.y,P.z),o=vec3(0.);primeHalo=0.;
  const vec3 HIP=vec3(.084,.94,0.),KNEE=vec3(.134,.505,-.012),ANK=vec3(.175,.128,-.076),SHO=vec3(.184,1.472,-.057),ELB=vec3(.352,1.21,-.016),WRI=vec3(.46,1.055,.07);
  if(primeL[0].x+primeI[0].x>0.)o=primeAcc(o,primeStripe(p,HIP,ANK,vec3(1.,0.,0.),.04,.84,.15),primeL[0].x,primeI[0].x);
  if(primeL[0].y+primeI[0].y>0.)o=primeAcc(o,primeStripe(p,SHO,WRI,vec3(.62,1.,.1),.08,.93,.11),primeL[0].y,primeI[0].y);
@@ -91,32 +92,68 @@ vec3 primeLines(vec3 P){vec3 p=vec3(abs(P.x),P.y,P.z),o=vec3(0.);
  if(primeL[2].z+primeI[2].z>0.)o=primeAcc(o,primeRing(p,KNEE,ANK,.08,.13),primeL[2].z,primeI[2].z);
  if(primeL[2].w+primeI[2].w>0.)o=primeAcc(o,vec2(p.x-.162,primeIn(p.y,1.03,1.38)*(1.-smoothstep(.07,.1,abs(p.z)))),primeL[2].w,primeI[2].w);
  // Check Fable: a team armband on both upper arms for every kit, in the team's light (friend or enemy at a glance).
- {vec2 m=primeRing(p,SHO,ELB,.42,.13);o.x=max(o.x,exp(-m.x*m.x/.00032)*m.y*.62);}
+ // V52: the band is a designed light bar: a solid core between two hairlines in a dark housing, crisp at any distance (it was a
+ // soft smear that washed out on the light suits); its spill on the sleeve is the halo, only up close.
+ // The bar widens as the body gets smaller on screen (never under two pixels, up to 7 cm), so it still carries the team far away.
+ {vec2 m=primeRing(p,SHO,ELB,.42,.13);float d=abs(m.x),aa=fwidth(m.x)*.75+1e-6,w=clamp(length(fwidth(p))*1.1,.0072,.035),core=1.-smoothstep(w-aa,w+aa,d),hair=1.-smoothstep(.0016-aa,.0016+aa,abs(d-w-.0056));
+  o.x=max(o.x,(core*.8+hair*.42)*m.y);o.z=max(o.z,(1.-smoothstep(w+.0113-aa,w+.0113+aa,d))*(1.-core)*m.y);float h=max(d-w,0.);primeHalo+=.3*m.y*exp(-h*h/.0003);}
  return clamp(o,0.,1.);}
+// V52 form: occlusion where a body folds on itself, read in bind space (inner legs, armpits, under the arms, the neck), so the
+// volumes separate instead of sitting in one flat light.
+float primeAO(vec3 P){vec3 p=vec3(abs(P.x),P.y,P.z);float lx=mix(.175,.084,clamp((p.y-.128)/.812,0.,1.));
+ float inner=smoothstep(-.012,.075,lx-p.x)*smoothstep(.2,.5,p.y)*(1.-smoothstep(.93,1.03,p.y));
+ float pit=exp(-((p.x-.19)*(p.x-.19)+(p.y-1.37)*(p.y-1.37)*.6)/.0045);
+ float neck=smoothstep(1.45,1.5,p.y)*(1.-smoothstep(1.55,1.6,p.y))*(1.-smoothstep(.07,.115,p.x));
+ vec3 a=vec3(.184,1.472,-.057),n=normalize(vec3(.46,1.055,.07)-a),q=p-a;float s=dot(q,n);vec3 r=q-n*s;
+ float under=smoothstep(.0,.05,-r.y)*smoothstep(.05,.12,s)*(1.-smoothstep(.4,.47,s))*(1.-smoothstep(.09,.13,length(r)));
+ return 1.-clamp(.36*inner+.4*pit+.3*neck+.24*under,0.,.5);}
+// V52 signature: the lights and inlays come alive, one idea per operator (SIGNATURE[kit].fx), all from one program. travel: packets
+// of light run outward from the chest along the strips; breathe: a slow swell; flicker: heat; inlay: the inlays glow from inside;
+// halo: the strips spill light on the panel round them; iri: an oil-slick sheen at grazing angles. near is the size of a pixel on
+// the body: full when the operator fills the screen (pick screen, podium, an arm's length away), gone at fighting distance, where
+// the strips are exactly what they were, so the effect never shows or hides anyone. Phones and reduced motion: off or still.
+// The lights a body carries in its own emissive map (visor slits, helmet strips, suit strips) live too: the kit's rhythm on the suit,
+// and on the head a highlight that sweeps along the visor light like a scan.
+float primeLive(vec3 P){float a=primeAmp*(1.-smoothstep(.004,.014,length(fwidth(P))*.7));if(a<=0.)return 1.;float hd=step(1.52,P.y),r=length(vec3(P.x,P.y-1.3,P.z));
+ float tr=pow(1.-fract(r*1.1-primeT*primeFx.y),7.),br=.5+.5*sin(primeT*primeFx.w*6.2832);br=br*br*(3.-2.*br);float sx=P.x-.085*sin(primeT*1.1),sc=exp(-sx*sx/.0005);
+ return max(1.+a*(primeFx.x*(2.4*tr-.3)*(1.-hd)+primeFx.z*(.9*br-.45)+1.5*sc*hd),.25);}
+vec3 primeGlow(vec3 P,vec3 V,float fres){
+ float near=1.-smoothstep(.004,.014,length(fwidth(P))*.7),a=primeAmp*near,r=length(vec3(P.x,P.y-1.3,P.z));
+ float tr=pow(1.-fract(r*1.1-primeT*primeFx.y),7.),br=.5+.5*sin(primeT*primeFx.w*6.2832);br=br*br*(3.-2.*br);
+ float fl=sin(P.y*41.+primeT*5.3)*sin(P.x*33.-primeT*3.9)*.5+.5;
+ float lm=max(1.+a*(primeFx.x*(2.4*tr-.3)+primeFx.z*(.9*br-.45)+primeFy.w*(fl-.5)*1.2),.25);
+ float im=.05+a*primeFy.x*(.22+.5*br*primeFx.z+.9*tr*primeFx.x+.5*fl*primeFy.w);
+ vec3 g=primeLight*(V.x*primeW.w+primeHalo*primeFy.y*a*.34)*lm+primeInlay*V.y*im;
+ if(primeFy.z>0.){float iv=abs(fract(fres*.9+P.y*.7+primeT*.03)*2.-1.);vec3 ir=.5+.5*cos(6.2832*(.17+.3*iv)+vec3(0.,2.09,4.19));g+=ir*fres*primeFy.z*.2*(.3+.7*a);}
+ return g;}
 `;
 // Check Fable: one form pass for every operator surface (bodies, suits, wear), run where the albedo is final. Near-black panels get a
 // soft floor (graphite, hue kept) so they keep their shape in the light instead of reading as flat holes, and a sky fill (brighter
 // on surfaces facing up, never zero) keeps a soldier with the sun behind him readable from the front.
 export const OB_FORM=`{float obL=dot(diffuseColor.rgb,vec3(.2126,.7152,.0722));diffuseColor.rgb=mix(diffuseColor.rgb,(diffuseColor.rgb+.004)/(obL+.004)*.05,1.-smoothstep(.0,.05,obL));
- float obUp=clamp(dot(normal,(viewMatrix*vec4(0.,1.,0.,0.)).xyz),-.5,1.),obF=pow(1.-clamp(dot(normal,normalize(-vViewPosition)),0.,1.),3.);
+ float obUp=clamp(dot(normal,(viewMatrix*vec4(0.,1.,0.,0.)).xyz),-.5,1.),obF=pow(1.-clamp(dot(normal,normalize(vViewPosition)),0.,1.),3.);
  // a faint sky sheen too (not tied to the albedo), so a black panel in shadow still shows its volume and its edge
  totalEmissiveRadiance+=diffuseColor.rgb*(.14+.18*obUp)+vec3(.55,.62,.75)*(.004*(.5+.5*obUp)+.016*obF);}
 `;
 // Uniforms of one kit's prime look: `on` 0 turns the lines off (a helmet sharing the program).
-export function primeUniforms(sig,team,on=1){const P=sig?.prime||{},v=src=>[0,4,8].map(i=>new T.Vector4(...PRIME_MOTIFS.slice(i,i+4).map(k=>on?(src?.[k]||0):0)));
- return {primeL:{value:v(P.light)},primeI:{value:v(P.inlay)},primeW:{value:new T.Vector4(P.wl??.0032,P.wi??.0085,P.wg??.0028,(P.glow??1.15)*1.3)},
+// V52: one clock for every operator's signature (seconds; still under prefers-reduced-motion) and one master level (0 on phones).
+const primeStill=(()=>{try{return typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion:reduce)').matches;}catch(e){return false;}})();
+export const primeClock={get value(){return primeStill?1.7:(typeof performance!=='undefined'?performance.now()*.001:0)%1000;}},primeAmp={value:1};
+export function setPrimeLite(on=true){primeAmp.value=on?0:1;}
+export function primeUniforms(sig,team,on=1){const P=sig?.prime||{},F=sig?.fx||{},v=src=>[0,4,8].map(i=>new T.Vector4(...PRIME_MOTIFS.slice(i,i+4).map(k=>on?(src?.[k]||0):0)));
+ return {primeFx:{value:new T.Vector4(F.travel?.[0]||0,F.travel?.[1]||0,F.breathe?.[0]||0,F.breathe?.[1]||0)},primeFy:{value:new T.Vector4(F.inlay||0,F.halo||0,F.iri||0,F.flicker||0)},primeT:primeClock,primeAmp,primeL:{value:v(P.light)},primeI:{value:v(P.inlay)},primeW:{value:new T.Vector4(P.wl??.0032,P.wi??.0085,P.wg??.0028,(P.glow??1.15)*1.3)},
   primeLight:{value:new T.Color(TEAM_SIGNAL[team==='blue'?'blue':'orange'])},primeInlay:{value:new T.Color(sig?.[P.inlayRole||'accent']||'#ffffff')}};}
 // kind per role: 0 cloth (weave relief), 1 lacquer (smooth painted plate, stronger rim), 2 metal (brushed streaks). rim: silhouette light.
 // Check Fable: CORVO's gold and LINCE's copper are satin metal now (mirror metal blotched with the sky on the shoulders).
 export const SIGNATURE={
- assalto:{name:'Ardesia e senape',main:'#3e444c',dark:'#2a2e34',accent:'#b8860b',pbr:{main:[.42,.12],dark:[.88,0],accent:[.3,.05]},kind:{main:1,dark:0,accent:1},helmet:'main',wear:{H:'accent'},rim:.18,prime:{light:{cuff:.9},inlay:{leg:.85,collar:.7}}},
- sfondamento:{name:'Oliva e nero',main:'#55602f',dark:'#1e2022',accent:'#4a4f54',pbr:{main:[.8,0],dark:[.42,.05],accent:[.32,.8]},kind:{main:0,dark:1,accent:2},helmet:'main',suit:{torso:'main'},prime:{light:{collar:.9,cuff:.8},inlay:{thigh:.8,knee:.7}}},
- mastino:{name:'Acciaio brunito e lime acido',main:'#5b646e',dark:'#24272b',accent:'#9fd62a',pbr:{main:[.28,.86],dark:[.88,0],accent:[.32,.05]},kind:{main:2,dark:0,accent:1},helmet:'main',wear:{D:'accent',N:'accent'},rim:.2,prime:{light:{chevron:1,cuff:1,calf:1,spine:.9,collar:.9},inlay:{leg:1,shoulder:.9,knee:.9,waist:.8,flank:.85}}},
- saetta:{name:'Bianco e giallo elettrico',main:'#e4e6e3',dark:'#2c3036',accent:'#ffcf14',pbr:{main:[.3,0],dark:[.8,0],accent:[.3,0]},kind:{main:1,dark:0,accent:1},helmet:'main',zones:[[.08,.62,0,.3],[.88,1.22,.27,2]],prime:{light:{arm:1,leg:1,chevron:1,spine:.9},inlay:{cuff:1,calf:1,collar:.9,waist:.9}}},
- onice:{name:'Nero melanzana lucido e viola',main:'#231d30',dark:'#1d1b24',accent:'#8a4dff',pbr:{main:[.24,.3],dark:[.36,.12],accent:[.24,.15]},kind:{main:1,dark:1,accent:1},helmet:'dark',rim:.22,prime:{light:{leg:1,arm:1,chevron:1,spine:.9,collar:1},inlay:{shoulder:1,thigh:.85,cuff:.9,waist:.8,calf:.8}}},
- astore:{name:'Oro ambra e argento',main:'#d98a1a',dark:'#2e3034',accent:'#cdd2d8',pbr:{main:[.55,0],dark:[.7,.05],accent:[.2,.95]},kind:{main:0,dark:0,accent:2},helmet:'accent',cut:.08,tone:.8,prime:{light:{cuff:1,calf:.85,chevron:.85},inlay:{leg:1,waist:1,collar:.9,knee:1}}},
- corvo:{name:'Blu notte e oro',main:'#2a3654',dark:'#20252f',accent:'#d6a63a',pbr:{main:[.36,.2],dark:[.75,0],accent:[.38,.7]},kind:{main:1,dark:0,accent:2},helmet:'main',zones:[[1.28,1.48,.1,2]],rim:.26,prime:{light:{arm:.85,leg:.85},inlay:{cuff:1,calf:1,waist:1,chevron:1}}},
- lince:{name:'Verde bosco e rame',main:'#24472b',dark:'#262a2e',accent:'#c0703c',pbr:{main:[.86,0],dark:[.85,0],accent:[.4,.68]},kind:{main:0,dark:0,accent:2},helmet:'accent',zones:[[.88,1.22,.27,2]],prime:{light:{leg:.75,cuff:.85},inlay:{thigh:1,shoulder:1,knee:1,flank:.9}}}
+ assalto:{name:'Ardesia e senape',main:'#3e444c',dark:'#2a2e34',accent:'#b8860b',pbr:{main:[.42,.12],dark:[.88,0],accent:[.3,.05]},kind:{main:1,dark:0,accent:1},helmet:'main',wear:{H:'accent'},rim:.18,prime:{light:{cuff:.9},inlay:{leg:.85,collar:.7}},fx:{travel:[.55,.55],halo:.8,inlay:.5}},
+ sfondamento:{name:'Oliva e nero',main:'#55602f',dark:'#1e2022',accent:'#4a4f54',pbr:{main:[.8,0],dark:[.42,.05],accent:[.32,.8]},kind:{main:0,dark:1,accent:2},helmet:'main',suit:{torso:'main',sleeve:'#3b4325',legs:'#343b22'},prime:{light:{collar:.9,cuff:.8},inlay:{thigh:.8,knee:.7}},fx:{breathe:[.9,.17],halo:.9,inlay:.3}},
+ mastino:{name:'Acciaio brunito e lime acido',main:'#5b646e',dark:'#24272b',accent:'#9fd62a',pbr:{main:[.28,.86],dark:[.88,0],accent:[.32,.05]},kind:{main:2,dark:0,accent:1},helmet:'main',wear:{D:'accent',N:'accent'},rim:.2,prime:{light:{chevron:1,cuff:1,calf:1,spine:.9,collar:.9},inlay:{leg:1,shoulder:.9,knee:.9,waist:.8,flank:.85}},fx:{flicker:.9,breathe:[.3,.4],halo:1,inlay:.6}},
+ saetta:{name:'Bianco e giallo elettrico',main:'#e4e6e3',dark:'#2c3036',accent:'#ffcf14',pbr:{main:[.3,0],dark:[.8,0],accent:[.3,0]},kind:{main:1,dark:0,accent:1},helmet:'main',zones:[[.08,.62,0,.3],[.88,1.22,.27,2]],plates:[[1.01,1.455,0,.166],[.63,.925,0,.3],[1.235,1.5,.196,.4]],prime:{light:{arm:1,leg:1,chevron:1,spine:.9},inlay:{cuff:1,calf:1,collar:.9,waist:.9}},fx:{travel:[1,1.35],halo:1.2,inlay:.35}},
+ onice:{name:'Nero melanzana lucido e viola',main:'#231d30',dark:'#1d1b24',accent:'#8a4dff',pbr:{main:[.24,.3],dark:[.36,.12],accent:[.24,.15]},kind:{main:1,dark:1,accent:1},helmet:'dark',rim:.22,prime:{light:{leg:1,arm:1,chevron:1,spine:.9,collar:1},inlay:{shoulder:1,thigh:.85,cuff:.9,waist:.8,calf:.8}},fx:{breathe:[.9,.2],travel:[.2,.2],halo:.9,inlay:1.6}},
+ astore:{name:'Oro ambra e argento',main:'#d98a1a',dark:'#2e3034',accent:'#cdd2d8',pbr:{main:[.55,0],dark:[.7,.05],accent:[.2,.95]},kind:{main:0,dark:0,accent:2},helmet:'accent',cut:.08,tone:.8,prime:{light:{cuff:1,calf:.85,chevron:.85},inlay:{leg:1,waist:1,collar:.9,knee:1}},fx:{breathe:[.8,.42],halo:1,inlay:.3}},
+ corvo:{name:'Blu notte e oro',main:'#2a3654',dark:'#20252f',accent:'#d6a63a',pbr:{main:[.36,.2],dark:[.75,0],accent:[.38,.7]},kind:{main:1,dark:0,accent:2},helmet:'main',zones:[[1.28,1.48,.1,2]],rim:.26,prime:{light:{arm:.85,leg:.85},inlay:{cuff:1,calf:1,waist:1,chevron:1}},fx:{travel:[.3,.3],halo:.6,inlay:.4,iri:1}},
+ lince:{name:'Verde bosco e rame',main:'#24472b',dark:'#262a2e',accent:'#c0703c',pbr:{main:[.86,0],dark:[.85,0],accent:[.4,.68]},kind:{main:0,dark:0,accent:2},helmet:'accent',zones:[[.88,1.22,.27,2]],prime:{light:{leg:.75,cuff:.85},inlay:{thigh:1,shoulder:1,knee:1,flank:.9}},fx:{travel:[.8,.2],halo:.6,inlay:.9}}
 };
 // V46f Officina tweaks: small curated changes that keep each operator's identity. Per kit: detail (the third colour), finish of the
 // main colour (standard, matte, gloss) and, where the operator has a real visor, its tint. Never a pure team blue or red (checked by
@@ -374,8 +411,7 @@ const ARMOUR={
  // SAETTA, the runner: swept shoulder blades like winglets, thigh fins and twin back fins.
  saetta(P,k,team,an){const M=sigMat(k,'main',T.DoubleSide),A=sigMat(k,'accent',T.DoubleSide);
   pauldrons(P,an,1,M,A,bandLook(team),{r:.07,k:[.8,.5,1.5],out:.45,th:1.0,back:.25});
-  wing(P,an,A,[[-.02,0],[.04,.02],[.12,.085],[.14,.115],[.075,.075],[0,.04]],.012,{out:.03,y:.03,rz:-.1});
-  for(const sx of [-1,1])P.add('hips',blade([[-.05,0],[.05,0],[.13,-.2],[.09,-.225],[0,-.1]],.012,.002),A,sx*.175,-.06,.0);
+  // V52: the shoulder winglets and the hanging hip blades are gone (loose shards); the runner is the helmet fin, the back fins, the bracers.
   for(const sx of [-1,1])P.add('chest',blade([[0,-.12],[.05,-.1],[.14,.1],[.1,.12],[.03,.06]],.014,.003),M,sx*.06,.02,.125,[0,0,sx*-.12]);
   bracers(P,an,M,A,{span:2.5,r:.058,len:.7,fin:[[-.07,0],[.06,0],[.085,.035],[.03,.022],[-.05,.012]]});},
  // ONICE, the gem: three crystal shards rising from each shoulder, faceted hip plates, a ridge of plates down the spine.
@@ -479,7 +515,9 @@ export function buildGear(team,operator,anchors){
  // an operator stays within 12): its pieces take the anchor's first material unless theirs is already there.
  if(PALETTE_ON&&ARMOUR_ON&&ARMOUR[o.kit]){const A=Object.create(P);A.add=(anchor,geo,mat,...r)=>{const g=P.groups.get(anchor);P.add(anchor,geo,g?.length&&!g.some(e=>e.mat===mat)?g[0].mat:mat,...r);};ARMOUR[o.kit](A,o.kit+'|'+o.tw,team,anchors);}
  // V46: the team band round the left upper arm, in the team's signal colour (V46f: 8.5 cm wide and brighter, it carries the team).
- if(PALETTE_ON&&anchors.shoulderL&&anchors.elbowL){const dir=anchors.elbowL.clone().sub(anchors.shoulderL),len=dir.length();dir.normalize();
+ // V52: retired. A rigid sleeve round a bending arm cut through the suit in ragged patches; the band is now drawn on the suit itself,
+ // on both arms (PRIME_GLSL above), and widens with distance.
+ if(false&&PALETTE_ON&&anchors.shoulderL&&anchors.elbowL){const dir=anchors.elbowL.clone().sub(anchors.shoulderL),len=dir.length();dir.normalize();
   const at=dir.clone().multiplyScalar(len*(SIGNATURE[o.kit]?.bandAt??.48)),r=SIGNATURE[o.kit]?.band??.08,e=new T.Euler().setFromQuaternion(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),dir));
   P.add('shoulderL',new T.CylinderGeometry(r,r*.94,.085,24,1,true),bandLook(team),at.x,at.y,at.z,[e.x,e.y,e.z]);}
  const groups=P.build();

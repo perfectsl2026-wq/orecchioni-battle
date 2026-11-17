@@ -7,13 +7,13 @@ import {layeredWear,toneAlbedo} from './surface-detail.js?v=42.0';
 import {decorateFacade,decalMaterial} from './decals.js?v=42.0';
 import {trimMaterials,cornice,course,downspout,cosmetic} from './trim-kit.js?v=42.0';
 import {materialLibrary,terrainMeshes,wallMeshes,portals,slabs} from './district-builder.js?v=42.0';
-import {desertCrate,desertTimber,desertCar,desertDoors,desertFeature} from './sahra-architecture.js?v=42.0';
+import {desertCrate,desertTimber,desertCar,carsReady,desertDoors,desertFeature} from './sahra-architecture.js?v=42.0';
 import {siteMarkings} from './site-markings.js?v=42.0';
 import {calderaSiteProps,calderaPier} from './site-props.js?v=42.0';
 import {calderaInterior,calderaStairAt,calderaWalkable} from './caldera-layout.js?v=42.0';
 import {StreetProps,roofClutter,facadeCondenser,facadeFixture,coverSkin,reskin,calderaBoats} from './street-props.js?v=42.0';
 import {stationFixtures,calderaDress,manholes} from './detail-dress.js?v=42.0';
-import {addHorizon,seaSurface,liteWorld} from './horizon.js?v=42.0';
+import {addHorizon,seaSurface,liteWorld,calderaRimMaterial} from './horizon.js?v=42.0';
 // CALDERA / 07: a coastal research station on a volcanic headland. Cast concrete and
 // white render over a basalt plinth, teal metal fascias, ribbon glazing above head
 // height, a timber jetty, a sea wall with open water beyond, and a heliostat over A.
@@ -124,7 +124,7 @@ export function createCaldera(scene,renderer){
  label(root,'CALDERA  /  STAZIONE 07',0,6.62,-19.94,7.2,.66,0,{background:'#b9b49e',color:'#34494b',font:90});
  for(const [text,x,y,z,yaw]of [['A  ↑',-17,2.6,-11.94,0],['A  ↑',12.06,3.6,-.5,Math.PI/2],['A  ↑',-12.06,2.5,14,-Math.PI/2],['←  A',16,2.5,-17.94,0]])label(root,text,x,y,z,1.8,.62,yaw,{background:'#345f61',color:'#e7dfcd',font:120});
  const wire=cosmetic(p.dark);cable(root,[[-22,6.6,2],[-17,5.8,2.2],[-12,6.6,2]],wire,.02);cable(root,[[12,7,10],[17,6.2,10.3],[22,6.9,10]],wire,.02);
- mergeStatic(root);root.userData.materials=p;root.userData.ready=Promise.all(pending);return root;
+ mergeStatic(root);root.userData.materials=p;root.userData.ready=Promise.all([...pending,carsReady()]);return root;
 }
 // Heliostat over A: four steel columns (shared solids) carry two truss arches and a
 // segmented collector ring. Everything above the columns is cosmetic for shots.
@@ -144,18 +144,18 @@ function backdrop(root,p,sp){
  // The caldera rim: one continuous ridge around the bay, open to the sea on the
  // west and south, softened by fog. Sea stacks stand off the quay. All cosmetic.
  // Check Fable: twice the segments, a jagged crest of peaks and saddles and a wider profile (it read as one even band of rock).
- const pos=[],uv=[],index=[],segments=320;
+ const pos=[],dat=[],index=[],segments=320;
  const ridge=a=>{const n=Math.sin(a*3.1)*.5+Math.sin(a*7.3+1.2)*.3+Math.sin(a*13.7+.4)*.2,jag=(1-Math.abs(Math.sin(a*8.3+.7)))**2*11*(.45+.55*Math.sin(a*2.3+.4)**2)+(1-Math.abs(Math.sin(a*17.9+2.1)))**3*6*(.3+.7*Math.sin(a*3.7+1)**2)+Math.sin(a*41+Math.sin(a*5))*1.4;return {r:190+n*24,h:16+n*9+Math.max(0,Math.cos(a-.3))*12+jag};};
  for(let i=0;i<=segments;i++){const a=-Math.PI*.94+i/segments*Math.PI*1.28,{r,h}=ridge(a),c=Math.cos(a),sn=Math.sin(a);
   // The two ends taper into the sea as headlands, and the outer row reaches the water.
   const t=Math.min(1,Math.min(i,segments-i)/6),lift=v=>-3+(v+3)*t;
-  for(const [k,rr,yy]of [[0,r-60,-3],[1,r-34,lift(h*.22)],[2,r-14,lift(h*.6)],[3,r-5,lift(h*.9)],[4,r,lift(h)],[5,r+30,lift(h*.7)],[6,r+70,-3]]){pos.push(c*rr,yy,sn*rr);uv.push(i*.11,k*1.1);}
-  if(i<segments)for(let k=0;k<6;k++){const n=i*7+k;index.push(n,n+7,n+1,n+1,n+7,n+8);}}
- const rim=new T.BufferGeometry();rim.setAttribute('position',new T.Float32BufferAttribute(pos,3));rim.setAttribute('uv',new T.Float32BufferAttribute(uv,2));rim.setIndex(index);rim.computeVertexNormals();
- // The rim takes its own aerial perspective (a hazy tint) instead of scene fog, so the
- // ridge keeps its texture and silhouette at 150 m.
- const haze=rock.clone();haze.fog=false;haze.color.set(0xbcc7ca);haze.userData.nonBallistic=true;
- const rimMesh=new T.Mesh(rim,haze);rimMesh.castShadow=false;rimMesh.receiveShadow=false;root.add(rimMesh);
+  // V52: eleven rows across the ridge, cut by gullies that run down both faces; the crest keeps its height (the turbines stand on it).
+  const ROWS=[[-60,0],[-48,.08],[-36,.2],[-27,.36],[-19,.52],[-12,.68],[-6,.86],[0,1],[12,.84],[34,.55],[70,0]],gully=(1-Math.abs(Math.sin(a*47+Math.sin(a*9)*2.4)))**2*.55+(1-Math.abs(Math.sin(a*113+1.7)))**2*.25;
+  ROWS.forEach(([dr,f],k)=>{const cut=1-gully*.42*Math.sin(Math.PI*f),bulge=Math.sin(a*23+k*.7)*2.2*Math.sin(Math.PI*f);pos.push(c*(r+dr+bulge),f?lift(h*f*cut):-3,sn*(r+dr+bulge));dat.push(1,.62+.38*cut,0);});
+  if(i<segments)for(let k=0;k<10;k++){const n=i*11+k;index.push(n,n+11,n+1,n+1,n+11,n+12);}}
+ const rim=new T.BufferGeometry();rim.setAttribute('position',new T.Float32BufferAttribute(pos,3));rim.setAttribute('data',new T.Float32BufferAttribute(dat,3));rim.setIndex(index);rim.computeVertexNormals();
+ // The rim is drawn like the Forge massif: bedded volcanic rock, dry grass and scrub thinning toward the crest, its own sea haze.
+ const rimMesh=new T.Mesh(rim,calderaRimMaterial());rimMesh.castShadow=false;rimMesh.receiveShadow=false;rimMesh.userData.cosmetic=true;root.add(rimMesh);
  // Sea stacks: jagged basalt columns standing in the water off the quay and the jetty.
  for(const [x,z,r,h,seed]of [[-96,-18,7,18,1],[-118,26,10,24,2],[-84,46,5,10,3],[-40,92,8,14,4],[-70,70,4,8,5]]){
   sp.add('scoglio',{x,y:-3,z,yaw:seed*1.3,fit:{w:r*2.3,d:r*2,h:h+2},tag:'far',fallback:()=>{const g=new T.CylinderGeometry(r*.55,r,h,11,7),v=g.attributes.position;
