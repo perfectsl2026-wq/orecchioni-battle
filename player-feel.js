@@ -37,9 +37,18 @@ export class LocalPresentation{
 }
 export class WeaponSwitch{
  constructor(index=3){this.reset(index);}
- reset(index=3){this.current=this.target=index;this.amount=0;this.phase='ready';this.previous=index;this.lastWheel=-Infinity;}
+ reset(index=3){this.current=this.target=index;this.amount=0;this.phase='ready';this.previous=index;this.lastWheel=-Infinity;this.carry=0;this.shown=0;}
+ // V53: how far down the weapon is drawn (0 = in the firing pose, 1 = out of the picture). Putting away: an eased drop.
+ // Drawing: it comes up fast, arrives a little before the weapon is ready, rides 5 % past its place and settles back as
+ // it becomes ready (weight in the hand; it used to glide up on one even curve). Timing and readiness are untouched.
+ shape(){const a=this.amount;if(this.phase!=='draw')return a*a*(3-2*a);const u=1-a;
+  if(u<.72){const t=u/.72,t2=t*t,t3=t2*t;return (2*t3-3*t2+1)+(t3-2*t2+t)*.72*-2.3+(t3-t2)*.72*-.7;}
+  if(u<.86){const t=(u-.72)/.14,t2=t*t,t3=t2*t;return (t3-2*t2+t)*.14*-.7+(-2*t3+3*t2)*-.05;}
+  const t=(u-.86)/.14;return -.05*(1-t*t*(3-2*t));}
  // `equip` is the weapon's whole draw (WEAPONS[i].equip, the host's equipUntil): .10 s down, the rest coming up, so the first shot is never refused.
- request(index,equip=.3){if(index===this.target)return false;this.draw=Math.max(.1,equip-.1);this.previous=this.target;this.target=index;if(index===this.current)this.phase='draw';else this.phase='holster';return true;}
+ request(index,equip=.3){if(index===this.target)return false;this.draw=Math.max(.1,equip-.1);this.previous=this.target;this.target=index;if(index===this.current)this.phase='draw';else this.phase='holster';
+  // An interrupted change carries on from where the weapon is drawn (the two curves differ): no jump.
+  this.carry=(this.shown||0)-this.shape();return true;}
  wheel(direction,now,count){if(now-this.lastWheel<85)return null;this.lastWheel=now;return(this.target+(direction>0?1:count-1))%count;}
  update(dt){let remaining=Math.min(.1,Math.max(0,dt));
   for(let n=0;n<3&&remaining>0;n++){
@@ -47,7 +56,8 @@ export class WeaponSwitch{
    else if(this.phase==='draw'){const d=this.draw||.2,time=this.amount*d,step=Math.min(time,remaining);this.amount=Math.max(0,this.amount-step/d);remaining-=step;if(this.amount<=1e-8){this.amount=0;this.phase='ready';}else break;}
    else break;
   }
-  return {index:this.current,lower:this.amount*this.amount*(3-2*this.amount),ready:this.phase==='ready'};
+  this.carry=(this.carry||0)*Math.exp(-Math.min(.1,Math.max(0,dt))/.05);if(Math.abs(this.carry)<1e-4)this.carry=0;this.shown=this.shape()+this.carry;
+  return {index:this.current,lower:this.shown,ready:this.phase==='ready'};
  }
 }
 

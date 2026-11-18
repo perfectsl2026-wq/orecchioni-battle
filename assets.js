@@ -9,7 +9,7 @@ import {dressRig} from './weapon-fx.js?v=42.0';
 import {buildGear,operatorKey,DEFAULT_OPERATOR,preloadOperatorGear,headScale,KITS,BODIES,cleanOperator as cleanOperatorLook,PALETTE_ON,TEAM_SIGNAL,signatureOf,styleOf,PRIME_GLSL,primeUniforms,OB_FORM,setPrimeLite} from './operator-kits.js?v=42.0';
 import {PAINTS} from './weapon-finish.js?v=42.0';
 import {loadDetail,detailUniforms,DETAIL_GLSL,uvMetres} from './operator-detail.js?v=42.0';
-import {weaveTexture as wearWeaveTexture,WEAR_KITS,wearGeometry,wearLook,wearSuitLook,wearSuitGeometry,wearHeadLook,glovesOnly,skinPart,fingerToneLook,ensureFingerTone} from './operator-wear.js?v=42.0';
+import {weaveTexture as wearWeaveTexture,WEAR_KITS,wearGeometry,wearLook,wearSuitLook,wearSuitGeometry,wearHeadLook,glovesOnly,skinPart,fingerToneLook,ensureFingerTone,bodyKitGeometry,bodyKitLook,setWearLite} from './operator-wear.js?v=42.0';
 const cleanMask=o=>!!cleanOperatorLook(o).mask;
 import {footPlants} from './agent-locomotion.js?v=42.0';
 import {dressAgentGear,throwPhase,heldCan} from './agent-gear.js?v=42.0';
@@ -629,7 +629,10 @@ export const armourReady=()=>Object.keys(BODIES).every(bodyReady);
 // Every loaded body's programs (both teams), skinned on the first operator's skeleton; empty until one loads.
 export function armourWarmParts(){const parts=new THREE.Group();if(!bodyBase)return parts;
  for(const kit of Object.keys(BODIES)){const fit=bodyReady(kit)&&bodyFit(kit,bodyBase);if(!fit)continue;
-  for(const team of ['blue','orange'])fit.parts.forEach((part,i)=>{const m=new THREE.SkinnedMesh(part.geometry,bodyLook(kit,team)[i]);m.bind(bodyBase.skeleton,bodyBase.bindMatrix);m.customDepthMaterial=skinDepth;m.castShadow=m.receiveShadow=true;m.frustumCulled=false;parts.add(m);});}
+  for(const team of ['blue','orange'])fit.parts.forEach((part,i)=>{const m=new THREE.SkinnedMesh(part.geometry,bodyLook(kit,team)[i]);m.bind(bodyBase.skeleton,bodyBase.bindMatrix);m.customDepthMaterial=skinDepth;m.castShadow=m.receiveShadow=true;m.frustumCulled=false;parts.add(m);});
+  // V54: each body's kit is built here, in the warm-up after the start, not when its first operator walks in; its program compiles once.
+  const suit=warmBody?.find(x=>skinName(x)==='Mil_Suit_R5'),bs=fit.parts.find(p=>/Suit_Team$/.test(p.name)),kg=suit&&bs?bodyKit(kit,suit,bs.geometry,fit.parts.filter(p=>p!==bs).map(p=>p.geometry)):null;
+  if(kg){const m=new THREE.SkinnedMesh(kg,bodyKitLook(suit.userData.baseMaterial||suit.material,'blue','graphite',kit,''));m.bind(suit.skeleton,suit.bindMatrix);m.customDepthMaterial=skinDepth;m.castShadow=m.receiveShadow=true;m.frustumCulled=false;parts.add(m);}}
  return parts;}
 const TORSO_BONES=new Set(['Hips','Spine','Spine1','Spine2','Neck','Shoulder']);
 const bodyNext=n=>{const m=/^(Left|Right)(.+)$/.exec(n);if(!m)return {Hips:'Spine',Spine:'Spine1',Spine1:'Spine2',Spine2:'Neck',Neck:'Head'}[n]||null;const next={Shoulder:'Arm',Arm:'ForeArm',ForeArm:'Hand',Hand:'HandMiddle1',UpLeg:'Leg',Leg:'Foot',Foot:'ToeBase'}[m[2]];if(next)return m[1]+next;const f=/^(Hand\D+)([12])$/.exec(m[2]);return f?m[1]+f[1]+(+f[2]+1):null;};
@@ -776,7 +779,8 @@ function paletteBody(m,src,kit,team,sig,cfg,part){
  m.envMapIntensity=.8;
  // Check Fable: OB_FORM (operator-kits.js) lifts near-black panels and adds a sky fill; the rim is a little stronger.
  m.onBeforeCompile=shader=>{Object.assign(shader.uniforms,u);
-  shader.vertexShader='varying vec3 vPalP;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPalP=position/1.1e6;');
+  // V54: the suit sinks 16 mm under its kit's panels (suitTuck, set by dressOperator; 0 on the helmets, which carry no such attribute).
+  shader.vertexShader='attribute float suitTuck;varying vec3 vPalP;\n'+shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvPalP=position/1.1e6;transformed-=normalize(objectNormal)*suitTuck*17600.;');
   shader.fragmentShader='uniform vec3 palMain;uniform vec3 palDark;uniform vec3 palAccent;uniform float palHelm;uniform vec4 palZ0;uniform vec4 palZ1;uniform vec4 palZ2;uniform vec4 palP0;uniform vec4 palP1;uniform vec4 palP2;uniform vec3 palRough;uniform vec3 palMetal;uniform vec3 palKind;uniform float palRim;uniform sampler2D palWeave;uniform vec3 palRef;uniform vec2 palCut;uniform vec3 bodyGlow;uniform float palUvm;varying vec3 vPalP;\n'+PRIME_GLSL+DETAIL_GLSL
    +'float palBox(vec4 b){float ax=abs(vPalP.x),e=.015;return smoothstep(b.x-e,b.x+e,vPalP.y)*(1.-smoothstep(b.y-e,b.y+e,vPalP.y))*smoothstep(b.z-e,b.z+e,ax)*(1.-smoothstep(b.w-e,b.w+e,ax));}\n'
    // V52 plates (sig.plates, boxes like the zones): designed panels of the main colour laid over the body where its own paint mask
@@ -907,7 +911,7 @@ function dressWear(d,team,look,armour){
 // V44 op2: kits whose closed helmet is part of their wear: the soldier's eyes hide under it.
 const CLOSED_HELMETS=new Set(['mastino']);
 export function dressOperator(root,team,operator){
- const d=root.userData;if(!d.bones||!operatorRest.frames)return;if(mobileAssets)setPrimeLite(true);
+ const d=root.userData;if(!d.bones||!operatorRest.frames)return;if(mobileAssets){setPrimeLite(true);setWearLite(true);}
  // V44: until its body has loaded a whole-body kit wears the ASSALTO kit in its accent; the key changes when it arrives.
  const look=cleanOperatorLook(operator),body=BODIES[look.kit]?look.kit:null,ready=!!body&&bodyReady(body);if(body&&!ready){loadBody(body);operator={...look,kit:'assalto'};}
  const key=operatorKey(team,operator);if(d.operatorKey===key)return;d.operatorKey=key;d.operatorKit=cleanOperatorLook(operator).kit;
@@ -932,10 +936,19 @@ export function dressOperator(root,team,operator){
  if(suit&&(cfg?.gloves||cfg?.boots)){const g=suit.userData.baseSuitGeometry||suit.geometry;
   if(!d.kitParts){d.kitParts=new THREE.SkinnedMesh(g,suit.material);d.kitParts.name='Operator gloves';d.kitParts.bind(suit.skeleton,suit.bindMatrix);d.kitParts.position.copy(suit.position);d.kitParts.quaternion.copy(suit.quaternion);d.kitParts.scale.copy(suit.scale);
    d.kitParts.userData.armour=true;d.kitParts.customDepthMaterial=skinDepth;d.kitParts.castShadow=d.kitParts.receiveShadow=true;d.kitParts.frustumCulled=false;d.kitParts.userData.ownedGeometry=false;suit.parent.add(d.kitParts);}
-  const key=(cfg.gloves?'g':'')+(cfg.boots?'b':'');d.kitParts.geometry=skinPart(suit,g,key,(n,y)=>cfg.gloves&&/Hand/.test(n)||cfg.boots&&y<.262&&/Leg|Foot|Toe/.test(n));
-  d.kitParts.material=kitPartsLook(suit.userData.baseMaterial||suit.material);d.kitParts.visible=true;}
+  const key=(cfg.gloves?'g':'')+(cfg.boots?'b':''),cut=(n,y)=>cfg.gloves&&/Hand/.test(n)||cfg.boots&&y<.262&&/Leg|Foot|Toe/.test(n);
+  // V54: the operator's own kit (operator-wear.js BODY_WEAR): its panels, gloves and boots in one skinned mesh; the body's suit
+  // takes the kit's tuck. Without one (or if it fails to build) the plain gloves and boots as before.
+  const bodySuit=d.armour?.find(m=>/Suit_Team$/.test(m.name)),kg=bodySuit?bodyKit(body,suit,bodySuit.geometry,d.armour.filter(m=>m!==bodySuit&&m!==d.kitParts).map(m=>m.geometry)):null;
+  if(kg){d.kitParts.geometry=kg;d.kitParts.material=bodyKitLook(suit.userData.baseMaterial||suit.material,team,look.accent,body,look.tw);}
+  else{d.kitParts.geometry=skinPart(suit,g,key,cut);d.kitParts.material=kitPartsLook(suit.userData.baseMaterial||suit.material);}
+  d.kitParts.visible=true;}
  else if(d.kitParts)d.kitParts.visible=false;
 }
+// V54: a whole body's kit geometry (operator-wear.js), built once per kit; the body's suit takes its tuck weights.
+function bodyKit(kit,suit,bodyGeo,others=[]){const cfg=BODIES[kit],g=suit.userData.baseSuitGeometry||suit.geometry;if(!cfg||!bodyGeo||!(cfg.gloves||cfg.boots))return null;
+ const kg=bodyKitGeometry(kit,suit,g,bodyGeo,(n,y)=>cfg.gloves&&/Hand/.test(n)||cfg.boots&&y<.262&&/Leg|Foot|Toe/.test(n),mobileAssets,others);
+ if(kg?.userData.tuck&&!bodyGeo.attributes.suitTuck)bodyGeo.setAttribute('suitTuck',new THREE.BufferAttribute(kg.userData.tuck,1));return kg;}
 // The gloves and boots under a whole body: the suit's own texture darkened to charcoal leather (no team dye: hands and feet stay dark).
 const kitPartLooks=new Map();
 function kitPartsLook(base){let m=kitPartLooks.get(base);if(m)return m;m=base.clone();m.name='op-gloves';m.userData.teamLook=true;m.color.set(0xffffff);

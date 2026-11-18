@@ -55,7 +55,7 @@ export function stationFixtures(sp,face){
  if(serial%7===3&&height>6.4)wallProp(sp,'scala',face,width/2-1.6,ground+2.75,.08,1.12);
 }
 // Caldera: ship on the roads, a working pier, wind farm on the rim, lifebuoys on the sea rail.
-export function calderaDress(sp,map,{rimAt}){
+export function calderaDress(sp,map,{rimAt,buoy=null}){
  sp.add('nave',{x:-176,y:-9,z:96,yaw:.42,scale:.72,tag:'far'});
  sp.add('gru',{x:-112,y:-1.2,z:-92,yaw:2.1,scale:.82,tag:'far'});sp.add('gru',{x:-138,y:-1.2,z:-70,yaw:2.5,scale:.82,tag:'far'});
  sp.add('molo',{x:-125,y:-3,z:-81,yaw:-.72,fit:{w:18,d:64,h:3.2},tag:'far'});
@@ -65,7 +65,9 @@ export function calderaDress(sp,map,{rimAt}){
  // Lifebuoys hang on the inner side of the sea rail, one every eleven metres.
  for(const [x0,x1,z0,z1] of map.parapets||[]){const alongX=x1-x0>=z1-z0,cx=(x0+x1)/2,cz=(z0+z1)/2,len=alongX?x1-x0:z1-z0;
   for(let u=-len/2+3.5;u<len/2-2;u+=11){const px=alongX?cx+u:cx,pz=alongX?cz:cz+u,wall=map.walls.find(w=>Math.abs(w[0]-px)<=w[2]/2&&Math.abs(w[1]-pz)<=w[3]/2);if(!wall)continue;
-   const inner=(alongX?cz:cx)>0?-1:1;sp.add('salvagente',{x:alongX?px:px+inner*(wall[2]/2+.04),y:wall[4]+.16,z:alongX?pz+inner*(wall[3]/2+.04):pz,yaw:alongX?0:Math.PI/2,scale:.28,tag:'facade'});}}
+   const inner=(alongX?cz:cx)>0?-1:1,bx=alongX?px:px+inner*(wall[2]/2+.04),bz=alongX?pz+inner*(wall[3]/2+.04):pz,yaw=alongX?0:Math.PI/2;
+   // V53: the caller draws a round ring (the scanned one was an eight-sided polygon); the model stays as the fallback.
+   if(buoy)buoy(bx,wall[4]+.16,bz,yaw);else sp.add('salvagente',{x:bx,y:wall[4]+.16,z:bz,yaw,scale:.28,tag:'facade'});}}
 }
 // Forge: larches on the slopes, a power line leaving the valley, service runs on the walls.
 export const FORGE_PYLONS=[[-74,-46],[-30,-84],[24,-92],[78,-62]];

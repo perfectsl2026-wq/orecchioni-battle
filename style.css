@@ -1598,6 +1598,12 @@ html:not(.touch-mode) #hud:has(#deathcard:not([hidden])) #notice{top:auto;bottom
 #lineup .lu-row button{padding:10px 4px;background:#0d171dcc;border:1px solid #ffffff1c;color:#e9e5dc;text-align:center;cursor:pointer}#lineup .lu-row b{display:block;font:700 14px/1 'Barlow Condensed',sans-serif;letter-spacing:1.4px}#lineup .lu-row small{font-size:8px;letter-spacing:1.6px;color:#8f9a9c}
 #lineup .lu-row [aria-pressed=true]{border-color:#ffd27a;background:#1b2328ee;box-shadow:inset 0 -2px 0 #ffd27a}
 #lineup .lu-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}#lineup .lu-actions button{width:auto;min-width:160px}#lineup .lu-hint{align-self:flex-end;margin-top:8px;font-size:9px;letter-spacing:2px;color:#8f9a9c}
+/* V55: short landscape phones: compact title, ENTRA/INDIETRO up beside it, one slim row of names at the bottom, no keyboard hint. */
+@media(orientation:landscape) and (max-height:520px){#lineup{padding:max(8px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(16px,env(safe-area-inset-left));background:linear-gradient(#0a1218d8,transparent 22%,transparent 72%,#0a1218e6)}
+#lineup .lu-head small{font-size:8px;letter-spacing:2px}#lineup h2{margin:4px 0 3px;font-size:24px;letter-spacing:1px}#lineup .lu-desc{font-size:9px;letter-spacing:1.6px}
+#lineup .lu-actions{position:absolute;top:max(10px,env(safe-area-inset-top));right:max(16px,env(safe-area-inset-right));margin:0;gap:8px}#lineup .lu-actions button{min-width:0;padding:9px 16px;font-size:12px;letter-spacing:1.5px}#lineup .lu-actions .primary{min-width:112px}
+#lineup .lu-row{gap:4px}#lineup .lu-row button{padding:6px 1px;min-height:34px;overflow:hidden}#lineup .lu-row b{font-size:12px;letter-spacing:.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#lineup .lu-row small{display:block;font-size:7px;letter-spacing:.6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}#lineup .lu-hint{display:none}}
+@media(orientation:landscape) and (max-height:520px) and (max-width:640px){#lineup .lu-row{gap:3px}#lineup .lu-row b{font-size:11px;letter-spacing:0}#lineup .lu-row small{letter-spacing:.3px}}
 #loading{background-image:linear-gradient(90deg,#0a161dea 0%,#0a161d99 42%,#0a161d26 100%),var(--mapimg,none);background-size:cover;background-position:center}
 #loadingmode{display:block;margin-top:4px;font:600 10px/1.2 Barlow,sans-serif;letter-spacing:2.6px;color:#ffd27a}
 .emblem{width:13px;height:13px;margin-right:5px;vertical-align:-2px;color:#ffd27a;flex:none}
@@ -1657,3 +1663,77 @@ html:not(.touch-mode) #hud:has(#deathcard:not([hidden])) #notice{top:auto;bottom
 .rk-verdict.up{border-left-color:#7fd79a}.rk-verdict.up b{color:#9be8b2}
 .rk-verdict.down{border-left-color:#ff8f7a}.rk-verdict.down b{color:#ffab9b}
 @media(prefers-reduced-motion:reduce){#menu #rankedsearch.searching:before{animation:none}.rk-bar i{transition:none}}
+/* V53 team signals on touch: PING and FRASI sit above crouch and jump, in reach of the right thumb and clear of the
+   crosshair, the kill feed and the fire cluster. FRASI opens the six phrases in a column to their left; one tap sends. */
+#touchping,#touchtalk{position:absolute;pointer-events:auto;width:44px;height:44px;padding:0;border-radius:50%;border:1px solid #e1ecea4d;background:#0d1b23b8;color:#eef5f2;touch-action:manipulation;-webkit-tap-highlight-color:transparent;right:calc(max(16px,env(safe-area-inset-right)) + 22px);bottom:calc(236px + env(safe-area-inset-bottom))}
+#touchtalk{right:calc(max(16px,env(safe-area-inset-right)) + 80px)}
+#touchping svg,#touchtalk svg{width:21px;height:21px;display:block;margin:auto}
+#touchping{color:#ffd27a;border-color:#ffd27a66}
+#touchcontrols :is(#touchping,#touchtalk):active,#touchcontrols #touchtalk.open{background:#1d2f38e6;border-color:#ffd27acc}
+#touchtalk.open{color:#ffd27a}
+#touchping.sent{animation:obPingSent .42s ease-out}
+@keyframes obPingSent{0%{box-shadow:0 0 0 0 #ffd27acc;background:#ffd27a55}100%{box-shadow:0 0 0 14px #ffd27a00;background:#0d1b23b8}}
+#touchphrases{position:absolute;pointer-events:auto;right:calc(max(16px,env(safe-area-inset-right)) + 136px);bottom:calc(98px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:4px;width:168px;z-index:3}
+#touchphrases[hidden]{display:none}
+#touchcontrols #touchphrases button{position:relative;min-width:0;min-height:0;width:auto;display:flex;align-items:center;gap:9px;height:36px;margin:0;padding:0 12px 0 6px;border:1px solid #e1ecea33;border-left:2px solid #ffd27a99;border-radius:3px;background:#0b141cf0;color:#eef1ec;font:700 14px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;text-transform:uppercase;text-align:left;box-shadow:0 2px 8px #0006;touch-action:manipulation;-webkit-tap-highlight-color:transparent;animation:obPhraseIn .16s ease-out backwards;animation-delay:calc(var(--i) * 18ms)}
+#touchphrases kbd{flex:0 0 20px;height:20px;display:grid;place-items:center;border:1px solid #ffd27a66;border-radius:2px;font:700 10px/1 'Barlow Condensed',sans-serif;color:#ffd27a;background:none}
+#touchcontrols #touchphrases :is(button:active,button.picked){background:#ffd27a;color:#11181d;border-color:#ffd27a}
+#touchcontrols #touchphrases :is(button:active,button.picked) kbd{color:#11181d;border-color:#11181d66}
+@keyframes obPhraseIn{from{opacity:0;transform:translateX(10px)}to{opacity:1;transform:none}}
+:root.touch-mode #touchcontrols[data-dead] #touchping{display:none}
+@media(orientation:landscape) and (max-height:600px){
+ :root.touch-mode #touchcontrols #touchping{right:calc(var(--tr) + 21px);bottom:calc(235px + var(--tb))}
+ :root.touch-mode #touchcontrols #touchtalk{right:calc(var(--tr) + 100px);bottom:calc(235px + var(--tb))}
+ :root.touch-mode #touchcontrols #touchphrases{right:calc(var(--tr) + 154px);bottom:auto;top:calc(56px + var(--tt))}
+ /* The team line (a phrase, a ping, a join) moves to the left under the objective, out from under PING and FRASI. */
+ :root.touch-mode #messages{top:calc(212px + var(--tt));left:var(--tl);right:auto;align-items:flex-start;text-align:left;max-width:220px}
+ :root.touch-mode #messages .teamline{padding:3px 8px 3px 6px;border-left:2px solid #7ec8ea;background:#0b141cc4}
+}
+/* Phones under 390 px of height have no free band above the optic buttons (the kill feed fills it): PING and FRASI move
+   beside the radar, past LASCIA BOMBA, and the phrases open as two columns under them, all clear of the crosshair. */
+@media(orientation:landscape) and (max-height:389px){
+ :root.touch-mode #touchcontrols #touchping{right:auto;bottom:auto;left:calc(var(--tl) + 176px);top:calc(64px + var(--tt))}
+ :root.touch-mode #touchcontrols #touchtalk{right:auto;bottom:auto;left:calc(var(--tl) + 228px);top:calc(64px + var(--tt))}
+ :root.touch-mode #touchcontrols #touchphrases{right:auto;left:var(--tl);top:calc(116px + var(--tt));display:grid;grid-template-columns:repeat(2,112px);gap:4px;width:auto}
+ :root.touch-mode #touchcontrols #touchphrases[hidden]{display:none}
+ :root.touch-mode #touchcontrols #touchphrases button{height:34px;font-size:12.5px;letter-spacing:.03em;white-space:nowrap;gap:6px;padding:0 4px 0 5px;animation-name:obPhraseDrop}
+ :root.touch-mode #touchcontrols[data-dead] #touchtalk{display:none}
+}
+/* V54 very short phones (320 px high, iPhone SE): PING and FRASI shrink a little and the phrase rows tighten so the open
+   list ends above the move stick; the team line goes beside the radar, out of the stick's ring. */
+@media(orientation:landscape) and (max-height:340px){
+ :root.touch-mode #touchcontrols :is(#touchping,#touchtalk){width:40px;height:40px;min-width:40px;min-height:40px;top:calc(62px + var(--tt))}
+ :root.touch-mode #touchcontrols #touchtalk{left:calc(var(--tl) + 224px)}
+ :root.touch-mode #touchcontrols #touchphrases{top:calc(105px + var(--tt));gap:3px}
+ :root.touch-mode #touchcontrols #touchphrases button{height:28px;font-size:12px}
+ :root.touch-mode #touchcontrols #touchphrases kbd{flex-basis:17px;height:17px}
+ :root.touch-mode #messages{top:calc(62px + var(--tt));left:calc(var(--tl) + 84px);max-width:96px}
+}
+@keyframes obPhraseDrop{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){#touchcontrols :is(#touchping.sent,#touchphrases button){animation:none}}
+/* V53 emblem unlock: a short card under the score; the mark lands in a gold diamond and a light runs over it once. */
+.emblem-unlock{position:fixed;left:50%;top:96px;z-index:40;display:flex;align-items:center;gap:16px;padding:10px 22px 10px 12px;transform:translateX(-50%);pointer-events:none;background:linear-gradient(100deg,#0a1218f5 0%,#111d25eb 100%);border:1px solid #ffd27a3d;border-top:2px solid #ffd27a;box-shadow:0 10px 30px #0008,0 0 0 1px #0004;animation:euIn .52s cubic-bezier(.2,.9,.25,1) both;transition:opacity .3s ease,transform .3s ease}
+.emblem-unlock.out{opacity:0;transform:translate(-50%,-10px)}
+.emblem-unlock .eu-mark{position:relative;flex:0 0 52px;height:52px;display:grid;place-items:center;overflow:hidden}
+.emblem-unlock .eu-mark:before{content:'';position:absolute;inset:7px;transform:rotate(45deg);border:1.5px solid #ffd27acc;background:linear-gradient(90deg,transparent 35%,#fff3d266 50%,transparent 65%) 130% 0/300% 100% no-repeat,radial-gradient(circle,#ffd27a33,#ffd27a08 70%);box-shadow:0 0 14px #ffd27a40;animation:euFrame .6s cubic-bezier(.2,.9,.25,1) .08s both,euShine .8s ease-out .6s both}
+/* A hairline under the card runs out while it stays: it reads as a notice that leaves on its own. */
+.emblem-unlock:after{content:'';position:absolute;left:0;right:0;bottom:-1px;height:2px;background:#ffd27a99;transform-origin:left;animation:euTime 3.6s linear both}
+.emblem-unlock svg{position:relative;width:26px;height:26px;fill:#ffd27a;filter:drop-shadow(0 0 6px #ffd27a80);animation:euMark .5s cubic-bezier(.2,1.4,.4,1) .3s both}
+.emblem-unlock .eu-text{display:flex;flex-direction:column;gap:3px;min-width:0}
+.emblem-unlock small{font:700 10px/1 Barlow,sans-serif;letter-spacing:.24em;color:#ffd27a}
+.emblem-unlock b{font:800 27px/1 'Barlow Condensed',sans-serif;letter-spacing:.06em;color:#f6f2e8}
+.emblem-unlock span{font:500 11px/1.2 Barlow,sans-serif;letter-spacing:.02em;color:#a9b7b8;white-space:nowrap}
+@keyframes euIn{from{opacity:0;transform:translate(-50%,-12px) scale(.97)}to{opacity:1;transform:translateX(-50%)}}
+@keyframes euFrame{from{opacity:0;transform:rotate(-45deg) scale(.4)}to{opacity:1;transform:rotate(45deg)}}
+@keyframes euMark{from{opacity:0;transform:scale(.3)}to{opacity:1;transform:none}}
+@keyframes euShine{from{background-position:130% 0,0 0}to{background-position:-30% 0,0 0}}
+@keyframes euTime{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+.emblem-unlock.calm,.emblem-unlock.calm *,.emblem-unlock.calm .eu-mark:before{animation:none!important;transition:none}
+.emblem-unlock.calm:after{display:none}
+:root.touch-mode .emblem-unlock{top:calc(58px + env(safe-area-inset-top));gap:11px;padding:6px 16px 6px 8px}
+:root.touch-mode .emblem-unlock .eu-mark{flex-basis:40px;height:40px}
+:root.touch-mode .emblem-unlock svg{width:20px;height:20px}
+:root.touch-mode .emblem-unlock b{font-size:21px}
+:root.touch-mode .emblem-unlock small{font-size:9px}
+:root.touch-mode .emblem-unlock span{font-size:9.5px}
+@media(prefers-reduced-motion:reduce){.emblem-unlock,.emblem-unlock *,.emblem-unlock .eu-mark:before{animation:none!important;transition:none}.emblem-unlock:after{display:none}}

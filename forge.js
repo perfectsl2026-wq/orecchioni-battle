@@ -1,5 +1,5 @@
 import {refineForge} from './arena-refinement.js?v=42.0';
-import {forgeDetailMaterials,generatorFaces,pillarDress,steam,forgeFloor,forgeWallRelief,hallWindow,serviceBridge,plantCover} from './forge-detail.js?v=42.0';
+import {forgeDetailMaterials,generatorFaces,pillarDress,steam,forgeFloor,forgeWallRelief,hallWindow,serviceBridge,plantCover,forgeInterior} from './forge-detail.js?v=42.0';
 import * as T from './vendor/three.module.js';
 import {WALLS,ARCHES} from './shared.js?v=42.0';
 import {box,cyl,mesh,label,mergeStatic,bevel} from './graphics.js?v=42.0';
@@ -91,7 +91,7 @@ export function createForge(scene,renderer,{capture=true}={}){
  scene.fog.near=95;scene.fog.far=560;
  refineForge(root,p);root.userData.materials=p;root.userData.portalCount=ARCHES.length;
  // Corrugated service cladding along the perimeter, flush within 5 cm of the wall; merged with the rest.
- forgeCladding(root,p);forgeWallRelief(root,p);forgeFloor(root,p,ARCHES);mergeStatic(root);steam(root,[[-4.5,7.1,0],[4.5,7.1,0]]);
+ forgeCladding(root,p);forgeWallRelief(root,p);forgeFloor(root,p,ARCHES);forgeInterior(root,p,MAPS.forge.walls);mergeStatic(root);steam(root,[[-4.5,7.1,0],[4.5,7.1,0]]);
  // V38 street dressing on the turbine-hall roofs; the service trailers are drawn by the vehicle re-skin above.
  forgeWallDress(sp);forgeDress(sp,{terrainAt});manholes(sp,[[-6,6,-16,-9],[-6,6,9,16],[-15,-10,-4,4],[10,15,-4,4],[-16.6,-15,-16,-8],[15,16.6,8,16],[-16.6,-15,8,16],[15,16.6,-16,-8]],11,{limit:6});powerLine(root);roofClutter(sp,MAPS.forge,{walkable:(x,z)=>Math.abs(x)<17&&Math.abs(z)<19,maxHeight:8,minArea:30,seed:11,recipes:['impianto','generatore','barili','parabole','impianto','cisterne']});pending.push(sp.build(root));
  root.userData.ready=Promise.all(pending).then(()=>{if(!capture||!renderer)return;const cube=new T.WebGLCubeRenderTarget(256,{type:T.HalfFloatType}),cam=new T.CubeCamera(.1,160,cube);cam.position.set(0,3.4,0);scene.add(cam);cam.update(renderer,scene);scene.remove(cam);const pm=new T.PMREMGenerator(renderer),env=pm.fromCubemap(cube.texture);scene.environment=env.texture;scene.environmentIntensity=.7;cube.dispose();pm.dispose();atmosphere.environment.dispose();root.userData.environment=env;});return root;

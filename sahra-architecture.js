@@ -8,13 +8,43 @@ import {vehicleGreenhouse} from './vehicles.js?v=42.0';
 import {GLTFLoader} from './vendor/addons/loaders/GLTFLoader.js';
 import {MeshoptDecoder} from './vendor/addons/libs/meshopt_decoder.module.js';
 import {mergeGeometries} from './vendor/addons/utils/BufferGeometryUtils.js';
-let awningMat=null;
-function awning(){
- if(awningMat)return awningMat;
- const c=document.createElement('canvas');c.width=256;c.height=16;const x=c.getContext('2d');
- for(let i=0;i<8;i++){x.fillStyle=i%2?'#e7dcc4':'#b4573c';x.fillRect(i*32,0,32,16);}
- const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=T.RepeatWrapping;t.repeat.set(1.5,1);
- awningMat=new T.MeshStandardMaterial({map:t,roughness:.95});awningMat.userData.nonBallistic=true;return awningMat;
+// V53 canvas: three striped cloths (terracotta, indigo, saffron), drawn on both sides. The awnings are sagging sheets on
+// iron arms with a scalloped valance, not flat boards; the same cloth makes the shade sails over the market street.
+const awningMats=[];
+function awning(k=0){
+ k=((k%3)+3)%3;if(awningMats[k])return awningMats[k];
+ const c=document.createElement('canvas');c.width=256;c.height=16;const x=c.getContext('2d'),dye=['#b4573c','#3f5f86','#c1933a'][k];
+ for(let i=0;i<8;i++){x.fillStyle=i%2?'#e7dcc4':dye;x.fillRect(i*32,0,32,16);}
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;
+ const m=new T.MeshStandardMaterial({map:t,roughness:.95,side:T.DoubleSide});m.userData.nonBallistic=true;awningMats[k]=m;return m;
+}
+// A cloth sheet between four corners (a,b on the high side, c,d on the low side), sagging in the middle; stripes run across u.
+export function clothSheet(parent,material,a,b,c,d,{sag=.12,nu=6,nv=4,stripes=1.5}={}){
+ const pos=[],uv=[],index=[];
+ for(let j=0;j<=nv;j++)for(let i=0;i<=nu;i++){const u=i/nu,v=j/nv,belly=Math.sin(Math.PI*u)*Math.sin(Math.PI*v)*sag+Math.sin(Math.PI*u)*v*sag*.35;
+  pos.push((a[0]*(1-u)+b[0]*u)*(1-v)+(d[0]*(1-u)+c[0]*u)*v,(a[1]*(1-u)+b[1]*u)*(1-v)+(d[1]*(1-u)+c[1]*u)*v-belly,(a[2]*(1-u)+b[2]*u)*(1-v)+(d[2]*(1-u)+c[2]*u)*v);uv.push(u*stripes,v);}
+ for(let j=0;j<nv;j++)for(let i=0;i<nu;i++){const n=j*(nu+1)+i;index.push(n,n+nu+1,n+1,n+1,n+nu+1,n+nu+2);}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(index);g.computeVertexNormals();
+ const m=new T.Mesh(g,material);m.castShadow=true;m.receiveShadow=true;parent.add(m);return m;
+}
+// Shade sails strung across a street well above the fight: [x0,x1,z0,z1,y,cloth]. Cosmetic, they only throw shade.
+export function shadeSails(root,p,sails){
+ const rope=p.awningIron||=cosmetic(p.doorIron);
+ for(const [x0,x1,z0,z1,y,k] of sails){const A=[x0+.45,y+.4,z0],B=[x1-.45,y,z0+.35],C=[x1-.45,y+.3,z1],D=[x0+.45,y-.1,z1-.35];
+  clothSheet(root,awning(k),A,B,C,D,{sag:.42,nu:8,nv:5,stripes:3});
+  for(const [c,wx] of [[A,x0],[B,x1],[C,x1],[D,x0]]){const len=Math.hypot(wx-c[0],.25),r=box(root,rope,(wx+c[0])/2,c[1]+.125,c[2],len,.014,.014);r.rotation.z=Math.atan2(.25,wx-c[0])+(wx<c[0]?Math.PI:0);}}
+}
+// Shop awning on a facade frame (x along the wall, z out of it): sheet, scalloped valance, two iron arms and a front rail.
+function shopAwning(face,p,width,top,cloth){
+ const mat=awning(cloth),iron=p.awningIron||=cosmetic(p.doorIron),hw=width/2+.05,out=.86,low=top-.3;
+ clothSheet(face,mat,[-hw,top,.06],[hw,top,.06],[hw,low,out],[-hw,low,out],{sag:.07,nu:Math.max(4,Math.round(width/.5)),nv:3});
+ const n=Math.max(4,Math.round(width/.26)),pos=[],uv=[];
+ for(let i=0;i<n;i++){const x0=-hw+2*hw*i/n,x1=-hw+2*hw*(i+1)/n,u0=i/n*1.5,u1=(i+1)/n*1.5,y=low-.012;
+  pos.push(x0,y,out,x1,y,out,x1,y-.07,out, x0,y,out,x1,y-.07,out,x0,y-.07,out, x0,y-.07,out,x1,y-.07,out,(x0+x1)/2,y-.17,out);uv.push(u0,0,u1,0,u1,.4,u0,0,u1,.4,u0,.4,u0,.4,u1,.4,(u0+u1)/2,1);}
+ const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.computeVertexNormals();const val=new T.Mesh(g,mat);val.castShadow=true;face.add(val);
+ box(face,iron,0,low,out,width+.14,.022,.022);box(face,iron,0,top+.01,.05,width+.14,.03,.03);
+ for(const side of [-1,1]){const x=side*(hw-.02),len=Math.hypot(out-.05,top-low),arm=box(face,iron,x,(top+low)/2,(out+.05)/2,.022,.022,len);arm.rotation.x=Math.atan2(top-low,out-.05);
+  const stay=box(face,iron,x,top-.42,.3,.018,.018,Math.hypot(.5,.42));stay.rotation.x=-Math.atan2(.42,.5)+Math.PI;}
 }
 // Small closed workshops/market pavilions split the large courts. Every main
 // volume follows its shared solid; shallow facade relief never becomes cover.
@@ -37,8 +67,7 @@ export function desertAnnex(root,p,x,z,w,d,h,base){
   for(let yy=y+.16;yy<y+height;yy+=.2)box(face,p.metal,0,yy,.06,width-.1,.025,.024);
   box(face,p.trim,0,y+height+.08,.056,width+.3,.15,.065);
   // Striped canvas awning with a hanging valance above each shutter, out of head height; cosmetic.
-  const aw=box(face,awning(),0,y+height+.42,.46,width+.1,.025,.82);aw.rotation.x=.36;aw.castShadow=true;
-  box(face,awning(),0,y+height+.21,.85,width+.1,.13,.015);
+  shopAwning(face,p,width,y+height+.58,Math.abs(Math.round(x*.7+z*.31))+(along?0:1));
   box(face,p.doorIron,width*.34,y+1.05,.073,.08,.23,.026);
   if(h-y>4.6){box(face,p.dark,0,h-.7,.032,Math.min(width+.8,extent-.4),.28,.035);for(let u=-width*.4;u<width*.5;u+=.24)box(face,p.metal,u,h-.7,.055,.05,.23,.02);}
  }
@@ -89,8 +118,14 @@ export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
   for(let u=-width/2+1.3;u<width/2-1;u+=3.7)scupper(face,kit.ornament,u,h-.62);
   if(width>=6.5){const u=-width/2+.25+Math.max(1,Math.round(width/2/step))*step;if(Math.abs(u)<width/2-.8){const wx=x+Math.cos(angle)*u,wz=z-Math.sin(angle)*u;downspout(face,p.metal,u,groundHeight(wx,wz)+.05,h-.62);}}
  }
- for(let u=-width/2+.25;u<width/2-.1;u+=step){box(face,p.trim,u,(h+1)/2,.052,.13,h-1,.045);}
+ // V53: the house divisions are shallow pilasters on a block base (they read as drawn lines at 13 cm wide).
+ for(let u=-width/2+.25;u<width/2-.1;u+=step){box(face,p.trim,u,(h+1)/2,.054,.24,h-1,.05);box(face,p.trim,u,1.08,.062,.32,.16,.066);}
+ // Timber beam ends under the roof band on one facade in four, and a latticed timber bay (mashrabiya) over a window on one in five: both above 2.6 m, cosmetic.
+ if(kit&&serial%4===2&&h>5.6){const wood=p.vigaWood||=cosmetic(p.wornWood);for(let u=-width/2+.7;u<width/2-.5;u+=1.15)box(face,wood,u,h-1.52,.16,.11,.11,.3);}
+
+ let bay=serial%5===1&&width>=6&&h>6.4;
  for(let u=-width/2+1.65;u<width/2-1.1;u+=step){
+  if(bay&&u+step>=width/2-1.1-step*Math.floor((width-2.75)/step/2)){bay=false;mashrabiya(face,p,u,3.9);continue;}
   window(face,p,u,frontage?groundHeight(x,z)+3.2:3.9,frontage||serial%3===0?1.25:1.02,frontage?1.8:1.6,(serial+(u|0))%3===0?p.shutterOlive:p.blue);
   if(h>9.5&&serial%2===0)window(face,p,u,6.8,1,1.45,p.wood);
  }
@@ -98,10 +133,40 @@ export function desertFacade(root,p,{x,z,width,height:h,angle,serial}){
  if(!frontage&&width>=5&&serial%3===0){const y=groundHeight(x+Math.sin(angle)*.1,z+Math.cos(angle)*.1);if(p.facadeDoor){p.facadeDoor(x,y,z,angle);return face;}box(face,p.dark,0,y+1.2,.05,1.55,2.4,.025);block(face,p.doorPaint||p.wood,0,y+1.2,.075,1.4,2.36,.03,1.2);for(const side of [-1,1])box(face,p.wornStone,side*.82,y+1.28,.06,.12,2.56,.07);box(face,p.trim,0,y+2.62,.07,1.85,.17,.08);}
  return face;
 }
+// Latticed timber bay over a first-floor window: corbelled floor, turned-post front, a pierced screen and a small cornice.
+function mashrabiya(face,p,x,y){
+ const wood=p.bayWood||=cosmetic(p.wood),dark=p.bayDark||=cosmetic(p.dark),w=1.5,h=1.85,d=.42,z0=.04;
+ box(face,dark,x,y+h/2,z0+d/2,w-.1,h-.1,d-.06);
+ box(face,wood,x,y-.04,z0+d/2+.02,w+.1,.1,d+.06);box(face,wood,x,y+h+.05,z0+d/2+.03,w+.16,.1,d+.1);box(face,wood,x,y+h+.14,z0+d/2,w,.08,d);
+ for(const u of [-1,1]){box(face,wood,x+u*(w/2-.04),y+h/2,z0+d-.02,.08,h,.08);const br=box(face,wood,x+u*(w/2-.2),y-.24,z0+.17,.07,.07,.46);br.rotation.x=-.85;}
+ for(const u of [-.25,.25])box(face,wood,x+u,y+h/2,z0+d-.015,.05,h,.05);
+ for(const v of [.42,.9,1.4])box(face,wood,x,y+v,z0+d-.012,w-.1,.05,.05);
+ for(let v=.56;v<.86;v+=.1)box(face,wood,x,y+v,z0+d-.02,w-.14,.022,.02);for(let v=1.02;v<1.34;v+=.1)box(face,wood,x,y+v,z0+d-.02,w-.14,.022,.02);
+}
+// V53 roofs: every large flat roof gets one of five lives, picked by position, so the skyline stops repeating:
+// a limewashed dome on a drum, a wind tower, a reed-shaded pergola, a stair hut with a tank, or the plain tank and plant.
+export function desertRoof(root,p,x,z,w,d,h){
+ const rnd=(a,b)=>Math.abs(Math.sin((x+a)*12.9898+(z+b)*78.233)*43758.5453)%1,lime=p.trimKit?.ornament||(p.roofLime||=cosmetic(p.trim)),wood=p.vigaWood||=cosmetic(p.wornWood),dark=p.bayDark||=cosmetic(p.dark),blue=p.roofBlue||=cosmetic(p.blue),wall=p.roofWall||=cosmetic(p.stuccoWhite||p.plaster),y=h+.2;
+ for(const sx of [-1,1])for(const sz of [-1,1])box(root,lime,x+sx*(w/2-.12),h+.9,z+sz*(d/2-.12),.36,.22,.36);
+ if(!(w>7&&d>6))return;
+ // One feature per 80 m2 or so, up to three, each in its own part of the roof and of a different kind.
+ const n=Math.max(1,Math.min(3,Math.round(w*d/80))),long=w>=d,first=Math.floor(rnd(0,0)*5);
+ for(let i=0;i<n;i++){
+  const t=n===1?(rnd(1,2)-.5)*.3:(i/(n-1)-.5)*.62,side=(rnd(i,7)>.5?1:-1)*.2,cx=x+(long?t*w:side*w),cz=z+(long?side*d:t*d),kind=(first+i*2)%5,r=rnd(i*3,i);
+  if(kind===0){const R=Math.min(2.3,Math.min(w,d)*.22);cyl(root,lime,cx,y+.3,cz,R*1.04,.6,'y',R*1.04,12);const dome=new T.Mesh(new T.SphereGeometry(R,14,6,0,Math.PI*2,0,Math.PI/2),r<.4?blue:lime);dome.position.set(cx,y+.6,cz);dome.castShadow=true;root.add(dome);cyl(root,lime,cx,y+.6+R+.18,cz,.05,.5,'y',.09,6);}
+  else if(kind===1){const tw=1.5,th=2.7;block(root,wall,cx,y+th/2,cz,tw,th,tw,2.8);box(root,lime,cx,y+th+.07,cz,tw+.16,.14,tw+.16);
+   for(const [ax,az] of [[1,0],[-1,0],[0,1],[0,-1]])for(const u of [-.4,0,.4])box(root,dark,cx+ax*(tw/2+.003)+az*u,y+th-.75,cz+az*(tw/2+.003)+ax*u,ax?.02:.2,1.0,az?.02:.2);}
+  else if(kind===2){const pw=Math.min(4.2,w*.3),pd=Math.min(3,d*.3);for(const sx of [-1,1])for(const sz of [-1,1])box(root,wood,cx+sx*pw/2,y+1.1,cz+sz*pd/2,.1,2.2,.1);
+   for(const sz of [-1,1])box(root,wood,cx,y+2.24,cz+sz*pd/2,pw+.5,.1,.1);for(let u=-pw/2;u<=pw/2+.01;u+=pw/5)box(root,wood,cx+u,y+2.33,cz,.07,.07,pd+.5);
+   block(root,p.bayWood||=cosmetic(p.wood),cx,y+2.39,cz,pw+.2,.03,pd+.3,1.6);}
+  else if(kind===3){block(root,wall,cx,y+1.15,cz,2.2,2.3,2.4,2.8);box(root,lime,cx,y+2.36,cz,2.36,.12,2.56);box(root,dark,cx,y+.95,cz+1.203,.85,1.9,.02);}
+  else{cyl(root,blue,cx,y+.6,cz,.85,1.2,'y',.85,12);box(root,dark,cx+1.7,y+.45,cz+.4,1.4,.9,.9);}
+ }
+}
 function archShape(w,h){const r=w/2,spring=h-r,s=new T.Shape();s.moveTo(-r,0);s.lineTo(r,0);s.lineTo(r,spring);s.absarc(0,spring,r,0,Math.PI,false);s.lineTo(-r,0);return s;}
 function window(parent,p,x,y,w,h,shutter){
- const s=archShape(w+.2,h+.2),hole=archShape(w,h);s.holes.push(new T.Path(hole.getPoints(20).map(v=>new T.Vector2(v.x,v.y+.08))));const frame=new T.Mesh(new T.ExtrudeGeometry(s,{depth:.045,bevelEnabled:false,curveSegments:14}),p.trim);frame.position.set(x,y,.045);parent.add(frame);
- const dark=new T.Mesh(new T.ShapeGeometry(archShape(w,h),18),p.windowGlass||p.dark);dark.position.set(x,y+.08,.048);parent.add(dark);const panelH=h-w/2-.035;
+ const s=archShape(w+.2,h+.2),hole=archShape(w,h);s.holes.push(new T.Path(hole.getPoints(12).map(v=>new T.Vector2(v.x,v.y+.08))));const frame=new T.Mesh(new T.ExtrudeGeometry(s,{depth:.045,bevelEnabled:false,curveSegments:10}),p.trim);frame.position.set(x,y,.045);parent.add(frame);
+ const dark=new T.Mesh(new T.ShapeGeometry(archShape(w,h),10),p.windowGlass||p.dark);dark.position.set(x,y+.08,.048);parent.add(dark);const panelH=h-w/2-.035;
  // V44: glazed sash with glazing bars behind the shutters; about one window in four stands open, leaves folded back on the wall.
  if(p.windowGlass){box(parent,p.trim,x,y+.08+(h-.08)/2,.056,.035,h-.1,.018);box(parent,p.trim,x,y+panelH+.02,.056,w-.04,.035,.018);}
  const open=p.windowGlass&&Math.abs(Math.round(x*7.31+y*3.17+w*11))%4===1;

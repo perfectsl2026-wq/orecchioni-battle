@@ -1,5 +1,5 @@
 import {sahraSiteDetails} from './sahra-sites.js?v=42.0';
-import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,carsReady,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature} from './sahra-architecture.js?v=42.0';
+import {desertFacade,desertCrate,desertTimber,desertColumn,desertCar,carsReady,desertSkyline,desertDoors,desertArchTrim,desertVaultGeometry,desertAnnex,desertFeature,desertRoof,shadeSails} from './sahra-architecture.js?v=42.0';
 import {sahraStairAt} from './sahra-terrain.js?v=42.0';
 import * as T from './vendor/three.module.js';
 import {WALLS,MAPS,groundHeight,wallDistance} from './shared.js?v=42.0';
@@ -54,7 +54,9 @@ export function createSahra(scene,renderer){
   building:(root,p,x,z,w,d,h,base)=>{const stone=x<-22&&z<-18;block(root,stone?p.stone:p.plaster,x,(h+base)/2,z,w,h-base,d,stone?1.9:2.8);},
   facade:(x,z,width,h,angle,serial)=>{const face=desertFacade(root,p,{x,z,width,height:h,angle,serial});if(face)decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:!sahraInterior(x,z)});const spot={x,z,width,height:h,angle,serial,ground:groundHeight(x,z)};if(sahraInterior(x,z))soukFacade(sp,spot);else{facadeCondenser(sp,spot);facadeFixture(sp,spot);if(!(x>21&&z<-23)&&!(x<-25&&z<-6)&&!(x>=23.9&&x<=32.1&&z>12&&z<28))streetFacade(sp,spot);}return face;},
   // Check Fable: a tiled terrace roof slab (it was a flat cream plane from every high view) inside a parapet on all four sides.
-  roofCap:(root,p,x,z,w,d,h)=>{if(!(w>5&&d>5))return;box(root,p.roofSlab||=toneAlbedo(surface('v13/stone_tiles_02',0xf6e2c4,.7,.04,{floor:true}),{saturation:.7,gain:2.0}),x,h+.1,z,w+.08,.2,d+.08);for(const side of [-1,1]){box(root,p.trim,x,h+.45,z+side*(d/2-.12),w,.7,.24);box(root,p.trim,x+side*(w/2-.12),h+.45,z,.24,.7,d-.48);}if(w>9&&d>7){cyl(root,p.blue,x+w*.1,h+.9,z,.9,1.2,'y',.9,20);box(root,p.dark,x-w*.2,h+.6,z+1,1.4,.9,.9);}}});
+  roofCap:(root,p,x,z,w,d,h)=>{if(!(w>5&&d>5))return;p.roofSlab||=toneAlbedo(surface('v13/stone_tiles_02',0xf6e2c4,.7,.04,{floor:true}),{saturation:.7,gain:2.0});p.roofSlabB||=toneAlbedo(surface('v13/stone_tiles_02',0xeec39a,.74,.04,{floor:true}),{saturation:.9,gain:1.75});
+   // V53: tiles at their real size (one stretched tile covered the whole roof) and two terrace tones.
+   block(root,Math.abs(Math.sin(x*3.7+z*1.9))>.6?p.roofSlabB:p.roofSlab,x,h+.1,z,w+.08,.2,d+.08,2.6);for(const side of [-1,1]){box(root,p.trim,x,h+.45,z+side*(d/2-.12),w,.7,.24);box(root,p.trim,x+side*(w/2-.12),h+.45,z,.24,.7,d-.48);}desertRoof(root,p,x,z,w,d,h);}});
  portals(root,p,MAPS.sahra.arches,{material:p.stone,vault:desertVaultGeometry,trim:desertArchTrim});
  // V38 street dressing: roof clutter over the streets and wall condensers (cosmetic, instanced, loaded after the build).
  roofClutter(sp,MAPS.sahra,{walkable:(x,z)=>sahraWalkable(x,z)&&!sahraInterior(x,z),maxHeight:11,chance:.85,recipes:['cisterne','parabole','impianto','cisterne','parabole','cisterne','pallet','impianto'],cap:w=>w[2]>5&&w[3]>5?.2:0});
@@ -81,6 +83,8 @@ export function createSahra(scene,renderer){
  const wire=new T.MeshStandardMaterial({color:0x4a524b,roughness:.9});wire.userData.nonBallistic=true;
  // Lamp cables strung between facades over the fountain court and the alleys.
  for(const line of [[[22,7.2,-6],[32,6.3,-6.4],[42,7.2,-6]],[[22,7.4,6],[32,6.6,6.3],[42,7.4,6]],[[-32,6.6,24],[-29,5.9,24.2],[-26,6.6,24]],[[-12,6.8,38],[0,6,38.5],[12,6.8,38]]])cable(root,line,wire,.018);
+ // V53: striped shade sails over the market street (cosmetic, above 5 m).
+ {const g=z=>groundHeight(0,z);shadeSails(root,p,[[-4,4,13.2,16.6,g(15)+5.6,0],[-4,4,18.4,21.6,g(20)+6,2],[-4,4,23.2,26.6,g(25)+5.5,1]]);}
  pending.push(carsReady());
  mergeStatic(root);root.userData.materials=p;root.userData.ready=Promise.all(pending);return root;
 }

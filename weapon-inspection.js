@@ -106,8 +106,12 @@ const CLASSES={
  ]}
 };
 // RONCOLA: its long fixed stock ran past the right edge in the left profile, so the whole profile is held further left and a little higher.
-CLASSES.ak={ms:4300,smooth:true,keys:CLASSES.rifle.keys.map(f=>{const m=f[0]>.36&&f[0]<.9?Math.min(1,(f[0]-.36)/.06,(.9-f[0])/.06):0;return [f[0],f[1]-.045*m,f[2]+.015*m,...f.slice(3)];})};
-CLASSES.smg={ms:4000,smooth:true,keys:CLASSES.rifle.keys.map(f=>[f[0],f[1]*.85,f[2]*.9,f[3]*.85,f[4],f[5]*.92,f[6]*.92,...f.slice(7)])};
+// V53: the same hold, less of it, for the other rifles and the SMG: in the left profile the stock of TARLO and ASSILLO ran
+// off the right edge, and the new SCURE and CICALA (shorter at the muzzle) sat with empty picture to their left.
+const leftProfile=(keys,dx,dy)=>keys.map(f=>{const m=f[0]>.36&&f[0]<.9?Math.min(1,(f[0]-.36)/.06,(.9-f[0])/.06):0;return [f[0],f[1]-dx*m,f[2]+dy*m,...f.slice(3)];});
+CLASSES.ak={ms:4300,smooth:true,keys:leftProfile(CLASSES.rifle.keys,.045,.015)};
+CLASSES.smg={ms:4000,smooth:true,keys:leftProfile(CLASSES.rifle.keys.map(f=>[f[0],f[1]*.85,f[2]*.9,f[3]*.85,f[4],f[5]*.92,f[6]*.92,...f.slice(7)]),.022,.014)};
+CLASSES.rifle.keys=leftProfile(CLASSES.rifle.keys,.038,.012);
 // Reloads (V32), timed to the foley already scheduled by the audio engine: rifles and
 // SMG magazine out at 16 %, seated at 58 %, bolt at 82 %; pistol 18/62/86 %; precision rifle bolt
 // back 14 %, magazine out 40 %, seated 62 %, bolt home 82 %. The support hand
@@ -122,81 +126,91 @@ CLASSES.smg={ms:4000,smooth:true,keys:CLASSES.rifle.keys.map(f=>[f[0],f[1]*.85,f
 // racks the handle there, ASSILLO slaps the forward cocking handle, SMERIGLIO's thumb drops the slide
 // (an over-the-top rack swept the whole forearm across the picture). Channels after the six pose ones: hand target mag bolt carry alt.
 const RELOADS={
- rifle:{keys:[
+ // V53: every reload reads as three beats with weight in the piece, on the same foley marks. Magazine out: the hand
+ // yanks it and the weapon is dragged down and comes back up. Magazine in: it comes down to meet the fresh one and is
+ // bumped up as it seats, then settles. Action: the piece is pulled back with the handle and snaps forward as it goes
+ // home, and comes to rest through a small overshoot. While the hand is away the weapon keeps turning toward the eye
+ // (it used to hang still for a third of the reload). Catmull-Rom tangents (`smooth`), like the inspections.
+ rifle:{smooth:true,keys:[
   [0,     0,0,0,                0,0,0,           0,0,0,0,0,0],
-  [.06,   -.006,-.012,.006,     .02,.02,-.14,    .35,0,0,0,0,0],
-  [.12,   -.02,.004,0,          .1,.06,-.52,     1,0,0,0,0,0],
-  [.15,   -.02,.002,0,          .1,.06,-.56,     1,0,.25,0,0,0],
-  [.19,   -.021,-.008,0,        .06,.06,-.58,    1,0,1,0,0,0],
-  [.24,   -.02,0,0,             .09,.06,-.56,    1,.35,1,0,1,0],
-  [.31,   -.02,0,0,             .1,.06,-.56,     1,1,1,0,1,0],
-  [.40,   -.02,.002,0,          .11,.07,-.57,    1,1,1,0,1,0],
-  [.48,   -.02,.004,0,          .12,.07,-.58,    1,.15,1,0,1,0],
-  [.53,   -.02,.004,0,          .12,.07,-.58,    1,0,.45,0,1,0],
-  [.58,   -.02,.014,0,          .18,.07,-.6,     1,0,0,0,0,0],
-  [.62,   -.02,.002,0,          .1,.07,-.56,     1,0,0,0,0,0],
-  [.70,   -.016,.004,0,         .08,.02,-.4,     1,0,0,0,0,.8],
-  [.76,   -.014,.004,0,         .08,0,-.36,      1,0,0,0,0,1],
-  [.81,   -.012,-.004,.01,      .05,0,-.34,      1,0,0,1,0,1],
-  [.84,   -.01,.008,0,          .12,0,-.3,       .9,0,0,0,0,.8],
-  [.92,   -.004,.002,0,         .03,.01,-.1,     .2,0,0,0,0,0],
+  [.05,   -.004,-.01,.006,      .01,.01,-.1,     .3,0,0,0,0,0],
+  [.12,   -.021,.006,-.002,     .11,.065,-.57,   1,0,0,0,0,0],
+  [.15,   -.02,.004,0,          .1,.06,-.56,     1,0,.25,0,0,0],
+  [.19,   -.021,-.03,.006,      -.02,.04,-.44,   1,0,1,0,0,0],
+  [.24,   -.02,.01,0,           .14,.07,-.6,     1,.35,1,0,1,0],
+  [.31,   -.026,.016,-.006,     .16,.1,-.62,     1,1,1,0,1,0],
+  [.40,   -.034,.034,-.012,     .22,.15,-.7,     1,1,1,0,1,0],
+  [.48,   -.036,.04,-.014,      .24,.16,-.72,    1,.15,1,0,1,0],
+  [.53,   -.035,.032,-.012,     .2,.16,-.7,      1,0,.45,0,1,0],
+  [.58,   -.035,.062,-.016,     .32,.16,-.76,    1,0,0,0,0,0],
+  [.62,   -.034,.03,-.01,       .18,.15,-.66,    1,0,0,0,0,0],
+  [.66,   -.03,.03,-.008,       .16,.1,-.5,      1,0,0,0,0,.3],
+  [.70,   -.024,.028,-.004,     .12,.04,-.3,     1,0,0,0,0,.8],
+  [.76,   -.02,.026,.004,       .1,0,-.16,       1,0,0,0,0,1],
+  [.81,   -.018,.012,.036,      .02,0,-.12,      1,0,0,1,0,1],
+  [.845,  -.012,.022,-.016,     .2,0,-.1,        .9,0,0,0,0,.8],
+  [.89,   -.006,.006,.004,      .02,.01,-.05,    .4,0,0,0,0,0],
+  [.95,   -.001,-.004,0,        -.02,0,.02,      .05,0,0,0,0,0],
   [1,     0,0,0,                0,0,0,           0,0,0,0,0,0]
  ]},
- pistol:{keys:[
+ pistol:{smooth:true,keys:[
   [0,     0,0,0,                0,0,0,           0,0,0,0,0,0],
-  [.07,   -.02,.05,-.01,        .14,.22,-.24,    .6,0,0,0,0,0],
-  [.13,   -.03,.07,-.016,       .2,.3,-.32,      1,1,0,0,0,0],
-  [.18,   -.03,.064,-.016,      .15,.3,-.34,     1,1,1,0,0,0],
-  [.26,   -.03,.068,-.016,      .17,.3,-.33,     1,1,1,0,0,0],
-  [.30,   -.03,.07,-.016,       .18,.3,-.33,     1,1,1,0,1,0],
-  [.40,   -.028,.075,-.014,     .2,.28,-.3,      1,1,1,0,1,0],
-  [.47,   -.028,.075,-.014,     .2,.28,-.3,      1,.2,1,0,1,0],
-  [.56,   -.03,.071,-.016,      .18,.3,-.33,     1,0,.5,0,1,0],
-  [.62,   -.03,.08,-.016,       .26,.3,-.34,     1,0,0,0,0,0],
-  [.67,   -.03,.069,-.016,      .17,.28,-.3,     1,0,0,0,0,0],
-  [.76,   -.02,.06,-.01,        .14,.18,-.2,     .6,0,0,0,0,0],
-  [.84,   -.016,.056,-.008,     .12,.14,-.16,    .4,0,0,1,0,0],
-  [.87,   -.01,.04,-.004,       .2,.1,-.1,       .3,0,0,0,0,0],
-  [.93,   0,.006,0,             .04,.02,-.03,    .1,0,0,0,0,0],
+  [.06,   -.014,.036,-.008,     .1,.17,-.18,     .5,0,0,0,0,0],
+  [.125,  -.03,.07,-.017,       .2,.3,-.33,      1,1,0,0,0,0],
+  [.15,   -.03,.066,-.016,      .18,.3,-.33,     1,1,.2,0,0,0],
+  [.18,   -.031,.04,-.01,       .04,.29,-.22,    1,1,1,0,0,0],
+  [.23,   -.03,.074,-.016,      .22,.3,-.36,     1,1,1,0,0,0],
+  [.30,   -.03,.076,-.016,      .22,.32,-.38,    1,1,1,0,1,0],
+  [.40,   -.03,.086,-.016,      .26,.36,-.44,    1,1,1,0,1,0],
+  [.47,   -.03,.086,-.016,      .25,.37,-.46,    1,.2,1,0,1,0],
+  [.56,   -.03,.076,-.016,      .2,.36,-.44,     1,0,.5,0,1,0],
+  [.62,   -.03,.104,-.02,       .38,.36,-.5,     1,0,0,0,0,0],
+  [.66,   -.03,.07,-.015,       .16,.32,-.36,    1,0,0,0,0,0],
+  [.72,   -.026,.066,-.012,     .16,.24,-.26,    .8,0,0,0,0,0],
+  [.79,   -.018,.058,-.008,     .13,.15,-.17,    .45,0,0,0,0,0],
+  [.84,   -.016,.054,.008,      .1,.14,-.16,     .4,0,0,1,0,0],
+  [.875,  -.01,.05,-.018,       .24,.1,-.1,      .3,0,0,0,0,0],
+  [.92,   -.003,.012,0,         .02,.03,-.03,    .1,0,0,0,0,0],
+  [.96,   0,-.004,0,            -.02,0,.01,      0,0,0,0,0,0],
   [1,     0,0,0,                0,0,0,           0,0,0,0,0,0]
  ]},
- // OB-510 AVERLA (V42): straight pull and detachable magazine, timed to the foley (bolt back 14 %, magazine out 40 %,
- // seated 62 %, bolt home 82 %). The rifle comes up a little and cants its left flank toward the hand; the support
- // hand draws the left bolt handle, thumbs the magazine out into the palm and carries it down out of view, brings the
- // fresh one up and seats it with a bump, then drives the bolt home and takes the forward grip again.
- sniper:{work:'mag4',keys:[
+ // V53: the same order, with weight: the rifle gives back as the bolt is drawn, is dragged down by the magazine, bumped
+ // up as the fresh one seats and pushed forward by the bolt going home; it keeps turning a little while the hand is away.
+ sniper:{work:'mag4',smooth:true,keys:[
   [0,0,0,0,0,0,0,0,0,0,0,0,0],
   [.05,-.004,.026,.004,.02,.05,-.08,.4,0,0,0,0,.6],
-  [.10,-.02,.085,-.01,.1,.32,-.3,1,0,0,0,0,1],
-  [.14,-.02,.085,-.01,.1,.34,-.32,1,0,0,1,0,1],
-  [.20,-.02,.085,-.01,.1,.34,-.32,1,0,0,1,0,.3],
-  [.27,-.02,.08,-.01,.08,.3,-.34,1,0,0,1,0,0],
+  [.10,-.02,.087,-.012,.11,.32,-.3,1,0,0,0,0,1],
+  [.14,-.02,.08,.012,.04,.34,-.32,1,0,0,1,0,1],
+  [.20,-.02,.088,-.008,.12,.34,-.33,1,0,0,1,0,.3],
+  [.27,-.02,.082,-.01,.09,.31,-.35,1,0,0,1,0,0],
   [.36,-.02,.08,-.01,.08,.3,-.34,1,0,.3,1,0,0],
-  [.40,-.02,.072,-.01,.06,.3,-.35,1,0,1,1,1,0],
-  [.46,-.02,.076,-.01,.08,.3,-.34,1,.6,1,1,1,0],
-  [.50,-.02,.076,-.01,.08,.3,-.34,1,1,1,1,1,0],
-  [.55,-.02,.078,-.01,.09,.3,-.34,1,.3,1,1,1,0],
-  [.59,-.02,.078,-.01,.09,.3,-.34,1,0,.45,1,1,0],
-  [.62,-.02,.09,-.01,.14,.3,-.36,1,0,0,1,0,0],
-  [.66,-.02,.08,-.01,.1,.31,-.33,1,0,0,1,0,.3],
-  [.74,-.02,.082,-.01,.1,.32,-.32,1,0,0,1,0,1],
-  [.82,-.018,.072,.006,.07,.3,-.3,1,0,0,0,0,1],
-  [.87,-.012,.07,0,.1,.2,-.2,.8,0,0,0,0,.5],
-  [.94,-.004,.028,0,.03,.05,-.05,.2,0,0,0,0,0],
+  [.40,-.021,.052,-.006,-.02,.28,-.27,1,0,1,1,1,0],
+  [.46,-.021,.084,-.01,.11,.33,-.38,1,.6,1,1,1,0],
+  [.50,-.022,.092,-.012,.13,.38,-.44,1,1,1,1,1,0],
+  [.55,-.021,.086,-.01,.11,.35,-.4,1,.3,1,1,1,0],
+  [.59,-.02,.074,-.01,.07,.31,-.34,1,0,.45,1,1,0],
+  [.62,-.02,.108,-.014,.22,.3,-.4,1,0,0,1,0,0],
+  [.66,-.02,.078,-.01,.08,.31,-.32,1,0,0,1,0,.3],
+  [.74,-.02,.082,-.004,.1,.32,-.32,1,0,0,1,0,1],
+  [.82,-.018,.076,-.026,.17,.3,-.3,1,0,0,0,0,1],
+  [.87,-.012,.064,.004,.06,.2,-.2,.8,0,0,0,0,.5],
+  [.94,-.003,.022,0,.02,.04,-.04,.2,0,0,0,0,0],
+  [.975,0,-.004,0,-.012,0,.01,0,0,0,0,0,0],
   [1,0,0,0,0,0,0,0,0,0,0,0,0]
  ]}
 };
 // RONCOLA (V42 review): the same change, held higher and further out so the trigger hand stays in the
 // picture; the rack keeps the left cant and the hand reaches over to the handle on the far side (turning
 // the right side up put the whole forearm across the receiver).
-RELOADS.ak={keys:RELOADS.rifle.keys.map(f=>{const m=f[0]>0&&f[0]<1?Math.min(1,f[0]/.12,(1-f[0])/.1):0;return [f[0],f[1]+.025*m,f[2]+.06*m,f[3]-.03*m,f[4],f[5]+.2*m,f[6]*(f[0]>.64?1.1:.85),...f.slice(7)];})};
+RELOADS.ak={smooth:true,keys:RELOADS.rifle.keys.map(f=>{const m=f[0]>0&&f[0]<1?Math.min(1,f[0]/.12,(1-f[0])/.1):0;return [f[0],f[1]+.025*m,f[2]+.06*m,f[3]-.03*m,f[4],f[5]+.2*m,f[6]*(f[0]>.64?1.1:.85),...f.slice(7)];})};
 // ASSILLO: the same change, then a slap on the forward cocking handle.
-RELOADS.smg={keys:RELOADS.rifle.keys.filter(f=>f[0]<.66).concat([
-  [.72,   -.008,.014,-.01,    .06,.08,-.26,   1,0,0,0,0,.6],
-  [.78,   -.006,.014,-.01,    .06,.06,-.2,    1,0,0,.6,0,1],
-  [.82,   -.004,.004,-.008,   .12,.05,-.16,   1,0,0,0,0,1],
-  [.88,   -.002,.006,-.004,   .04,.03,-.08,   .35,0,0,0,0,.3],
-  [.94,   0,.002,0,           .01,.01,-.02,   0,0,0,0,0,0],
+// V53: the slap knocks the piece down and forward (nose up), and it comes back through its rest.
+RELOADS.smg={smooth:true,keys:RELOADS.rifle.keys.filter(f=>f[0]<.66).concat([
+  [.72,   -.008,.014,-.008,   .06,.08,-.26,   1,0,0,0,0,.6],
+  [.78,   -.006,.016,-.004,   .05,.06,-.2,    1,0,0,.6,0,1],
+  [.82,   -.004,-.004,-.016,  .14,.05,-.16,   1,0,0,0,0,1],
+  [.87,   -.002,.008,-.002,   .02,.03,-.08,   .35,0,0,0,0,.3],
+  [.94,   0,-.002,0,          -.01,.01,.01,   0,0,0,0,0,0],
   [1,     0,0,0,              0,0,0,          0,0,0,0,0,0]])};
 // Hermite tangents: the mean of neighbouring slopes, zero where the curve turns,
 // so a held pose never overshoots past the keys it sits between.

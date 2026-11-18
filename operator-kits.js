@@ -19,12 +19,12 @@ import {gearDetail} from './operator-detail.js?v=42.0';
 export const KITS=[
  {id:'assalto',name:'ASSALTO',tag:'LINEA',toggles:{visor:null,mask:null,pack:'Zaino d’assalto'},desc:'Entra per primo. Ardesia laccata con inserti senape: la guardia sul braccio che apre la porta, le ginocchiere, una fascia che scende dal fianco; maschera facciale sempre su. Il braccio destro resta libero per sparare.'},
  {id:'sfondamento',name:'SFONDAMENTO',tag:'PESANTE',toggles:{visor:null,mask:null,pack:'Zaino largo'},desc:'Il muro che avanza. Tela oliva e gomma nera, respiratore a doppio filtro, una grande piastra sul petto e un colletto alto che protegge la nuca. Si pianta e non arretra.'},
- {id:'mastino',name:'MASTINO',tag:'ASSALTO',toggles:{},desc:'Fanteria corazzata. Piastre in acciaio spazzolato con bande lime acido, due sfiati sulla schiena, casco chiuso. Sta largo, ben piantato.'},
- {id:'saetta',name:'SAETTA',tag:'RICOGNIZIONE',toggles:{},desc:'Corre davanti a tutti. Bianco laccato e giallo elettrico, casco aerodinamico con la pinna. Leggero e scattante anche da fermo.'},
- {id:'onice',name:'ONICE',tag:'PESANTE',toggles:{},desc:'Una tuta nera laccata con le nervature viola, spallacci angolari e il casco con il visore a fessura. Immobile, ti fissa.'},
- {id:'astore',name:'ASTORE',tag:'SUPPORTO',toggles:{},desc:'Pilota di soccorso. Tuta oro ambra, casco argento, zaino di soccorso con il verricello. Rilassato, il fucile basso.'},
- {id:'corvo',name:'CORVO',tag:'TIRATORE',toggles:{},desc:'Tiratore. Blu notte satinato e oro, mezza mantella a pieghe che si apre quando corre, visiera scura. Sempre di tre quarti.'},
- {id:'lince',name:'LINCE',tag:'INCURSORE',toggles:{},desc:'Incursore silenzioso. Tela verde bosco e rame, cappuccio scuro con due orecchie sul casco e la fessura per gli occhi. Basso, raccolto, pronto a scattare.'}
+ {id:'mastino',name:'MASTINO',tag:'ASSALTO',toggles:{},desc:"Fanteria corazzata. Acciaio spazzolato e lime acido, spallacci a due lame con le borchie, museruola lime sul casco chiuso, ginocchiere a blocco, stivali corazzati, due sfiati sulla schiena. Sta largo, ben piantato."},
+ {id:'saetta',name:'SAETTA',tag:'RICOGNIZIONE',toggles:{},desc:"Corre davanti a tutti. Bianco laccato e giallo elettrico, casco aerodinamico con la pinna, due alette ai lati del collo, un dardo sul ventre, speroni dietro i polpacci. Leggero e scattante anche da fermo."},
+ {id:'onice',name:'ONICE',tag:'PESANTE',toggles:{},desc:"Tutto tagliato a faccette. Nero laccato con le nervature viola, cristalli sulle spalle e ai lati del collo, gemme sul ventre e sulle ginocchia, casco con il visore a fessura. Immobile, ti fissa."},
+ {id:'astore',name:'ASTORE',tag:'SUPPORTO',toggles:{},desc:"Pilota di soccorso. Tuta oro ambra, casco argento, collare gonfiabile, faro sulla spalla, marsupio e imbracatura, zaino di soccorso con il verricello. Rilassato, il fucile basso."},
+ {id:'corvo',name:'CORVO',tag:'TIRATORE',toggles:{},desc:"Tiratore. Blu notte satinato e oro, piume aperte ai lati del collo e lungo le braccia, mezza mantella a pieghe che si apre quando corre, artigli d'oro sugli stivali. Sempre di tre quarti."},
+ {id:'lince',name:'LINCE',tag:'INCURSORE',toggles:{},desc:"Incursore silenzioso. Tela verde bosco e rame, cappuccio scuro con due orecchie, bandoliera di traverso, la lama sulla schiena, il rotolo dietro la cintura, fasce strette su braccia e stinchi. Basso, raccolto, pronto a scattare."}
 ];
 // The five whole bodies: file (phones load the copy under assets/mobile/), how much of the team dye the "_Team" parts take (mix,
 // default 1). V44 op3: each one IS the soldier's body (the ASSALTO/SFONDAMENTO build, his skin weights): the operator's own model is
@@ -39,7 +39,7 @@ export const KITS=[
 export const BODIES={
  saetta:{file:'./assets/models/v44/saetta.wasm',shape:{limb:{Arm:.90,ForeArm:.96,UpLeg:.91,Leg:.90},torso:{Hips:[.93,.94],Spine:[.92,.93],Spine1:[.90,.92],Spine2:[.95,.94],Neck:[.97,.97]}},gloves:1,boots:1,detail:1,lum:{suit:[.328,.0084],helmet:[.323,.0166]}},
  onice:{file:'./assets/models/v44/onice.wasm',shape:{limb:{Arm:.95,ForeArm:1,UpLeg:.95,Leg:.95},torso:{Hips:[.95,.95],Spine:[.92,.95],Spine1:[.90,.94],Spine2:[1,.98],Neck:[1,1]}},gloves:1,boots:1,lum:{suit:[.0103,.005]}},
- astore:{file:'./assets/models/v44/astore.wasm',shape:{limb:{Arm:1.09,ForeArm:1.16,UpLeg:1.10,Leg:1.10},torso:{Hips:[1.10,1.08],Spine:[1.10,1.09],Spine1:[1.10,1.10],Spine2:[.99,1.10],Neck:[1,1.05]}},gloves:1,boots:1,lum:{suit:[.0256,.0123],helmet:[.0272,.0137]}},
+ astore:{file:'./assets/models/v44/astore.wasm',shape:{limb:{Arm:1.09,ForeArm:1.1,UpLeg:1.05,Leg:1.10},torso:{Hips:[1.10,1.08],Spine:[1.10,1.09],Spine1:[1.10,1.10],Spine2:[.99,1.10],Neck:[1,1.05]}},gloves:1,boots:1,lum:{suit:[.0256,.0123],helmet:[.0272,.0137]}},
  corvo:{file:'./assets/models/v44/corvo.wasm',shape:{limb:{Arm:1.08,ForeArm:1.10,UpLeg:1.02,Leg:1},torso:{Hips:[.97,1],Spine:[.96,1],Spine1:[.95,1],Spine2:[1,1.06],Neck:[1,1.03]}},gloves:1,boots:1,lum:{suit:[.0296,.0222],helmet:[.0262,.0252]}},
  lince:{file:'./assets/models/v44/lince.wasm',shape:{limb:{Arm:.93,ForeArm:1.02,UpLeg:1.07,Leg:.91},torso:{Hips:[.96,.96],Spine:[.92,.93],Spine1:[.90,.91],Spine2:[.97,.92],Neck:[.97,.95]}},gloves:1,boots:1,detail:1,lum:{suit:[.292,.0127],helmet:[.3185,.0737]}}
 };
@@ -94,8 +94,9 @@ vec3 primeLines(vec3 P){vec3 p=vec3(abs(P.x),P.y,P.z),o=vec3(0.);primeHalo=0.;
  // Check Fable: a team armband on both upper arms for every kit, in the team's light (friend or enemy at a glance).
  // V52: the band is a designed light bar: a solid core between two hairlines in a dark housing, crisp at any distance (it was a
  // soft smear that washed out on the light suits); its spill on the sleeve is the halo, only up close.
+ // V53: only on the arm itself (it spilled onto the side of the chest under the armpit as a blue wedge).
  // The bar widens as the body gets smaller on screen (never under two pixels, up to 7 cm), so it still carries the team far away.
- {vec2 m=primeRing(p,SHO,ELB,.42,.13);float d=abs(m.x),aa=fwidth(m.x)*.75+1e-6,w=clamp(length(fwidth(p))*1.1,.0072,.035),core=1.-smoothstep(w-aa,w+aa,d),hair=1.-smoothstep(.0016-aa,.0016+aa,abs(d-w-.0056));
+ {vec2 m=primeRing(p,SHO,ELB,.42,.13);m.y*=smoothstep(.19,.206,p.x);float d=abs(m.x),aa=fwidth(m.x)*.75+1e-6,w=clamp(length(fwidth(p))*1.1,.0072,.035),core=1.-smoothstep(w-aa,w+aa,d),hair=1.-smoothstep(.0016-aa,.0016+aa,abs(d-w-.0056));
   o.x=max(o.x,(core*.8+hair*.42)*m.y);o.z=max(o.z,(1.-smoothstep(w+.0113-aa,w+.0113+aa,d))*(1.-core)*m.y);float h=max(d-w,0.);primeHalo+=.3*m.y*exp(-h*h/.0003);}
  return clamp(o,0.,1.);}
 // V52 form: occlusion where a body folds on itself, read in bind space (inner legs, armpits, under the arms, the neck), so the
@@ -146,14 +147,14 @@ export function primeUniforms(sig,team,on=1){const P=sig?.prime||{},F=sig?.fx||{
 // kind per role: 0 cloth (weave relief), 1 lacquer (smooth painted plate, stronger rim), 2 metal (brushed streaks). rim: silhouette light.
 // Check Fable: CORVO's gold and LINCE's copper are satin metal now (mirror metal blotched with the sky on the shoulders).
 export const SIGNATURE={
- assalto:{name:'Ardesia e senape',main:'#3e444c',dark:'#2a2e34',accent:'#b8860b',pbr:{main:[.42,.12],dark:[.88,0],accent:[.3,.05]},kind:{main:1,dark:0,accent:1},helmet:'main',wear:{H:'accent'},rim:.18,prime:{light:{cuff:.9},inlay:{leg:.85,collar:.7}},fx:{travel:[.55,.55],halo:.8,inlay:.5}},
+ assalto:{name:'Ardesia e senape',main:'#3e444c',dark:'#2a2e34',accent:'#b8860b',pbr:{main:[.42,.12],dark:[.88,0],accent:[.3,.05]},kind:{main:1,dark:0,accent:1},helmet:'main',wear:{H:'#4d5661'},rim:.18,prime:{light:{cuff:.9},inlay:{leg:.85,collar:.7}},fx:{travel:[.55,.55],halo:.8,inlay:.5}},
  sfondamento:{name:'Oliva e nero',main:'#55602f',dark:'#1e2022',accent:'#4a4f54',pbr:{main:[.8,0],dark:[.42,.05],accent:[.32,.8]},kind:{main:0,dark:1,accent:2},helmet:'main',suit:{torso:'main',sleeve:'#3b4325',legs:'#343b22'},prime:{light:{collar:.9,cuff:.8},inlay:{thigh:.8,knee:.7}},fx:{breathe:[.9,.17],halo:.9,inlay:.3}},
  mastino:{name:'Acciaio brunito e lime acido',main:'#5b646e',dark:'#24272b',accent:'#9fd62a',pbr:{main:[.28,.86],dark:[.88,0],accent:[.32,.05]},kind:{main:2,dark:0,accent:1},helmet:'main',wear:{D:'accent',N:'accent'},rim:.2,prime:{light:{chevron:1,cuff:1,calf:1,spine:.9,collar:.9},inlay:{leg:1,shoulder:.9,knee:.9,waist:.8,flank:.85}},fx:{flicker:.9,breathe:[.3,.4],halo:1,inlay:.6}},
- saetta:{name:'Bianco e giallo elettrico',main:'#e4e6e3',dark:'#2c3036',accent:'#ffcf14',pbr:{main:[.3,0],dark:[.8,0],accent:[.3,0]},kind:{main:1,dark:0,accent:1},helmet:'main',zones:[[.08,.62,0,.3],[.88,1.22,.27,2]],plates:[[1.01,1.455,0,.166],[.63,.925,0,.3],[1.235,1.5,.196,.4]],prime:{light:{arm:1,leg:1,chevron:1,spine:.9},inlay:{cuff:1,calf:1,collar:.9,waist:.9}},fx:{travel:[1,1.35],halo:1.2,inlay:.35}},
- onice:{name:'Nero melanzana lucido e viola',main:'#231d30',dark:'#1d1b24',accent:'#8a4dff',pbr:{main:[.24,.3],dark:[.36,.12],accent:[.24,.15]},kind:{main:1,dark:1,accent:1},helmet:'dark',rim:.22,prime:{light:{leg:1,arm:1,chevron:1,spine:.9,collar:1},inlay:{shoulder:1,thigh:.85,cuff:.9,waist:.8,calf:.8}},fx:{breathe:[.9,.2],travel:[.2,.2],halo:.9,inlay:1.6}},
- astore:{name:'Oro ambra e argento',main:'#d98a1a',dark:'#2e3034',accent:'#cdd2d8',pbr:{main:[.55,0],dark:[.7,.05],accent:[.2,.95]},kind:{main:0,dark:0,accent:2},helmet:'accent',cut:.08,tone:.8,prime:{light:{cuff:1,calf:.85,chevron:.85},inlay:{leg:1,waist:1,collar:.9,knee:1}},fx:{breathe:[.8,.42],halo:1,inlay:.3}},
- corvo:{name:'Blu notte e oro',main:'#2a3654',dark:'#20252f',accent:'#d6a63a',pbr:{main:[.36,.2],dark:[.75,0],accent:[.38,.7]},kind:{main:1,dark:0,accent:2},helmet:'main',zones:[[1.28,1.48,.1,2]],rim:.26,prime:{light:{arm:.85,leg:.85},inlay:{cuff:1,calf:1,waist:1,chevron:1}},fx:{travel:[.3,.3],halo:.6,inlay:.4,iri:1}},
- lince:{name:'Verde bosco e rame',main:'#24472b',dark:'#262a2e',accent:'#c0703c',pbr:{main:[.86,0],dark:[.85,0],accent:[.4,.68]},kind:{main:0,dark:0,accent:2},helmet:'accent',zones:[[.88,1.22,.27,2]],prime:{light:{leg:.75,cuff:.85},inlay:{thigh:1,shoulder:1,knee:1,flank:.9}},fx:{travel:[.8,.2],halo:.6,inlay:.9}}
+ saetta:{name:'Bianco e giallo elettrico',main:'#e4e6e3',dark:'#2c3036',accent:'#ffcf14',pbr:{main:[.3,0],dark:[.8,0],accent:[.3,0]},kind:{main:1,dark:0,accent:1},helmet:'main',glove:'#6a6b68',boot:'#a9aaa6',zones:[[.08,.62,0,.3],[.88,1.22,.27,2]],plates:[[1.01,1.455,0,.19],[.63,.925,0,.3],[1.235,1.5,.19,.4]],prime:{light:{arm:1,leg:1,chevron:1,spine:.9},inlay:{cuff:1,calf:1,collar:.9,waist:.9}},fx:{travel:[1,1.35],halo:1.2,inlay:.35}},
+ onice:{name:'Nero melanzana lucido e viola',main:'#231d30',dark:'#1d1b24',accent:'#8a4dff',pbr:{main:[.24,.3],dark:[.36,.12],accent:[.24,.15]},kind:{main:1,dark:1,accent:1},helmet:'dark',glove:'#4a3d5e',boot:'#3a3344',rim:.22,prime:{light:{leg:1,arm:1,chevron:1,spine:.9,collar:1},inlay:{shoulder:1,thigh:.85,cuff:.9,waist:.8,calf:.8}},fx:{breathe:[.9,.2],travel:[.2,.2],halo:.9,inlay:1.6}},
+ astore:{name:'Oro ambra e argento',main:'#d98a1a',dark:'#2e3034',accent:'#cdd2d8',pbr:{main:[.55,0],dark:[.7,.05],accent:[.2,.95]},kind:{main:0,dark:0,accent:2},helmet:'accent',glove:'#c8842c',boot:'#5a4a3a',cut:.08,tone:.8,prime:{light:{cuff:1,calf:.85,chevron:.85},inlay:{leg:1,waist:1,collar:.9,knee:1}},fx:{breathe:[.8,.42],halo:1,inlay:.3}},
+ corvo:{name:'Blu notte e oro',main:'#2a3654',dark:'#20252f',accent:'#d6a63a',pbr:{main:[.36,.2],dark:[.75,0],accent:[.38,.7]},kind:{main:1,dark:0,accent:2},helmet:'main',glove:'#54648f',boot:'#32384f',zones:[[1.28,1.48,.1,2]],rim:.26,prime:{light:{arm:.85,leg:.85},inlay:{cuff:1,calf:1,waist:1,chevron:1}},fx:{travel:[.3,.3],halo:.6,inlay:.4,iri:1}},
+ lince:{name:'Verde bosco e rame',main:'#24472b',dark:'#262a2e',accent:'#c0703c',pbr:{main:[.86,0],dark:[.85,0],accent:[.4,.68]},kind:{main:0,dark:0,accent:2},helmet:'accent',glove:'#4f6248',boot:'#3f4a36',zones:[[.88,1.22,.27,2]],prime:{light:{leg:.75,cuff:.85},inlay:{thigh:1,shoulder:1,knee:1,flank:.9}},fx:{travel:[.8,.2],halo:.6,inlay:.9}}
 };
 // V46f Officina tweaks: small curated changes that keep each operator's identity. Per kit: detail (the third colour), finish of the
 // main colour (standard, matte, gloss) and, where the operator has a real visor, its tint. Never a pure team blue or red (checked by
@@ -375,6 +376,12 @@ function pauldrons(P,an,side,top,rim,light,o={}){for(const a of ['shoulderL','sh
   const c=pole.clone().multiplyScalar(o.lift??.004).add(new T.Vector3(sx*(o.dx??.012),0,o.dz??0)),R=o.r??.086,K=o.k??[1,.78,1.12],T0=o.th??1.02;
   P.add(a,cap(R,[0,T0],K),top,c.x,c.y,c.z,r);P.add(a,cap(R*1.035,[T0-.13,.19],K),rim,c.x,c.y,c.z,r);
   if(light)P.add(a,cap(R*1.012,[T0-.27,.04],K),light,c.x,c.y,c.z,r);}}
+// V54: studs along the crest of a shoulder cap (same options as its pauldrons call): four-sided pyramids standing on the shell,
+// `ts` their angles front to back from the pole (radians).
+function capStuds(P,an,mat,o,ts,r=.012,h=.026,seg=4){for(const a of ['shoulderL','shoulderR']){const at=an?.[a];if(!at)continue;const sx=Math.sign(at.x)||(a==='shoulderL'?-1:1);
+  const pole=new T.Vector3(sx*(o.out??.62),1,o.back??.06).normalize(),q=new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),pole),c=pole.clone().multiplyScalar(o.lift??.004).add(new T.Vector3(sx*(o.dx??.012),0,o.dz??0)),R=o.r??.086,K=o.k??[1,.78,1.12];
+  for(const t of ts){const l=new T.Vector3(0,R*K[1]*Math.cos(t),R*K[2]*Math.sin(t)),n=new T.Vector3(0,Math.cos(t)/K[1],Math.sin(t)/K[2]).normalize(),p=l.addScaledVector(n,h*.4).applyQuaternion(q).add(c),e=new T.Euler().setFromQuaternion(q.clone().multiply(new T.Quaternion().setFromUnitVectors(new T.Vector3(0,1,0),n)));
+   const g=new T.ConeGeometry(r,h,seg,1).toNonIndexed();g.deleteAttribute('uv');g.deleteAttribute('normal');g.computeVertexNormals();P.add(a,g,mat,p.x,p.y,p.z,[e.x,e.y,e.z]);}}}
 // ---- Check Fable: armour with its own shape per operator ----------------------------------------------------------------------
 // A breastplate on the chest anchor (front is -z) and a bracer on the outer side of each forearm, a few centimetres proud of the
 // body and inside its outline; each kit has its own profile (ARMOUR below). Cosmetic like every gear piece: hit zones never read it.
@@ -396,27 +403,29 @@ function wing(P,an,mat,pts,thick,o={}){for(const a of ['shoulderL','shoulderR'])
 const ARMOUR={
  // ASSALTO, the line soldier: stacked angular shoulder plates, a neck guard, a tasset and a holster on the hip without the sash.
  assalto(P,k,team,an){const side=an?.side||1,M=sigMat(k,'main',T.DoubleSide),A=sigMat(k,'accent',T.DoubleSide);
-  pauldrons(P,an,side,M,A,null,{r:.082,k:[1.05,.46,1.3],out:.6,th:1.05});pauldrons(P,an,side,M,A,null,{r:.062,k:[1,.5,1.2],out:.6,th:.95,lift:.026,dx:.02});
-  tasset(P,sigMat(k,'accent',T.DoubleSide),side*.168,.005,.05,.19,side*Math.PI/2);tasset(P,sigMat(k,'accent',T.DoubleSide),side*.09,-.118,.04,.13,0);
+  // V53: the shoulder lames are part of the wear now (operator-wear.js): they follow the arm instead of floating over it.
+  tasset(P,M,side*.168,.005,.05,.17,side*Math.PI/2);tasset(P,M,side*.09,-.118,.04,.12,0);
   P.box('hips',sigMat(k,'accent'),side*.185,-.2,.02,.03,.13,.07);},
  // SFONDAMENTO, the breacher: the widest shoulders of the roster, an armoured skirt of three lames, a charge tube across the back.
  sfondamento(P,k,team,an){const side=an?.side||1,M=sigMat(k,'main',T.DoubleSide),D=sigMat(k,'dark',T.DoubleSide);
-  pauldrons(P,an,side,M,D,bandLook(team),{r:.102,k:[1.05,.74,1.32],out:.6,th:1.12});
+  // V53: the shoulder lames are part of the wear now (operator-wear.js), stacked and skinned to the arm.
   for(const [st,len] of [[1.2,.85],[Math.PI*2-2.05,.85],[-.55,1.1]]){P.add('hips',arc(.19,.232,.15,st,len,10),M,0,-.1,0);P.add('hips',arc(.234,.238,.02,st,len,10),D,0,-.17,0);}
   P.cyl('chest',sigMat(k,'accent'),0,.02,.185,.045,.34,[0,0,Math.PI/2-.35]);for(const t of [-.15,.15])P.cyl('chest',sigMat(k,'dark'),t*Math.cos(.35),.02+t*Math.sin(.35),.185,.049,.03,[0,0,Math.PI/2-.35]);},
  // MASTINO, the brute: studs along the shoulder caps, a heavy belt ring and two blunt side plates.
  mastino(P,k,team,an){const M=sigMat(k,'main',T.DoubleSide),A=sigMat(k,'accent',T.DoubleSide);
-  wing(P,an,A,[[-.03,0],[-.015,.035],[0,0],[.02,.04],[.04,0],[.058,.03],[.075,0]],.02,{out:.035,y:.05});
   P.torus('hips',M,0,-.03,0,.2,.022,[Math.PI/2,0,0],[1,.82,1]);for(const sx of [-1,1]){tasset(P,M,sx*.2,.0,.065,.15,sx*Math.PI/2);tasset(P,A,sx*.207,.0,.03,.1,sx*Math.PI/2,-.07);}},
  // SAETTA, the runner: swept shoulder blades like winglets, thigh fins and twin back fins.
  saetta(P,k,team,an){const M=sigMat(k,'main',T.DoubleSide),A=sigMat(k,'accent',T.DoubleSide);
   pauldrons(P,an,1,M,A,bandLook(team),{r:.07,k:[.8,.5,1.5],out:.45,th:1.0,back:.25});
-  // V52: the shoulder winglets and the hanging hip blades are gone (loose shards); the runner is the helmet fin, the back fins, the bracers.
-  for(const sx of [-1,1])P.add('chest',blade([[0,-.12],[.05,-.1],[.14,.1],[.1,.12],[.03,.06]],.014,.003),M,sx*.06,.02,.125,[0,0,sx*-.12]);
-  bracers(P,an,M,A,{span:2.5,r:.058,len:.7,fin:[[-.07,0],[.06,0],[.085,.035],[.03,.022],[-.05,.012]]});},
+  // V53: the cuirass and the spine pod are in SILHOUETTES.saetta (two materials on the chest); here the shoulders and slimmer bracers.
+  // V54: the vambraces are part of the body's kit now (operator-wear.js BODY_WEAR.saetta): skinned to the forearm.
+ },
  // ONICE, the gem: three crystal shards rising from each shoulder, faceted hip plates, a ridge of plates down the spine.
  onice(P,k,team,an){const D=sigMat(k,'dark',T.DoubleSide),A=sigMat(k,'accent',T.DoubleSide);
-  for(const [z,h,rz] of [[-.04,.085,.5],[.005,.125,.3],[.05,.095,.45]])wing(P,an,A,[[-.018,0],[.018,0],[.006,h],[-.004,h*.8]],.014,{out:.05,y:.03,z,rz:-rz});
+  // V54: the shards are real crystals now (five-sided prisms that come to a point, flat facets), not thin blades that vanished edge-on.
+  for(const a of ['shoulderL','shoulderR']){const at=an?.[a];if(!at)continue;const sx=Math.sign(at.x)||(a==='shoulderL'?-1:1);
+   for(const [z,h,rz,r] of [[-.045,.1,.62,.019],[.004,.15,.38,.024],[.05,.115,.55,.02]]){const g=new T.ConeGeometry(r,h,5,1).toNonIndexed();g.deleteAttribute('uv');g.deleteAttribute('normal');g.computeVertexNormals();
+    P.add(a,g,A,sx*(.045+Math.sin(rz)*h*.5),.035+Math.cos(rz)*h*.5,z,[z*2.2,0,-sx*rz]);}}
   for(const sx of [-1,1]){P.add('hips',plate([[0,0],[.05,-.07],[0,-.2],[-.05,-.07]],.016,.006),A,sx*.1,-.04,-.125);P.add('hips',plate([[0,0],[.045,-.06],[0,-.17],[-.045,-.06]],.016,.006),D,sx*.178,-.04,.0,[0,sx*Math.PI/2,0]);}
   for(let i=0;i<5;i++)P.add('chest',blade([[0,-.028],[.03,-.02],[.05,.02],[.02,.03],[0,.024]],.03-i*.003,.004),A,0,.13-i*.062,.123);},
  // ASTORE, the rescuer: round caps, canisters and carabiner rings on the belt, a lamp either side of the helmet.
@@ -445,7 +454,14 @@ const SILHOUETTES={
  // The fin follows the helmet's crown (an ellipse over the eye line: 10 cm up, 14 cm front to back), sunk 1 cm into it.
  saetta(P,k,team,side){const crown=z=>.1*Math.sqrt(Math.max(0,1-((z-.005)/.15)**2)),lo=[],hi=[];for(let i=0;i<=8;i++){const z=-.03+i*.02;lo.push([z,crown(z)-.012]);hi.push([z,crown(z)+.004+.075*Math.pow(Math.sin(Math.PI*Math.min(1,(z+.03)/.17)),.8)*(1-.35*i/8)]);}
   P.add('head',blade([...lo,...hi.reverse()],.012),sigMat(k,'accent'),0,0,0);
-  const edge=[];for(let i=2;i<=6;i++){const z=-.03+i*.02;edge.push([z,crown(z)+.075*Math.pow(Math.sin(Math.PI*Math.min(1,(z+.03)/.17)),.8)*(1-.35*i/8)-.004]);}P.add('head',blade([...edge,...edge.slice().reverse().map(([z,y])=>[z,y+.008])],.015,.001),bandLook(team),0,0,0);},
+  const edge=[];for(let i=2;i<=6;i++){const z=-.03+i*.02;edge.push([z,crown(z)+.075*Math.pow(Math.sin(Math.PI*Math.min(1,(z+.03)/.17)),.8)*(1-.35*i/8)-.004]);}P.add('head',blade([...edge,...edge.slice().reverse().map(([z,y])=>[z,y+.008])],.015,.001),bandLook(team),0,0,0);
+  {const M=sigMat(k,'main',T.DoubleSide),A=sigMat(k,'accent',T.DoubleSide);
+  // V53: the runner's shell. One aero chest band that follows the ribcage (white lacquer between two yellow lips) and a low dorsal fin
+  // sunk into the back that answers the helmet's fin, in place of the two loose back blades.
+  const E=[1.04,1,1];P.add('chest',arc(.184,.193,.14,Math.PI-.8,1.6,20),M,0,-.02,0,null,E);
+  for(const [y,r,w] of [[.052,.187,.78],[-.092,.196,.78]])P.add('chest',arc(r,r,.012,Math.PI-w,2*w,20),A,0,y,0,null,E);
+  P.add('chest',blade([[-.02,-.14],[.0,-.15],[.028,-.085],[.088,.09],[.064,.104],[-.02,.12]],.01,.003),A,0,.0,.158,[.06,0,0]);
+  }},
  // V46g: ONICE's pauldrons are violet lacquer shells over the shoulders, a black-aubergine rim under their edge and a thin team
  // light across them, the head's own look carried down to the arms.
  onice(P,k,team,side,an){pauldrons(P,an,side,sigMat(k,'accent',T.DoubleSide),sigMat(k,'main',T.DoubleSide),bandLook(team),{r:.088,k:[1,.6,1.34],out:.4,th:1.08});},
@@ -458,7 +474,10 @@ const SILHOUETTES={
   P.add('hips',plate([[-.022,0],[.022,0],[.03,-.3],[0,-.34],[-.03,-.3]],.008,.002),sigMat(k,'accent',T.DoubleSide),x-side*.012,-.03,.045,[.12,0,side*.1]);
   P.add('hips',plate([[-.018,0],[.018,0],[.024,-.22],[0,-.25],[-.024,-.22]],.008,.002),sigMat(k,'dark',T.DoubleSide),x+side*.012,-.035,.05,[.16,0,side*-.06]);},
  // V46h: MASTINO's own shoulder caps, burnished steel with a lime rim and a thin team light, kept inside the outline it already had.
- mastino(P,k,team,side,an){pauldrons(P,an,side,sigMat(k,'main',T.DoubleSide),sigMat(k,'accent',T.DoubleSide),bandLook(team),{r:.074,k:[.86,.6,1.2],out:.3,dx:-.004,lift:.012,th:1.0});
+ mastino(P,k,team,side,an){// V54: heavier: a broad steel cap with a second lame under it and three pyramid studs along its crest (a mastiff's collar).
+  pauldrons(P,an,side,sigMat(k,'main',T.DoubleSide),sigMat(k,'accent',T.DoubleSide),bandLook(team),{r:.094,k:[.92,.66,1.22],out:.42,dx:.004,lift:.016,th:1.04});
+  pauldrons(P,an,side,sigMat(k,'main',T.DoubleSide),sigMat(k,'accent',T.DoubleSide),null,{r:.084,k:[.9,.62,1.16],out:.75,dx:.03,lift:-.012,th:1.0});
+  capStuds(P,an,sigMat(k,'main',T.DoubleSide),{r:.094,k:[.92,.66,1.22],out:.42,dx:.004,lift:.016},[-.62,0,.62],.02,.046);
   for(const x of [-.075,.075]){P.cyl('chest',sigMat(k,'main'),x,.07,.32,.032,.16,[-.32,0,0]);P.torus('chest',sigMat(k,'accent'),x,.146,.347,.033,.006,[Math.PI/2-.32,0,0]);
    P.cyl('chest',bandLook(team),x,.152,.349,.02,.006,[-.32,0,0]);}},
  // CORVO's half-cape: six pleated panels (alternately in and out), hem and collar line in gold, on its own anchor so it can flare.

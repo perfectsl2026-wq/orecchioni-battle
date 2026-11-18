@@ -12,3 +12,18 @@ export const emblemFor=id=>EMBLEMS.find(e=>e.id===id)||null;
 export const cleanEmblem=v=>emblemFor(v)?v:'';
 export const emblemUnlocked=(id,level)=>{const e=emblemFor(id);return !!e&&level>=e.level;};
 export function emblemSVG(id,cls='emblem'){const e=emblemFor(id);return e?'<svg class="'+cls+'" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="'+e.path+'"/></svg>':'';}
+// V53: the emblems a level change opens (none at load: the caller keeps the level it last showed).
+export const unlockedBetween=(from,to)=>Number.isFinite(from)&&Number.isFinite(to)&&to>from?EMBLEMS.filter(e=>e.level>from&&e.level<=to):[];
+// V53 unlock notice: one short card under the score, the mark drawn in, name and where to pick it. Several unlocks
+// (a big jump of XP) queue one after the other. Pure DOM and CSS, nothing runs per frame; it removes itself.
+const queue=[];let showing=false;
+export function announceEmblem(e,{calm=false,onShow=()=>{}}={}){
+ if(!e||typeof document==='undefined')return;queue.push({e,calm,onShow});if(!showing)next();
+}
+function next(){
+ const item=queue.shift();if(!item){showing=false;return;}showing=true;const {e,calm,onShow}=item;
+ const el=document.createElement('div');el.className='emblem-unlock'+(calm?' calm':'');el.setAttribute('role','status');el.setAttribute('aria-live','polite');
+ el.innerHTML='<div class="eu-mark"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="'+e.path+'"/></svg></div><div class="eu-text"><small>EMBLEMA SBLOCCATO</small><b>'+e.name+'</b><span>Livello '+String(e.level).padStart(2,'0')+' · lo scegli nel profilo, in lobby</span></div>';
+ (document.getElementById('hud')?.hidden===false?document.getElementById('hud'):document.body).append(el);onShow(e);
+ setTimeout(()=>{el.classList.add('out');setTimeout(()=>{el.remove();next();},calm?0:320);},calm?3400:3600);
+}

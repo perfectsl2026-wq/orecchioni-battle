@@ -110,7 +110,7 @@ export function createCaldera(scene,renderer){
   building:(root,p,x,z,w,d,h,base)=>block(root,p.concrete,x,(h+base)/2,z,w,h-base,d,2.8),
   facade:(x,z,width,h,angle,serial)=>{const face=stationFacade(x,z,width,h,angle,serial);decorateFacade(face,p.decal,{width,height:h,serial,ground:groundHeight,toWorld:u=>[x+Math.cos(angle)*u,z-Math.sin(angle)*u],posters:false});if(!calderaInterior(x,z)){const spot={x,z,width,height:h,angle,serial,ground:groundHeight(x,z)};facadeCondenser(sp,spot);facadeFixture(sp,spot);stationFixtures(sp,spot);}return face;},
   // Check Fable: a weathered concrete roof (it was a flat white slab from every high view) with a low parapet round it.
-  roofCap:(root,p,x,z,w,d,h)=>{if(w<5||d<5)return;box(root,p.roofSlab||=toneAlbedo(surface('v28/concrete_wall_008',0xe6e1d6,.86,.02,{amount:.1,floor:true}),{saturation:.6,gain:1.6}),x,h+.08,z,w+.06,.16,d+.06);for(const side of [-1,1]){box(root,p.trim,x,h+.3,z+side*(d/2-.08),w+.06,.36,.16);box(root,p.trim,x+side*(w/2-.08),h+.3,z,.16,.36,d-.26);}if(w>7&&d>5){box(root,p.steel,x+w*.2,h+.55,z,1.6,.9,1.1);for(let a=-.6;a<.7;a+=.2)box(root,p.dark,x+w*.2+a,h+.58,z+.56,.05,.6,.03);cyl(root,p.creamMetal,x-w*.22,h+.7,z,.35,1.2,'y',.35,14);}}
+  roofCap:(root,p,x,z,w,d,h)=>{if(w<5||d<5)return;block(root,p.roofSlab||=toneAlbedo(surface('v28/concrete_wall_008',0xe6e1d6,.86,.02,{amount:.1,floor:true}),{saturation:.6,gain:1.6}),x,h+.08,z,w+.06,.16,d+.06,3);for(const side of [-1,1]){box(root,p.trim,x,h+.3,z+side*(d/2-.08),w+.06,.36,.16);box(root,p.trim,x+side*(w/2-.08),h+.3,z,.16,.36,d-.26);}if(w>7&&d>5){box(root,p.steel,x+w*.2,h+.55,z,1.6,.9,1.1);for(let a=-.6;a<.7;a+=.2)box(root,p.dark,x+w*.2+a,h+.58,z+.56,.05,.6,.03);cyl(root,p.creamMetal,x-w*.22,h+.7,z,.35,1.2,'y',.35,14);}}
  });
  portals(root,p,map.arches,{material:p.concrete,trim:(root,p,a)=>{const g=new T.Group();g.position.set(a.x,0,a.z);if(a.axis==='x')g.rotation.y=Math.PI/2;root.add(g);const band=cosmetic(p.steel);for(const side of [-1,1])box(g,band,0,a.spring+a.rise+.25,side*(a.depth/2+.03),a.width+.2,.18,.05);}});
  desertDoors(root,p,map.movementBoxes);
@@ -124,6 +124,7 @@ export function createCaldera(scene,renderer){
  label(root,'CALDERA  /  STAZIONE 07',0,6.62,-19.94,7.2,.66,0,{background:'#b9b49e',color:'#34494b',font:90});
  for(const [text,x,y,z,yaw]of [['A  ↑',-17,2.6,-11.94,0],['A  ↑',12.06,3.6,-.5,Math.PI/2],['A  ↑',-12.06,2.5,14,-Math.PI/2],['←  A',16,2.5,-17.94,0]])label(root,text,x,y,z,1.8,.62,yaw,{background:'#345f61',color:'#e7dfcd',font:120});
  const wire=cosmetic(p.dark);cable(root,[[-22,6.6,2],[-17,5.8,2.2],[-12,6.6,2]],wire,.02);cable(root,[[12,7,10],[17,6.2,10.3],[22,6.9,10]],wire,.02);
+ calderaHalls(root,p);
  mergeStatic(root);root.userData.materials=p;root.userData.ready=Promise.all([...pending,carsReady()]);return root;
 }
 // Heliostat over A: four steel columns (shared solids) carry two truss arches and a
@@ -164,6 +165,75 @@ function backdrop(root,p,sp){
  }
  // A distant lighthouse on the western stack, and the station's radar dome to the north.
  // The lighthouse, ship, pier and wind farm.
- calderaDress(sp,MAPS.caldera,{rimAt:a=>{const {r,h}=ridge(a);return {x:Math.cos(a)*r,z:Math.sin(a)*r,y:h};}});
- const dome=new T.Mesh(new T.SphereGeometry(5.2,72,28,0,Math.PI*2,0,Math.PI/2),cream);dome.position.set(14,10.4,-52);root.add(dome);block(root,concrete,14,5.2,-52,11,10.4,11,3);
+ // V53 lifebuoys: one smooth ring in red and white quarters, drawn once and instanced along the sea rail.
+ const rings=[];calderaDress(sp,MAPS.caldera,{rimAt:a=>{const {r,h}=ridge(a);return {x:Math.cos(a)*r,z:Math.sin(a)*r,y:h};},buoy:(x,y,z,yaw)=>rings.push([x,y,z,yaw])});
+ if(rings.length){const g=new T.TorusGeometry(.27,.07,10,24),v=g.attributes.position,col=new Float32Array(v.count*3);for(let i=0;i<v.count;i++){const q=Math.floor((Math.atan2(v.getY(i),v.getX(i))+Math.PI)/(Math.PI/4)+.5)%2,c=q?[.82,.8,.76]:[.78,.1,.06];col.set(c,i*3);}g.setAttribute('color',new T.BufferAttribute(col,3));
+  const m=new T.MeshStandardMaterial({vertexColors:true,roughness:.62});m.userData.nonBallistic=true;const mesh=new T.InstancedMesh(g,m,rings.length),o=new T.Object3D();rings.forEach(([x,y,z,yaw],i)=>{o.position.set(x,y+.34,z);o.rotation.set(0,yaw,0);o.updateMatrix();mesh.setMatrixAt(i,o.matrix);});mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();mesh.castShadow=true;mesh.userData.keep=true;mesh.name='Salvagenti';root.add(mesh);}
+ const dome=new T.Mesh(new T.SphereGeometry(5.2,40,12,0,Math.PI*2,0,Math.PI/2),cream);dome.position.set(14,10.4,-52);root.add(dome);block(root,concrete,14,5.2,-52,11,10.4,11,3);
+}
+
+// V53 covered halls. The warehouse, the gallery and the tunnel were bare corrugated boxes under floating slabs; now the
+// warehouse is a working shed: a travelling crane on its rails, framed roof lanterns in the two open strips, high-bay
+// lamps with their pools of light, cable trays and conduit, bay signs and painted lanes. Everything is cosmetic for
+// shots and sits above 2.6 m, flat on the floor, or within 11 cm of a wall: cover, sightlines and movement are untouched.
+function calderaHalls(root,p){
+ const flag=m=>{m.userData.nonBallistic=true;return m;},paint=(color,roughness=.62,metalness=.15)=>flag(new T.MeshStandardMaterial({color,roughness,metalness}));
+ // One vertex-coloured paint material carries every painted part (yellow crane, black trim, floor lines, cables, galvanised trays): one draw, not eight.
+ const steel=cosmetic(p.steel),dark=cosmetic(p.dark),cream=cosmetic(p.creamMetal),kit=flag(new T.MeshStandardMaterial({vertexColors:true,roughness:.66,metalness:.18}));
+ const tone=hex=>{const m=new T.MeshStandardMaterial({color:hex});m.userData.hallTint=new T.Color(hex);return m;};
+ const galv=tone(0xaab4b3),yellow=tone(0xd9a21c),black=tone(0x1d2426),line=tone(0xd6b23a),white=tone(0xe6e4da),cableA=tone(0x23292a),cableB=tone(0xc8621f),cableC=tone(0x8f9896);
+ const glow=flag(new T.MeshStandardMaterial({color:0xfff6e2,emissive:0xffe9c2,emissiveIntensity:1.6,roughness:.6}));
+ // Soft pool of light under each lamp: one small radial texture, additive, drawn flat on the floor.
+ const N=48,data=new Uint8Array(N*N*4);for(let y=0;y<N;y++)for(let x=0;x<N;x++){const d=Math.hypot(x-N/2+.5,y-N/2+.5)/(N/2),v=Math.max(0,1-d);const a=v*v*(3-2*v);data.set([255*a,236*a,200*a,255],(y*N+x)*4);}
+ const poolMap=new T.DataTexture(data,N,N);poolMap.colorSpace=T.SRGBColorSpace;poolMap.magFilter=poolMap.minFilter=T.LinearFilter;poolMap.needsUpdate=true;
+ const pool=flag(new T.MeshBasicMaterial({map:poolMap,transparent:true,opacity:.2,blending:T.AdditiveBlending,depthWrite:false,fog:false}));
+ const lightPool=(x,y,z,r)=>{const m=new T.Mesh(new T.PlaneGeometry(r*2,r*2),pool);m.rotation.x=-Math.PI/2;m.position.set(x,y+.02,z);m.renderOrder=2;m.userData.keep=true;m.userData.cosmetic=true;root.add(m);};
+ const highBay=(x,under,z,floor)=>{cyl(root,dark,x,under-.1,z,.025,.2,'y',.025,5);cyl(root,black,x,under-.3,z,.11,.22,'y',.3,14);cyl(root,glow,x,under-.415,z,.27,.012,'y',.27,14);cyl(root,cream,x,under-.19,z,.13,.04,'y',.13,8);lightPool(x,floor,z,3.1);};
+ const bulkhead=(x,y,z,nx,nz)=>{const g=new T.Group();g.position.set(x,y,z);g.rotation.y=Math.atan2(nx,nz);root.add(g);box(g,black,0,0,.03,.3,.18,.06);box(g,glow,0,0,.075,.24,.12,.05);for(const u of [-.08,0,.08])box(g,black,u,0,.105,.012,.14,.012);box(g,black,0,0,.105,.26,.012,.012);cyl(g,steel,0,.36,.03,.014,.56,'y',.014,6);};
+ // ---- Magazzino: x -22..-12, z 4..26, slab underside 6.19 ----
+ const W=-22,E=-12,Z0=4,Z1=26,under=6.19,floor=groundHeight(-17,15);
+ // Crane rails on corbels along both long walls; the east one bridges the two openings on its own posts.
+ for(const [x,side] of [[W+.2,1],[E-.2,-1]]){box(root,steel,x,5.02,(Z0+Z1)/2,.14,.2,Z1-Z0-.3);box(root,black,x,5.14,(Z0+Z1)/2,.05,.05,Z1-Z0-.3);
+  for(let z=Z0+1.2;z<Z1;z+=3){const solid=side>0||(z>8.2&&z<19.8);if(solid){box(root,steel,x-side*.07,4.84,z,.3,.16,.26);beam(root,steel,[x+side*.08,4.78,z],[x-side*.18,4.42,z],.05,.2);}}}
+ // The bridge: twin box girders, end trucks with wheels, a trolley, hoist ropes and a hook block held well above head height.
+ const bz=13.6,cx=(W+E)/2,span=E-W-.24;
+ for(const dz of [-.3,.3]){box(root,yellow,cx,5.44,bz+dz,span,.5,.2);box(root,black,cx,5.7,bz+dz,span,.03,.24);box(root,black,cx,5.18,bz+dz,span,.03,.24);for(let u=-span/2+.6;u<span/2;u+=1.2)box(root,black,cx+u,5.44,bz+dz+Math.sign(dz)*.103,.02,.44,.006);}
+ for(const x of [W+.2,E-.2]){box(root,yellow,x,5.32,bz,.3,.3,1.5);for(const dz of [-.55,.55])cyl(root,black,x,5.2,bz+dz,.1,.12,'x',.1,10);for(const dz of [-.76,.76])box(root,black,x,5.32,bz+dz,.32,.2,.03);}
+ for(const [text,dz,yaw] of [['PORTATA  5 t',-.405,Math.PI],['PORTATA  5 t',.405,0]])label(root,text,cx+2.2,5.44,bz+dz,1.5,.26,yaw,{background:'#d9a21c',color:'#1d2426',font:120}).material.userData.nonBallistic=true;
+ const tx=cx-1.6;box(root,cream,tx,5.78,bz,.9,.16,.86);box(root,steel,tx,5.94,bz,.6,.2,.5);cyl(root,black,tx,5.6,bz,.14,.5,'x',.14,10);cyl(root,steel,tx+.36,5.9,bz,.09,.3,'z',.09,10);
+ for(const dx of [-.07,.07])cyl(root,cableA,tx+dx,4.62,bz,.008,1.72,'y',.008,5);
+ box(root,yellow,tx,3.72,bz,.3,.26,.12);box(root,black,tx,3.72,bz+.062,.3,.05,.006);box(root,black,tx,3.72,bz-.062,.3,.05,.006);cyl(root,steel,tx,3.86,bz,.07,.13,'z',.07,12);
+ const hook=new T.Mesh(new T.TorusGeometry(.085,.022,6,14,Math.PI*1.45),steel);hook.position.set(tx,3.44,bz);hook.rotation.z=Math.PI*.95;hook.castShadow=true;root.add(hook);cyl(root,steel,tx,3.56,bz,.022,.12,'y',.022,6);
+ // Festoon cable feeding the trolley, looped under a wire along the north girder.
+ for(let k=0;k<7;k++){const x0=tx+.5+k*.62;beam(root,cableA,[x0,5.88,bz+.44],[x0+.31,5.58,bz+.44],.022,.022);beam(root,cableA,[x0+.31,5.58,bz+.44],[x0+.62,5.88,bz+.44],.022,.022);}box(root,steel,cx+1.2,5.9,bz+.44,span-3.4,.015,.015);
+ // Roof lanterns: the two open strips between the slabs become framed skylights (open frames: nothing new stops a shot).
+ for(const z of [11.5,19.5]){for(const dz of [-1,1])box(root,steel,cx,6.72,z+dz,E-W,.22,.1);box(root,steel,cx,6.86,z,E-W,.05,.05);for(let x=W+.62;x<E;x+=1.25)box(root,steel,x,6.84,z,.045,.05,2);for(const x of [W+.03,E-.03])box(root,steel,x,6.72,z,.06,.22,2);}
+ // High-bay lamps under the slabs, between the crane and the roof.
+ for(const z of [7.25,15.8,23.25])for(const x of [-19.6,-14.4])highBay(x,under,z,floor);
+ // Cable trays on brackets, three cables each, with conduit drops to isolators above the head band.
+ for(const [x,side,a,b] of [[W+.17,1,Z0+.3,Z1-.3],[E-.17,-1,8.3,19.7]]){const len=b-a,mid=(a+b)/2;box(root,galv,x,4.3,mid,.26,.02,len);for(const u of [-.13,.13])box(root,galv,x+u,4.34,mid,.015,.07,len);
+  box(root,cableA,x-.06,4.335,mid,.045,.04,len-.1);box(root,cableB,x+.01,4.33,mid,.03,.03,len-.1);box(root,cableC,x+.07,4.33,mid,.03,.03,len-.1);
+  for(let z=a+.6;z<b;z+=2.4){box(root,galv,x-side*.02,4.27,z,.3,.03,.04);beam(root,galv,[x-side*.15,4.02,z],[x+side*.1,4.27,z],.025,.03);}
+  for(const z of [a+len*.3,a+len*.72]){const wx=x-side*.12;cyl(root,galv,wx,3.6,z,.016,1.4,'y',.016,6);box(root,galv,wx,2.82,z,.26,.34,.08).rotation.y=Math.PI/2;box(root,black,wx+side*.045,2.84,z,.012,.1,.06);box(root,yellow,wx+side*.045,2.72,z,.012,.05,.12);}}
+ // Bay signs above the head band and painted lanes on the floor.
+ const sign=(text,x,y,z,yaw,w=1.5)=>{label(root,text,x,y,z,w,.42,yaw,{background:'#345f61',color:'#e7dfcd',font:110}).material.userData.nonBallistic=true;};
+ [['BAIA 01',7.2],['BAIA 02',15.5],['BAIA 03',23.2]].forEach(([t,z])=>sign(t,W+.062,3.05,z,Math.PI/2));sign('MAGAZZINO 07',cx,3.05,Z1-.062,Math.PI,2.3);
+ for(const x of [W+1.25,E-1.25])box(root,line,x,floor+.007,(Z0+Z1)/2,.1,.01,Z1-Z0-1.2);
+ for(const z of [Z0+.6,Z1-.6])box(root,line,cx,floor+.007,z,E-W-2.5,.01,.1);
+ for(let x=-19.4;x<-14.5;x+=.7)box(root,line,x,floor+.007,Z0+1.55,.34,.01,1.3);
+ for(const [z,n] of [[7.2,1],[15.5,2],[23.2,3]]){for(const dz of [-2,2])box(root,white,W+.68,floor+.007,z+dz,1.1,.01,.07);box(root,white,W+1.18,floor+.0075,z,.07,.01,4);}
+ // ---- Galleria: x -6..-2, z 12..18, underside 4.39 ---- service pipes and a tray under the slab, caged lamps on the walls.
+ {const u=4.39,a=12.15,b=17.85,len=b-a,mid=(a+b)/2;
+  for(const [x,r,m] of [[-5.5,.07,galv],[-5.3,.05,cosmetic(p.copper)],[-5.12,.05,cream]]){cyl(root,m,x,u-.22,mid,r,len,'z',r,10);for(let z=a+.7;z<b;z+=1.9)cyl(root,black,x,u-.22,z,r+.012,.06,'z',r+.012,10);}
+  for(let z=a+.5;z<b;z+=1.5){box(root,galv,-5.3,u-.33,z,.6,.03,.04);for(const x of [-5.58,-5.02])cyl(root,galv,x,u-.16,z,.008,.33,'y',.008,5);}
+  box(root,galv,-2.5,u-.26,mid,.3,.02,len);for(const d of [-.15,.15])box(root,galv,-2.5+d,u-.225,mid,.015,.07,len);box(root,cableA,-2.56,u-.23,mid,.05,.04,len);box(root,cableB,-2.47,u-.235,mid,.03,.03,len);
+  for(let z=a+.5;z<b;z+=1.5)for(const d of [-.15,.15])cyl(root,galv,-2.5+d,u-.13,z,.008,.26,'y',.008,5);
+  bulkhead(-5.94,2.85,15,1,0);bulkhead(-2.06,2.85,15,-1,0);lightPool(-4,groundHeight(-4,15),15,2.4);}
+ // ---- Cunicolo: x -12..-8, z 4..8, underside 3.69 ---- two pipes along the tunnel and a lamp on each wall.
+ {const u=3.69,a=-11.9,b=-8.1,len=b-a,mid=(a+b)/2;
+  for(const [z,r,m] of [[4.3,.06,galv],[4.48,.045,cosmetic(p.copper)]]){cyl(root,m,mid,u-.2,z,r,len,'x',r,10);for(let x=a+.6;x<b;x+=1.6)cyl(root,black,x,u-.2,z,r+.012,.06,'x',r+.012,10);}
+  for(let x=a+.4;x<b;x+=1.6){box(root,galv,x,u-.3,4.39,.04,.03,.4);for(const z of [4.22,4.56])cyl(root,galv,x,u-.15,z,.008,.3,'y',.008,5);}
+  bulkhead(-10,2.8,4.06,0,1);bulkhead(-10,2.8,7.94,0,-1);lightPool(-10,groundHeight(-10,6),6,2);}
+ // Fold the toned parts into the single paint material: colour moves to the vertices.
+ root.traverse(m=>{const c=m.isMesh&&m.material.userData.hallTint;if(!c)return;const g=m.geometry.clone(),col=new Float32Array(g.attributes.position.count*3);for(let i=0;i<col.length;i+=3)col.set([c.r,c.g,c.b],i);g.setAttribute('color',new T.BufferAttribute(col,3));m.geometry=g;m.material=kit;});
 }

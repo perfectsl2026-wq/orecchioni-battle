@@ -47,8 +47,8 @@ export const LOOKS={
  // OB-130 CINGHIALE (V45 redesign: wedge slide, gold tusks): molten amber, one slow heavy swell down the slide's chamfers and
  // windows, the fang inlay and the underlug's vents; gold leaf on the tusks and the hammer.
  cinghiale:{cls:0,mask:'./assets/models/v42/cinghiale-fx.webp',sdf:1,line:[1,.65,0],lineHi:[1,.88,.5],flow:[1.1,.22,.06,.45],idle:[.24,.05,1.1,6],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.4,.03,.14,6],wave:[1.7,.55,.45,.25],waveSpeed:1,gap:.35,dash:[0,1,0,0],world:[.045,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cinghiale_(?!wood)/,[1,1,0,0]]]},
- // OB-230 CICALA: acid green in thin unbroken lines (V52): the wing pocket's outline and its hairline veins, the charging slot,
- // the seam, a ring inside each collar of the shroud. Check Fable: a quieter idle and a softer highlight.
+ // OB-230 CICALA: acid green in thin unbroken lines (V52): the wing pocket's outline (V53: no veins, the pocket's floor is
+ // ribbed in the model), the charging slot, the seam, a ring inside each collar of the shroud. Check Fable: a quieter idle and a softer highlight.
  cicala:{cls:1,mask:'./assets/models/v42/cicala-fx.webp',sdf:1,line:[.05,1,0],lineHi:[.55,.9,.45],flow:[2.8,.7,.025,.14],idle:[.13,.05,2.2,10],inlay:[.8,.5,.9,.8],glyph:[.3,.12,2.2,30],head:[1.5,.025,.12,7],wave:[1.5,.45,.45,.25],waveSpeed:1.7,gap:.4,dash:[0,1,0,0],world:[.042,.13,1,0],wear:[.5,.2,.2,0],parts:[[/^cicala_/,[1,1,0,0]]]},
  // V42 b4b. OB-330 SCURE: ruby red, a heavy pulse along thin lines (V52): the axe-head pocket's outline on the upper, the rail's foot,
  // the handguard's relief groove and the optic's rear frame.

@@ -251,11 +251,30 @@ function caldera(){
   s.plume=[x,84,z];}
  const mesh=s.mesh('CALDERA / orizzonte');mesh.add(plume(s.plume,s.haze));return mesh;
 }
+// V53 phone sea: the same water as the PC one at a fraction of the cost. Three noise taps per pixel (the PC sea takes about
+// twenty): two crossing swells bent by one slow drifting noise, the same deep-to-shallow colour and the same fade into the
+// horizon haze, no near chop. With "reduce motion" the water holds still.
+function seaSurfaceLite(material){
+ const previous=material.onBeforeCompile,key=material.customProgramCacheKey?.()||'',haze=C(...SKIES.caldera.horizon).multiplyScalar(.97);
+ const still=typeof matchMedia!=='undefined'&&matchMedia('(prefers-reduced-motion: reduce)').matches,clock=still?{value:7}:streetClock;
+ material.onBeforeCompile=function(shader,renderer){previous?.call(this,shader,renderer);shader.uniforms.uSeaClock=clock;shader.uniforms.uSeaHaze={value:haze};
+  shader.vertexShader='varying vec3 vSeaW;\n'+shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvSeaW=(modelMatrix*vec4(transformed,1.)).xyz;');
+  shader.fragmentShader='uniform float uSeaClock;uniform vec3 uSeaHaze;varying vec3 vSeaW;\n'+DETAIL+shader.fragmentShader.replace('#include <map_fragment>',`#include <map_fragment>
+float seaD=length(vViewPosition),seaFar=smoothstep(140.,330.,seaD);
+{float shore=1.-smoothstep(34.,95.,length(vSeaW.xz));diffuseColor.rgb=mix(vec3(.004,.026,.05),vec3(.012,.085,.095),shore*.8+.1);}`).replace('#include <normal_fragment_maps>',`#include <normal_fragment_maps>
+{vec2 p=vSeaW.xz;float t=uSeaClock;float n1=hzNoise(p*.21+vec2(t*.2,t*.09)),n2=hzNoise(p*.21+vec2(.9,.0)+vec2(t*.2,t*.09)),n3=hzNoise(p*.21+vec2(.0,.9)+vec2(t*.2,t*.09));
+ vec2 w=p+n1*4.;float a=dot(w,vec2(.34,.21))+t*.8,b=dot(w,vec2(-.17,.47))+t*1.05,c=dot(p,vec2(1.3,-.9))+n1*5.-t*1.6;
+ vec2 g=vec2(.34,.21)*cos(a)*.5+vec2(-.17,.47)*cos(b)*.32+vec2(n2-n1,n3-n1)*.75+vec2(1.3,-.9)*cos(c)*.035*(1.-smoothstep(10.,60.,seaD));
+ float fade=1.-smoothstep(60.,300.,seaD)*.8;vec3 wn=normalize(vec3(-g.x*.5*fade,1.,-g.y*.5*fade));normal=normalize((viewMatrix*vec4(wn,0.)).xyz);
+ float crest=smoothstep(.3,.9,sin(a)*.5+sin(b)*.32+n1*.6);diffuseColor.rgb+=vec3(.012,.035,.04)*crest*(1.-seaFar);}`).replace('#include <tonemapping_fragment>',`gl_FragColor.rgb=mix(gl_FragColor.rgb,uSeaHaze*(.92+.1*dot(gl_FragColor.rgb,vec3(.333))),seaFar*seaFar*(3.-2.*seaFar)*.97);
+#include <tonemapping_fragment>`);};
+ material.fog=false;material.customProgramCacheKey=()=>key+'-sea53lite';return material;
+}
 // V52 sea surface: a long swell under wind chop made of drifting noise (no regular stripes), its normal drawn per pixel so the
 // sky and the sun break into glints; deep blue offshore, greener over the shallows by the quay, crests catching light,
 // and the far water dissolving into the horizon haze so sea and sky meet without a line.
 export function seaSurface(material){
- if(lite)return material;const previous=material.onBeforeCompile,key=material.customProgramCacheKey?.()||'',haze=C(...SKIES.caldera.horizon).multiplyScalar(.97);
+ if(lite)return seaSurfaceLite(material);const previous=material.onBeforeCompile,key=material.customProgramCacheKey?.()||'',haze=C(...SKIES.caldera.horizon).multiplyScalar(.97);
  material.onBeforeCompile=function(shader,renderer){previous?.call(this,shader,renderer);shader.uniforms.uSeaClock=streetClock;shader.uniforms.uSeaHaze={value:haze};
   shader.vertexShader='varying vec3 vSeaW;\n'+shader.vertexShader.replace('#include <worldpos_vertex>','#include <worldpos_vertex>\nvSeaW=(modelMatrix*vec4(transformed,1.)).xyz;');
   shader.fragmentShader='uniform float uSeaClock;uniform vec3 uSeaHaze;varying vec3 vSeaW;\n'+DETAIL+`

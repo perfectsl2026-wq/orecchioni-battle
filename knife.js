@@ -41,3 +41,34 @@ export function createKnife(){
  for(const y of [-.074,-.022]){const screw=add(new THREE.CylinderGeometry(.003,.003,.0205,6),bolt,0,y,0);screw.rotation.x=Math.PI/2;}
  root.name='K-07 / Utility Knife';root.userData={worldScale:1,trigger:new THREE.Vector3(),support:null,knife:true};return root;
 }
+// V53 strike: where the knife is, through the whole swing, in camera space (x right, y up, z toward the eye, metres;
+// pitch, yaw, roll in radians, about the grip). `strike` runs 0 to 1 over the swing (0.30 s light, 0.42 s heavy);
+// the hit itself is decided by the rules when the button is pressed, this is only what the hand shows.
+// Light, a cut: the blade is cocked back to the right, comes across in one arc with the edge leading and the wrist
+// turning it flat, carries on past the target (follow-through, down and left) and comes back underneath, not along the
+// same line. Heavy, a thrust: drawn back to the hip and coiled, driven in point first, held in with a turn of the
+// wrist, then pulled out. Keys on Catmull-Rom tangents, so the hand never stops dead between them.
+const CUT=[
+ [0,     0,0,0,             0,0,0],
+ [.16,   .065,.035,.03,     .1,-.3,.45],
+ [.33,   -.07,.005,-.12,    -.2,.25,-.6],
+ [.46,   -.2,-.065,-.075,   -.35,.52,-1.02],
+ [.60,   -.235,-.09,-.03,   -.3,.58,-1.1],
+ [.80,   -.1,-.065,.012,    -.08,.2,-.4],
+ [1,     0,0,0,             0,0,0]],
+THRUST=[
+ [0,     0,0,0,             0,0,0],
+ [.26,   -.012,-.045,.095,  .17,0,.2],
+ [.34,   -.016,-.04,.09,    .15,.02,.16],
+ [.47,   -.088,.048,-.235,  -.28,.14,-.34],
+ [.60,   -.094,.044,-.245,  -.26,.15,-.62],
+ [.80,   -.04,.004,-.06,    -.08,.05,-.2],
+ [1,     0,0,0,             0,0,0]];
+const STRIKE_KEYS=['x','y','z','pitch','yaw','roll'];
+for(const k of [CUT,THRUST])k.slope=k.map((f,i)=>f.slice(1).map((v,c)=>i===0||i===k.length-1?0:(k[i+1][c+1]-k[i-1][c+1])/(k[i+1][0]-k[i-1][0])));
+export function knifeStrike(strike,heavy,out={}){
+ const k=heavy?THRUST:CUT,t=Math.max(0,Math.min(1,strike));let n=1;while(n<k.length-1&&k[n][0]<t)n++;
+ const a=k[n-1],b=k[n],h=b[0]-a[0],u=(t-a[0])/h,u2=u*u,u3=u2*u,h00=2*u3-3*u2+1,h10=u3-2*u2+u,h01=-2*u3+3*u2,h11=u3-u2;
+ for(let c=0;c<6;c++)out[STRIKE_KEYS[c]]=h00*a[c+1]+h10*h*k.slope[n-1][c]+h01*b[c+1]+h11*h*k.slope[n][c];
+ return out;
+}

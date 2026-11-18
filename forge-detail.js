@@ -11,7 +11,7 @@ export function forgeDetailMaterials(p){
  Object.assign(p,{heat:flagged(new T.MeshStandardMaterial({color:0x1a0a04,emissive:0xff4a10,emissiveIntensity:1.5,roughness:.6})),
   reliefConcrete:cosmetic(p.concrete),reliefSteel:cosmetic(p.steel),reliefDark:cosmetic(p.dark),reliefCopper:cosmetic(p.copper),reliefWhite:cosmetic(p.white),
   bridge:paint(0xa7b6b9,.5,.3),joint:paint(0x5a6062,.95),grate:paint(0x667477,.55,.4),accentN:paint(0x2f6fb5,.62),accentS:paint(0xd9701f,.62),
-  plantBody:new T.MeshStandardMaterial({color:0x6f7f81,roughness:.62,metalness:.3}),plantDark:new T.MeshStandardMaterial({color:0x2c3a3f,roughness:.7,metalness:.25})});
+  plantBody:new T.MeshStandardMaterial({color:0x76868a,roughness:.74,metalness:.1}),plantDark:new T.MeshStandardMaterial({color:0x2c3a3f,roughness:.7,metalness:.25})});
 }
 function strut(root,material,a,b,width){const s=new T.Vector3(...a),e=new T.Vector3(...b),m=box(root,material,0,0,0,width,s.distanceTo(e),width);m.position.copy(s).add(e).multiplyScalar(.5);m.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),e.sub(s).normalize());return m;}
 // The central generator: recessed grilles over a glowing core, on the existing collision box.
@@ -115,4 +115,49 @@ export function spillway(root,bays){
  const pos=[],uv=[],idx=[];bays.forEach(([x0,z0,width,top,yaw],i)=>{const cx=Math.cos(yaw),sx=Math.sin(yaw);for(const [a,b] of [[-1,1],[1,1],[-1,0],[1,0]]){pos.push(x0+a*width/2*cx,top*b,z0-a*width/2*sx);uv.push((a+1)/2,b);}idx.push(i*4,i*4+2,i*4+1,i*4+1,i*4+2,i*4+3);});
  const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));g.setIndex(idx);g.computeVertexNormals();
  const mesh=new T.Mesh(g,m);mesh.userData.keep=true;mesh.onBeforeRender=()=>{t.offset.y=performance.now()/1000*.42%1;};root.add(mesh);return mesh;
+}
+
+// V53 plant fit-out. The long walls carried only a corrugated band under bare concrete; now a pipe rack runs along them
+// above head height (insulated main, copper return, a small air line, flanges, colour bands, a handwheel gate, brackets), the bays
+// are numbered in stencil paint, every machine stands inside a painted safety line, the turbine halls get access hatches
+// and conduit, and the cabinets get louvred doors on their blank ends. Nothing here crosses a sightline below 2.4 m by
+// more than 5 cm, and all of it is flagged cosmetic.
+export function forgeInterior(root,p,walls){
+ const paint=(color,r=.8,m=0)=>flagged(new T.MeshStandardMaterial({color,roughness:r,metalness:m})),lag=p.lagging||=paint(0xd9dcd4,.7,.05),safety=p.safetyLine||=paint(0xd2a437,.85),galv=p.galv||=paint(0xa3adac,.45,.65);
+ const LADDER={'-1':11,'1':-7};
+ for(const side of SIDES){
+  const px=side*(17.5-.5),runs=[];let z0=-19.2;const gap=LADDER[side];runs.push([z0,gap-1.15],[gap+1.15,19.2]);
+  for(const [a,b] of runs){const len=b-a,mid=(a+b)/2;
+   cyl(root,lag,px,3.45,mid,.12,len,'z',.12,10);cyl(root,p.reliefCopper,px,3.86,mid,.07,len,'z',.07,8);cyl(root,p.reliefDark,px+side*.14,4.08,mid,.035,len,'z',.035,6);
+   // Elbows into the wall where the run stops for the ladder.
+   for(const e of [a,b])if(Math.abs(e)<19){cyl(root,lag,px+side*.25,3.45,e,.12,.5,'x',.12,10);cyl(root,p.reliefCopper,px+side*.25,3.86,e,.07,.5,'x',.07,8);cyl(root,p.reliefSteel,px+side*.47,3.45,e,.17,.05,'x',.17,10);}
+   for(let z=a+1.4;z<b-.4;z+=5.8){cyl(root,p.reliefSteel,px,3.45,z,.165,.07,'z',.165,10);cyl(root,side<0?p.accentN:p.accentS,px,3.45,z+.5,.124,.2,'z',.124,10);cyl(root,p.reliefSteel,px,3.86,z+2.4,.1,.05,'z',.1,8);}
+   for(let z=a+.5;z<b;z+=2.9){box(root,galv,side*(17.5-.3),3.27,z,.62,.05,.07);box(root,galv,px+side*.02,3.72,z,.04,.86,.04);strut(root,galv,[side*17.48,2.95,z],[side*(17.5-.5),3.25,z],.04);box(root,galv,px,4.16,z,.4,.03,.05);}
+  }
+  // One isolating gate with its handwheel on the main.
+  const vz=side*4.2;cyl(root,p.reliefSteel,px,3.45,vz,.17,.3,'z',.17,10);cyl(root,p.reliefSteel,px,3.72,vz,.03,.36,'y',.03,6);const wheel=new T.Mesh(new T.TorusGeometry(.17,.02,6,18),side<0?p.accentN:p.accentS);wheel.rotation.x=Math.PI/2;wheel.position.set(px,3.9,vz);wheel.castShadow=true;root.add(wheel);box(root,p.reliefSteel,px,3.9,vz,.32,.02,.03);
+  // Stencilled bay numbers on the concrete above the pipes.
+  [-8.7,0,8.7].forEach((z,i)=>stencil(root,String(side<0?i+1:i+4),side*(17.5-.012),5.7,z,side<0?Math.PI/2:-Math.PI/2));
+ }
+ // Painted safety line round every machine on the floor.
+ for(const [x,z,w,d,h,kind] of walls){if(!(kind>=1&&kind<=3))continue;const m=.38,t=.07;
+  for(const s of SIDES){box(root,safety,x,.0085,z+s*(d/2+m),w+2*m+t,.006,t);box(root,safety,x+s*(w/2+m),.0085,z,t,.006,d+2*m-t);}
+  if(kind===2&&w>d*2)for(const s of SIDES)cabinetDoor(root,p,x+s*w/2,z,d,h,s);}
+ // Turbine halls: access hatches at the foot of the long faces, a conduit with junction boxes above head height.
+ for(const [hx,hz] of [[-12,-12],[12,-12],[-12,12],[12,12]])for(const s of SIDES){const fx=hx+s*3;
+  for(const u of [-2.7,2.7]){box(root,p.reliefSteel,fx+s*.014,1.02,hz+u,.028,.72,.98);box(root,p.reliefDark,fx+s*.03,1.02,hz+u,.012,.6,.86);for(const a of SIDES)for(const b of SIDES)cyl(root,galv,fx+s*.04,1.02+a*.3,hz+u+b*.42,.014,.012,'x',.014,6);box(root,galv,fx+s*.042,1.02,hz+u+.3,.012,.1,.03);}
+  cyl(root,galv,fx+s*.06,2.86,hz,.022,8.6,'z',.022,6);for(const u of [-2.85,0,2.85]){box(root,galv,fx+s*.05,2.86,hz+u,.08,.16,.2);cyl(root,galv,fx+s*.06,3.3,hz+u,.016,.72,'y',.016,6);}}
+}
+function cabinetDoor(root,p,fx,z,d,h,s){
+ const w=Math.min(.86,d-.3);box(root,p.reliefDark,fx+s*.012,h*.5,z,.024,h-.36,w+.08);box(root,p.plantBody,fx+s*.026,h*.5,z,.016,h-.44,w);
+ for(let y=h*.5+.1;y<h-.34;y+=.075)box(root,p.reliefDark,fx+s*.037,y,z,.012,.03,w-.16);
+ box(root,p.reliefSteel,fx+s*.04,h*.42,z+w/2-.09,.02,.16,.03);box(root,p.safetyLine,fx+s*.036,h*.3,z,.006,.14,.2);
+}
+// Stencil paint: dark numerals on a transparent ground, a little worn. Transparent, so it never casts a shadow.
+function stencil(root,text,x,y,z,yaw){
+ const c=document.createElement('canvas');c.width=256;c.height=256;const ctx=c.getContext?.('2d');
+ if(ctx){ctx.fillStyle='rgba(38,58,64,.82)';ctx.font='900 220px Arial';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(text,128,120,230);ctx.fillRect(48,226,160,12);}
+ const t=new T.CanvasTexture(c);t.colorSpace=T.SRGBColorSpace;t.anisotropy=4;
+ const m=flagged(new T.MeshStandardMaterial({map:t,transparent:true,alphaTest:.05,depthWrite:false,roughness:1,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+ const mesh=new T.Mesh(new T.PlaneGeometry(1.5,1.5),m);mesh.position.set(x,y,z);mesh.rotation.y=yaw;mesh.castShadow=false;mesh.receiveShadow=true;mesh.userData.keep=true;root.add(mesh);return mesh;
 }

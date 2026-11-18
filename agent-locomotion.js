@@ -49,3 +49,35 @@ export function footPlants(state,{x,z,y=0,groundY=0,yaw=0,speed=0,life=0,sole=.1
  });
  state.wasMoving=moving;return result;
 }
+// V53 run posture: what the trunk, the shoulders and the weapon do on top of the step, so a runner is not a rigid bust
+// carried by its legs. Bones only (assets.js animateAgent adds these to its own frames): aim, shots, hit zones, eye
+// height and speed never read it. Angles in radians, lengths in metres, all eased so nothing starts or stops dead.
+//  twist    the shoulders counter the hips on every stride (the side of the swinging leg goes back)
+//  roll     the shoulder over the planted foot dips; `bank` (part of roll) leans the body into a curve
+//  pitch    forward lean: more at a run, a surge forward as it starts, thrown back as it brakes, a nod on each footfall
+//  hipYaw/hipRoll   more pelvis at a run
+//  gun*     the weapon rides the stride at a run: it swings a little with the shoulders, cants, and is carried a few
+//           degrees low; `busy` (firing, reloading, throwing: 0-1) takes all of that out, so a shooter's weapon stays on aim
+//  handX/handY      the grip follows it (carried a little lower, bobbing at twice the step)
+// `stepS` is the sine of the stride (positive while the left foot is planted), `stepB` its 0-1 bounce at twice the pace.
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+export function runPosture(state,{yaw=0,vx=0,vz=0,speed=0,stepS=0,stepB=0,weapon=3,busy=0,duck=0,life=0},dt=0){
+ const out=state.out??={twist:0,roll:0,bank:0,pitch:0,hipYaw:0,hipRoll:0,gunYaw:0,gunRoll:0,gunPitch:0,handX:0,handY:0};
+ const forward=-(vx*Math.sin(yaw)+vz*Math.cos(yaw));
+ if(state.life!==life||state.yaw===undefined||!(dt>1e-4)){Object.assign(state,{life,yaw,forward,run:0,turn:0,surge:0,free:1});if(!(dt>1e-4))return out;}
+ // How much of a run this is (a walk and a crouch keep the compact posture), how free the weapon is to ride it.
+ state.run+=(clamp((speed-1.7)/2.5,0,1)*(1-.65*clamp(duck,0,1))-state.run)*(1-Math.exp(-7*dt));
+ {const goal=1-clamp(busy,0,1);state.free+=(goal-state.free)*(1-Math.exp(-(goal<state.free?24:4)*dt));}
+ // Turn rate (rad/s) and forward acceleration (m/s2), low-passed: the lean builds over about a fifth of a second.
+ const turned=Math.atan2(Math.sin(yaw-state.yaw),Math.cos(yaw-state.yaw));state.yaw=yaw;
+ state.turn+=(clamp(turned/dt,-5,5)-state.turn)*(1-Math.exp(-6*dt));
+ state.surge+=(clamp((forward-state.forward)/dt,-22,22)-state.surge)*(1-Math.exp(-7*dt));state.forward=forward;
+ // A weapon standing still shows the true aim at once: its share follows the speed itself, not the eased run weight.
+ const r=state.run,long=weapon===5?.35:weapon===0?.6:1,free=state.free*long*clamp(speed/2.2,0,1),bank=clamp(-state.turn*Math.min(speed,5.5)*.0105,-.14,.14);
+ out.bank=bank;out.twist=-stepS*.2*r;out.roll=stepS*.055*r+bank;
+ out.pitch=.07*r+clamp(state.surge*.0075,-.11,.1)+(stepB-.5)*.05*r;
+ out.hipYaw=stepS*.07*r;out.hipRoll=stepS*.025*r;
+ out.gunYaw=stepS*.09*r*free;out.gunRoll=stepS*.09*r*free-bank*.6;out.gunPitch=(.12+(stepB-.5)*.06)*r*free;
+ out.handX=stepS*.022*r*free;out.handY=(-.04+(stepB-.5)*.03)*r*free;
+ return out;
+}
